@@ -1,6 +1,9 @@
 /** Datos del taller. Única fuente de verdad para direcciones, contacto y enlaces. */
 export const SITE = {
   name: "Vector Bikes",
+  url: "https://vectorbikes.cl",
+  logoPath: "/brand/vector-bikes-logo.png",
+  certifications: [] as const as readonly string[],
   streetAddress: "Avenida Kennedy 7666",
   addressShort: "Av. Kennedy 7666, Vitacura",
   locality: "Vitacura",

@@ -1,4 +1,6 @@
 ---
+import { SITE } from "../../lib/site.ts";
+
 type ReportPhoto = { photoId: string; thumbKey: string };
 interface ReportSnapshot {
   version: 1;
@@ -103,6 +105,10 @@ const photoGroups = [
     </li>)}</ul> : <p>Sin trabajos rechazados.</p>}
   </section>
   <section><h2>Total</h2><p class="tabular-nums">{total}</p></section>
+  <section aria-label="Contacto del taller">
+    <p>{SITE.name} · {SITE.addressShort} · {SITE.email} · {SITE.phoneDisplay}</p>
+    {SITE.certifications.length > 0 && <p>Certificaciones: {SITE.certifications.join(" · ")}</p>}
+  </section>
 </article>
 
 <style>

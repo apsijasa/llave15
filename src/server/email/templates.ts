@@ -141,6 +141,9 @@ function renderHtml(content: EmailContent): string {
     content.notes.map(paragraph).join(""),
     link,
     `<p style="margin:24px 0 0;font-size:13px;color:#5A5E63">${escapeHtml(`${SITE.name} · ${SITE.addressShort} · ${SITE.email}`)}</p>`,
+    SITE.certifications.length > 0
+      ? paragraph(`Certificaciones: ${SITE.certifications.join(" · ")}`)
+      : "",
     "</div></body></html>",
   ].join("");
 }

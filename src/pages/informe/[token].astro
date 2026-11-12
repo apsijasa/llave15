@@ -2,6 +2,7 @@
 import ReportView from "../../components/taller/ReportView.astro";
 import Base from "../../layouts/Base.astro";
 import { log } from "../../lib/log.ts";
+import { SITE } from "../../lib/site.ts";
 import { clientIp } from "../../server/api/client-ip.ts";
 import { checkRateLimit, originForLog, recordAttempt } from "../../server/api/handlers.ts";
 import { getDb } from "../../server/db/client.ts";
@@ -49,6 +50,7 @@ if (Astro.request.method === "GET") {
     <div class="wrap">
       {report ? (
         <>
+          <p class="report-brand"><img src={SITE.logoPath} alt={SITE.name} width="160" /></p>
           <div class="sec-head"><h1>Informe de servicio</h1></div>
           <ReportView snapshot={report.snapshot} photos={report.photos} />
         </>
@@ -56,3 +58,11 @@ if (Astro.request.method === "GET") {
     </div>
   </section>
 </Base>
+
+<style>
+  .report-brand img {
+    display: block;
+    max-width: 160px;
+    height: auto;
+  }
+</style>

@@ -182,6 +182,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
       <p style="margin-top:12px">
         <a href={`tel:${SITE.phone}`}>{SITE.phoneDisplay}</a>
       </p>
+      {SITE.certifications.length > 0 && <p style="margin-top:12px">Certificaciones: {SITE.certifications.join(" · ")}</p>}
     </div>
     <div>
       <span class="label">Horario de recepción</span>
