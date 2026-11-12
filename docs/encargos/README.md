@@ -14,7 +14,7 @@ Reparto (`docs/BITACORA.md` §2): Claude escribe el encargo y revisa lo que vuel
 - Nada se borra: `voided_at`. Tokens solo como hash. Sin PII en logs.
 - Archivos < 400 líneas, funciones < 50. Ninguna isla nueva en `/taller`. Ningún hex nuevo.
 - Páginas públicas por token: el token es la credencial, sin chequeo de `Origin`, rate limit, `no-store`, `noindex`, `no-referrer`, solo primer nombre.
-- Cierre: `pnpm format && pnpm gate` en verde, sin push, resumen archivo por archivo.
+- Cierre de Codex: `pnpm format && pnpm check && pnpm test && pnpm build` en verde, sin commits ni push, resumen archivo por archivo. El sandbox de Codex no tiene red, ni siquiera a `127.0.0.1`: **no corre** `pnpm db:migrate`, `pnpm db:check`, `pnpm test:tablet`, `pnpm smoke` ni `pnpm gate`. Esos los corre Claude al revisar, junto con el commit. Si Codex necesita una migración aplicada, la genera con `pnpm db:generate` y lo anota en el reporte.
 
 ## Plantilla
 
@@ -35,7 +35,7 @@ Reparto (`docs/BITACORA.md` §2): Claude escribe el encargo y revisa lo que vuel
 
 - [ ] `git diff --stat` toca solo los archivos listados, más `drizzle/NNNN_*.sql` y `drizzle/meta/` generados si hubo esquema (generados, no editados).
 - [ ] Las pruebas nuevas existen en los archivos nombrados; `git diff -- tests/ e2e/` solo agrega archivos, nunca modifica existentes.
-- [ ] `pnpm gate` en verde en el último commit; `pnpm db:check` ok si hubo esquema.
+- [ ] Claude corre `pnpm db:migrate` y `pnpm db:check` (base dev) si hubo esquema, y `pnpm format && pnpm gate` en verde antes de commitear.
 - [ ] Ningún archivo > 400 líneas; ninguna isla nueva en `/taller`; ningún hex nuevo; `requireAdmin → can → zod → src/server/taller/**` en páginas nuevas; correos post-commit; sin `new Date()` en `src/server/**`; sin PII en logs.
 - [ ] Tokens solo como hash; páginas públicas con `no-store`, `noindex`, `no-referrer`, rate limit y solo primer nombre.
 - [ ] Decisión NN registrada en §20.3 con el texto acordado; README actualizado; `.env.example` sin cambios salvo variable autorizada.

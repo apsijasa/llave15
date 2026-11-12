@@ -14,7 +14,7 @@ Regístralo como **decisión 49** en `blueprints/vector-taller-f1/blueprint.md` 
 
 ## Rama y reparto
 
-Rama `feat/etapa-a`, ya creada desde `origin/main` (`a8ddd3f`). Trabaja sobre ella, sin crear otra. Pruebas primero, en rojo; después el código; `pnpm format && pnpm gate` en verde; sin push. Escribe primero y verifica una vez al final. Dos commits: `feat: add the public order tracking link` (esquema, servidor, página pública, detalle, pruebas) y `docs: record the tracking link as decision 49` (blueprint, README, reglas).
+Rama `feat/etapa-a`, ya creada desde `origin/main` (`a8ddd3f`). Trabaja sobre ella, sin crear otra. Pruebas primero, en rojo; después el código; `pnpm format && pnpm check && pnpm test && pnpm build` en verde; sin commits ni push. Escribe primero y verifica una vez al final. Claude aplica la migración, corre `pnpm gate` completo y hace los dos commits: `feat: add the public order tracking link` (esquema, servidor, página pública, detalle, pruebas) y `docs: record the tracking link as decision 49` (blueprint, README, reglas).
 
 ## Reglas de negocio decididas
 
@@ -51,7 +51,7 @@ export const orderTrackingTokens = pgTable(
 );
 ```
 
-Agregar a `reportTables`. Luego `pnpm db:generate` (debe crear `drizzle/0025_*.sql` con solo esta tabla), `pnpm db:migrate` y `pnpm db:check`, los tres contra la base dev. `drizzle/` no se edita a mano.
+Agregar a `reportTables`. Luego `pnpm db:generate` (debe crear `drizzle/0025_*.sql` con solo esta tabla). `pnpm db:migrate` y `pnpm db:check` los corre Claude contra la base dev (el sandbox de Codex no llega a Postgres). `drizzle/` no se edita a mano.
 
 ## Qué hacer
 
@@ -129,14 +129,14 @@ Ninguna prueba existente se modifica. Si una falla (por ejemplo `foundation.test
 
 ## Verificación
 
-1. `pnpm format && pnpm gate` → exit 0.
-2. `pnpm db:check` → exit 0 (la tabla nueva aparece).
-3. Con `pnpm dev`: entrar como dueño, abrir una orden, copiar el enlace de seguimiento y abrirlo en una ventana privada: 200 con el estado; cambiar una letra del token: 404.
+1. Codex: `pnpm format && pnpm check && pnpm test && pnpm build` → exit 0.
+2. Claude: `pnpm db:migrate`, `pnpm db:check` → exit 0 (la tabla nueva aparece); `pnpm gate` → exit 0.
+3. Claude, con el build: entrar como dueño, abrir una orden, copiar el enlace de seguimiento y abrirlo en una ventana privada: 200 con el estado; cambiar una letra del token: 404.
 
 ## Reporte
 
 Al terminar, en el resumen final:
-- Hash de cada commit y la salida completa del último `pnpm gate`.
+- La cola de la salida de `pnpm check`, `pnpm test` y `pnpm build`.
 - Nombre del archivo de migración generado.
 - Lista archivo por archivo de lo creado y lo modificado, con el número de líneas final de `src/pages/taller/ordenes/[id]/index.astro` y de `tracking.ts`.
 - Cualquier prueba existente que haya fallado y por qué, sin modificarla.

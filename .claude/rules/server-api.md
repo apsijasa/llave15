@@ -9,6 +9,7 @@ paths:
   - "src/pages/taller/**"
   - "src/pages/aprobacion/**"
   - "src/pages/informe/**"
+  - "src/pages/seguimiento/**"
   - "src/server/taller/**"
   - "src/server/storage/**"
 ---
@@ -21,7 +22,7 @@ paths:
 - Orden en `POST /api/reservas`: rate limit → zod → Turnstile → transacción → correos post-commit (un fallo de correo nunca cambia el 201).
 - Todo POST de admin y de `/taller` (login, logout, formularios, subida de fotos) llama `isAllowedOrigin(request)` antes de leer el cuerpo: ahí protege una sesión con cookie.
 - El POST de `/reservas/cancelar` **no** chequea `Origin`: el token del correo es la defensa contra CSRF (no es adivinable, vive como HMAC en base, deja de servir al empezar la reserva y al usarse). Exigir `Origin` rompía la cancelación desde visores de correo, que mandan otro origen o ninguno. Registra el origen recibido con `originForLog(request)` para tener visibilidad, nunca para decidir.
-- `/aprobacion/[token]` e `/informe/[token]` siguen la misma regla que la cancelación: el token es la defensa, sin chequeo de `Origin`, con `originForLog`. Tokens de 32 bytes base64url guardados como sha256 hex; solo el primer nombre del cliente; nunca teléfono, correo ni RUT.
+- `/aprobacion/[token]`, `/informe/[token]` y `/seguimiento/[token]` siguen la misma regla que la cancelación: el token es la defensa, sin chequeo de `Origin`, con `originForLog`. Tokens de 32 bytes base64url guardados como sha256 hex; solo el primer nombre del cliente; nunca teléfono, correo ni RUT.
 - Toda página de `/admin` y `/taller` empieza con `requireAdmin(...)`; si devuelve `null`, 303 a `loginRedirect(ruta)` (`/admin/login?next=…`). Después `can(user.role, acción)`; sin permiso, `forbiddenResponse()` (403). El mecánico recibe 403 en `/admin/**`. Nunca confiar solo en middleware.
 - El permiso se revisa en el servidor en cada handler, también en los POST. El mecánico que intenta cambiar un precio recibe 403 y no cambia ninguna fila.
 - `/api/tareas/*`: `Authorization: Bearer <TASKS_SECRET>` comparado en tiempo constante con `isAuthorizedTask` de `src/server/api/task-handlers.ts`. Sin cabecera, con un valor distinto o sin secreto configurado: 401 `{"ok":false,"error":"unauthorized"}` y log `tasks.unauthorized` sin IP ni datos personales.
