@@ -1,14 +1,27 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, gt, gte, isNotNull, isNull, lte, notExists } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { DateTime } from "luxon";
 import { z } from "zod";
+import { getSiteEnv } from "../../lib/env.ts";
+import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
 import { TIMEZONE } from "../booking/rules.ts";
-import { localToday } from "../booking/slots.ts";
+import { addDays, localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
+import { workOrders } from "../db/schema-orders.ts";
 import { serviceReports } from "../db/schema-reports.ts";
+import { bikes, customers } from "../db/schema-taller.ts";
+import { maintenanceReminderEmail } from "../email/order-templates.ts";
+import { createTransport } from "../email/transport.ts";
+import type { EmailTransport } from "../email/transport.ts";
 import { recordAudit } from "./audit.ts";
-import { MAINTENANCE_INTERVAL_MONTHS } from "./rules.ts";
+import { formatOrderNumber } from "./orders.ts";
+import {
+  MAINTENANCE_INTERVAL_MONTHS,
+  MAINTENANCE_REMINDER_DAYS_BEFORE,
+  MAINTENANCE_REMINDER_GRACE_DAYS,
+} from "./rules.ts";
 import { hashShareToken, shareTokenSchema } from "./share-tokens.ts";
 
 export const maintenancePlanSchema = z.object({
@@ -133,4 +146,107 @@ export async function maintenancePlanByToken(
     nextMaintenanceDate: report.nextMaintenanceDate,
     nextMaintenanceNote: report.nextMaintenanceNote ?? "",
   };
+}
+
+function laterOrdersForBike(db: AppDb) {
+  const later = alias(workOrders, "later_order");
+  return db
+    .select({ id: later.id })
+    .from(later)
+    .where(
+      and(
+        eq(later.branchId, workOrders.branchId),
+        eq(later.bikeId, workOrders.bikeId),
+        gt(later.createdAt, workOrders.createdAt),
+        isNull(later.voidedAt),
+      ),
+    );
+}
+
+function pendingMaintenanceFilter(db: AppDb, now: Date) {
+  const today = localToday(now);
+  return and(
+    gte(serviceReports.nextMaintenanceDate, addDays(today, -MAINTENANCE_REMINDER_GRACE_DAYS)),
+    lte(serviceReports.nextMaintenanceDate, addDays(today, MAINTENANCE_REMINDER_DAYS_BEFORE)),
+    isNull(serviceReports.maintenanceReminderSentAt),
+    isNull(workOrders.voidedAt),
+    isNotNull(customers.email),
+    notExists(laterOrdersForBike(db)),
+  );
+}
+
+/** Tarea global: cada informe determina la sucursal de todas sus relaciones. */
+export async function dueMaintenanceReminders(db: AppDb, now: Date) {
+  return db
+    .select({
+      reportId: serviceReports.id,
+      branchId: serviceReports.branchId,
+      orderId: workOrders.id,
+      number: workOrders.number,
+      customerName: customers.name,
+      email: customers.email,
+      brand: bikes.brand,
+      model: bikes.model,
+      nextMaintenanceDate: serviceReports.nextMaintenanceDate,
+      note: serviceReports.nextMaintenanceNote,
+    })
+    .from(serviceReports)
+    .innerJoin(
+      workOrders,
+      and(
+        eq(workOrders.id, serviceReports.workOrderId),
+        eq(workOrders.branchId, serviceReports.branchId),
+      ),
+    )
+    .innerJoin(
+      customers,
+      and(eq(customers.id, workOrders.customerId), eq(customers.branchId, workOrders.branchId)),
+    )
+    .innerJoin(bikes, and(eq(bikes.id, workOrders.bikeId), eq(bikes.branchId, workOrders.branchId)))
+    .where(pendingMaintenanceFilter(db, now))
+    .orderBy(asc(serviceReports.nextMaintenanceDate), asc(workOrders.number));
+}
+
+export async function sendMaintenanceReminders(
+  db: AppDb,
+  now: Date,
+  deps: { transport?: EmailTransport; siteUrl?: string } = {},
+): Promise<{ sent: number; failed: number }> {
+  const pending = await dueMaintenanceReminders(db, now);
+  const transport = deps.transport ?? createTransport();
+  const bookingUrl = new URL("/#reserva", deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL).toString();
+  let sent = 0;
+  let failed = 0;
+  for (const reminder of pending) {
+    if (reminder.email === null || reminder.nextMaintenanceDate === null) continue;
+    try {
+      await transport.send({
+        to: reminder.email,
+        ...maintenanceReminderEmail({
+          orderNumber: formatOrderNumber(reminder.number),
+          customerName: reminder.customerName,
+          bike: `${reminder.brand} ${reminder.model}`,
+          nextMaintenanceDate: reminder.nextMaintenanceDate,
+          note: reminder.note,
+          bookingUrl,
+        }),
+      });
+    } catch {
+      failed += 1;
+      log.error("email.failed", { kind: "maintenance", orderId: reminder.orderId });
+      continue;
+    }
+    await db
+      .update(serviceReports)
+      .set({ maintenanceReminderSentAt: now })
+      .where(
+        and(
+          eq(serviceReports.id, reminder.reportId),
+          eq(serviceReports.branchId, reminder.branchId),
+          isNull(serviceReports.maintenanceReminderSentAt),
+        ),
+      );
+    sent += 1;
+  }
+  return { sent, failed };
 }

@@ -51,3 +51,33 @@ export function quoteEmail(input: QuoteEmail): RenderedEmail {
       : {}),
   });
 }
+
+export function maintenanceReminderEmail(input: {
+  orderNumber: string;
+  customerName: string;
+  bike: string;
+  nextMaintenanceDate: string;
+  note: string | null;
+  bookingUrl: string;
+}): RenderedEmail {
+  const firstName = input.customerName.trim().split(/\s+/)[0] ?? "";
+  const date = DateTime.fromISO(input.nextMaintenanceDate, { zone: TIMEZONE })
+    .setLocale("es-CL")
+    .toFormat("d 'de' LLLL 'de' yyyy");
+  const rows: EmailContent["rows"] = [
+    ["Bicicleta", input.bike],
+    ["Fecha sugerida", date],
+  ];
+  if (input.note) rows.push(["Nota", input.note]);
+  rows.push(["Última orden", input.orderNumber]);
+  return render(`Se acerca la mantención de tu bicicleta · ${SITE.name}`, {
+    heading: "Se acerca la mantención de tu bicicleta",
+    intro: [
+      `Hola ${firstName},`,
+      "Cuando revisamos tu bicicleta sugerimos una próxima mantención. Se acerca la fecha.",
+    ],
+    rows,
+    notes: ["Si no quieres recibir este aviso, responde este correo y lo quitamos."],
+    link: { label: "Reservar hora", href: input.bookingUrl },
+  });
+}

@@ -6,6 +6,7 @@ import { sendReminders } from "../email/reminders.ts";
 import type { EmailTransport } from "../email/transport.ts";
 import { getStorage } from "../storage/storage.ts";
 import type { ObjectStorage } from "../storage/storage.ts";
+import { sendMaintenanceReminders } from "../taller/maintenance-plan.ts";
 import {
   OverdueDigestError,
   purgeReceptionPhotos,
@@ -94,5 +95,24 @@ export async function handleRetentionTask(
   } catch {
     log.error("tasks.retention_failed");
     return jsonResponse(500, { ok: false, purged: 0, failed: 1 });
+  }
+}
+
+export async function handleMaintenanceTask(
+  request: Request,
+  db: AppDb,
+  now: Date,
+  deps: { secret?: string; transport?: EmailTransport; siteUrl?: string } = {},
+): Promise<Response> {
+  const rejected = taskGuard(request, "maintenance", deps.secret);
+  if (rejected) return rejected;
+  try {
+    const { sent, failed } = await sendMaintenanceReminders(db, now, deps);
+    return failed === 0
+      ? jsonResponse(200, { ok: true, sent })
+      : jsonResponse(500, { ok: false, sent, failed });
+  } catch {
+    log.error("tasks.maintenance_failed");
+    return jsonResponse(500, { ok: false, error: "internal_error" });
   }
 }

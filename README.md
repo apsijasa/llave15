@@ -130,9 +130,9 @@ Espera el resultado de la subida. Si aparece **No se pudo subir la foto. Intenta
 
 ### Tareas diarias y respaldos
 
-El escenario de **Make.com** se configura para las **10:00**, zona **America/Santiago**, y encadena tres llamadas POST: `/api/tareas/recordatorios`, `/api/tareas/alertas` y `/api/tareas/retencion`, con `Authorization: Bearer <TASKS_SECRET>`. El secreto va en Make.com y en los secretos de la publicación. Configura un aviso al dueño ante respuestas fallidas; los detalles están en **Recordatorios por correo (cron externo)**.
+El escenario de **Make.com** se configura para las **10:00**, zona **America/Santiago**, y encadena cuatro llamadas POST: `/api/tareas/recordatorios`, `/api/tareas/alertas`, `/api/tareas/retencion` y `/api/tareas/mantenciones`, con `Authorization: Bearer <TASKS_SECRET>`. El secreto va en Make.com y en los secretos de la publicación. Configura un aviso al dueño ante respuestas fallidas; los detalles están en **Recordatorios por correo (cron externo)**.
 
-Recordatorios envía los correos del día anterior; alertas manda al taller el resumen de órdenes atrasadas y debe llamarse una sola vez al día. Retención elimina las copias completas de fotos de recepción de más de seis meses y conserva las miniaturas para el historial e informe. Las fotos de reparación y terminado se conservan. La integración opcional de recordatorios WhatsApp tiene su propio cron, descrito en **Recordatorios**.
+Recordatorios envía los correos del día anterior; alertas manda al taller el resumen de órdenes atrasadas y debe llamarse una sola vez al día. Retención elimina las copias completas de fotos de recepción de más de seis meses y conserva las miniaturas para el historial e informe. Las fotos de reparación y terminado se conservan. Mantenciones avisa al cliente una semana antes de la fecha sugerida en el informe, una sola vez. La integración opcional de recordatorios WhatsApp tiene su propio cron, descrito en **Recordatorios**.
 
 Confirma en el panel **Database** de Replit que los respaldos programados de la base estén activos y revisa sus puntos de restauración. Las fotos y firmas están en almacenamiento separado: respalda también ese almacenamiento junto con la base. La aplicación no programa respaldos; esa configuración se administra en la plataforma.
 
@@ -193,7 +193,7 @@ El recordatorio del día anterior a cada reserva lo dispara un escenario de **Ma
 - Llamarlo dos veces el mismo día no duplica correos: cada reserva queda marcada con `reminder_sent_at`.
 - Respaldo manual: `pnpm reminders:send` sigue existiendo y hace lo mismo desde el Shell de Replit con el `DATABASE_URL` de producción.
 
-El mismo escenario de Make.com encadena, después del primero, `POST https://vectorbikes.cl/api/tareas/alertas` (correo diario al taller con las órdenes atrasadas; cada llamada envía un resumen, por eso se llama una sola vez al día) y `POST https://vectorbikes.cl/api/tareas/retencion` (borra las copias completas de fotos de recepción con más de 6 meses y conserva las miniaturas; repetirla no hace nada), con la misma cabecera.
+El mismo escenario de Make.com encadena, después del primero, `POST https://vectorbikes.cl/api/tareas/alertas` (correo diario al taller con las órdenes atrasadas; cada llamada envía un resumen, por eso se llama una sola vez al día), `POST https://vectorbikes.cl/api/tareas/retencion` (borra las copias completas de fotos de recepción con más de 6 meses y conserva las miniaturas; repetirla no hace nada) y, como cuarto POST, `POST https://vectorbikes.cl/api/tareas/mantenciones`, con la misma cabecera. Mantenciones avisa al cliente una semana antes de la fecha sugerida en el informe, una sola vez.
 
 ## Recordatorios
 
