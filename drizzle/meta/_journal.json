@@ -176,6 +176,13 @@
       "when": 1792700557945,
       "tag": "0024_little_rage",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794508926986,
+      "tag": "0025_overconfident_stone_men",
+      "breakpoints": true
     }
   ]
 }

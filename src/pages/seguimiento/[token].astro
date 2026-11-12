@@ -1,0 +1,126 @@
+---
+import { DateTime } from "luxon";
+import Base from "../../layouts/Base.astro";
+import { log } from "../../lib/log.ts";
+import { SITE } from "../../lib/site.ts";
+import { clientIp } from "../../server/api/client-ip.ts";
+import { checkRateLimit, originForLog, recordAttempt } from "../../server/api/handlers.ts";
+import { RECEPTION_HOURS, TIMEZONE } from "../../server/booking/rules.ts";
+import { getDb } from "../../server/db/client.ts";
+import { viewTrackingByToken } from "../../server/taller/tracking.ts";
+
+export const prerender = false;
+
+Astro.response.headers.set("cache-control", "no-store");
+Astro.response.headers.set("referrer-policy", "no-referrer");
+Astro.response.headers.set("x-robots-tag", "noindex");
+log.info("tracking.origin", { origin: originForLog(Astro.request) });
+
+let view: Awaited<ReturnType<typeof viewTrackingByToken>> = null;
+let message = "Enlace no válido";
+Astro.response.status = 404;
+
+// Los métodos distintos de GET reciben el mismo 404 fijo, sin consultar la orden.
+if (Astro.request.method === "GET") {
+  const db = getDb();
+  const now = new Date();
+  const ip = clientIp(Astro.request, null) ?? Astro.clientAddress;
+  const ctx = { db, now, ip };
+  const limited = await checkRateLimit(ctx);
+  if (limited) {
+    Astro.response.status = 429;
+    Astro.response.headers.set("Retry-After", limited.headers.get("Retry-After") ?? "600");
+    message = "Demasiados intentos. Vuelve a intentar en 10 minutos.";
+  } else {
+    view = await viewTrackingByToken(db, Astro.params.token ?? "");
+    if (view) Astro.response.status = 200;
+    else await recordAttempt(ctx);
+  }
+}
+
+const day = (value: string) => DateTime.fromISO(value, { zone: TIMEZONE }).toFormat("dd-MM-yyyy");
+const moment = (value: Date) =>
+  DateTime.fromJSDate(value).setZone(TIMEZONE).toFormat("dd-MM-yyyy HH:mm");
+const hours = (weekday: number) => {
+  const schedule = RECEPTION_HOURS[weekday];
+  return schedule ? `${schedule.open} a ${schedule.close}` : "cerrado";
+};
+const lastIndex = view ? view.timeline.length - 1 : -1;
+---
+
+<Base
+  title="Seguimiento de tu bicicleta — Vector Bikes"
+  description="Estado del servicio de tu bicicleta en Vector Bikes."
+  path="/seguimiento"
+  chrome="none"
+  noindex
+>
+  <section class="section">
+    <div class="wrap tracking">
+      {view ? (
+        <>
+          <div class="sec-head"><h1>Seguimiento de tu bicicleta</h1></div>
+          <p>Hola {view.customerFirstName}, este es el estado de tu bicicleta en {SITE.name}.</p>
+          <dl class="tracking-data">
+            <dt class="label">Orden</dt><dd class="mono">{view.orderNumber}</dd>
+            <dt class="label">Bicicleta</dt><dd>{view.bike}</dd>
+            <dt class="label">Estado</dt><dd><span class="tracking-status">{view.statusLabel}</span></dd>
+            {view.estimatedDeliveryDate && !view.isTerminal && <><dt class="label">Entrega estimada</dt><dd class="mono">{day(view.estimatedDeliveryDate)}</dd></>}
+          </dl>
+          {view.isReadyForPickup && (
+            <section aria-labelledby="pickup-title">
+              <h2 id="pickup-title">Retiro en el taller</h2>
+              <p>{SITE.addressShort}</p>
+              <p>Lunes a viernes: {hours(1)}. Sábado: {hours(6)}. Domingo y feriados: {hours(7)}.</p>
+            </section>
+          )}
+          <section aria-labelledby="timeline-title">
+            <h2 id="timeline-title">Historial</h2>
+            <ol class="tracking-timeline">
+              {view.timeline.map((entry, index) => (
+                <li>
+                  <span class="mono">{moment(entry.at)}</span> · {entry.label}
+                  {index === lastIndex && " (actual)"}
+                </li>
+              ))}
+            </ol>
+          </section>
+        </>
+      ) : <div class="sec-head"><h1>{message}</h1></div>}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .tracking {
+    display: grid;
+    gap: 24px;
+    max-width: 720px;
+  }
+  .tracking-data {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 8px 24px;
+    margin: 0;
+    padding-block: 16px;
+    border-block: 1px solid var(--rule);
+  }
+  .tracking-data dd {
+    margin: 0;
+  }
+  .tracking-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+  }
+  .tracking-timeline {
+    display: grid;
+    gap: 8px;
+    margin: 12px 0 0;
+    padding-inline-start: 20px;
+  }
+  .tracking-timeline .mono {
+    font-variant-numeric: tabular-nums;
+  }
+</style>

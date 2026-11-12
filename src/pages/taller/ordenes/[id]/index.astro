@@ -4,6 +4,7 @@ import Card from "../../../../components/taller/Card.astro";
 import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { getSiteEnv } from "../../../../lib/env.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { formatClp } from "../../../../server/email/templates.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
@@ -11,6 +12,7 @@ import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import type { Action } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
+import { whatsappShareLink } from "../../../../server/taller/approvals.ts";
 import { formatOrderNumber, openWarrantyOrder } from "../../../../server/taller/orders.ts";
 import {
   BIKE_TYPE_LABELS,
@@ -31,6 +33,7 @@ import {
   takeOrder,
   updateOrderNotes,
 } from "../../../../server/taller/status.ts";
+import { ensureTrackingLink } from "../../../../server/taller/tracking.ts";
 
 export const prerender = false;
 const db = getDb();
@@ -194,6 +197,10 @@ const canTake =
   order.assignedMechanicId === null &&
   (order.status === "recibida" || order.status === "diagnostico");
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
+const tracking = await ensureTrackingLink(db, user, order.id, getSiteEnv().PUBLIC_SITE_URL, now);
+const trackingText = tracking.ok
+  ? `Hola ${customer.name.trim().split(/\s+/)[0] ?? ""}, puedes ver el estado de tu bicicleta en Vector Bikes aquí: ${tracking.url}`
+  : "";
 ---
 
 <TallerLayout title={`${number} — Vector Bikes`} description="Detalle e historial de la orden de trabajo." path="/taller/ordenes" user={user}>
@@ -209,6 +216,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
       <Card id="customer-title" title="Cliente">
         <p>{customer.name}</p>
         {can(user.role, "customers.manage") && <dl class="data"><dt>Teléfono</dt><dd>{customer.phoneE164}</dd><dt>Correo</dt><dd>{customer.email ?? "Sin correo"}</dd><dt>RUT</dt><dd>{customer.rut ?? "Sin RUT"}</dd></dl>}
+        {tracking.ok && <div class="tracking"><p class="label">Seguimiento</p><p class="tracking-link"><a href={tracking.url} target="_blank" rel="noopener">{tracking.url}</a></p>{can(user.role, "customers.manage") && customer.phoneE164 && <a class="btn ghost" href={whatsappShareLink(customer.phoneE164, trackingText)} target="_blank" rel="noopener">Enviar por WhatsApp</a>}</div>}
       </Card>
       <Card id="bike-title" title="Bicicleta">
         <p>{bike.brand} {bike.model} · {BIKE_TYPE_LABELS[bike.bikeType as BikeType]}</p>
@@ -324,6 +332,11 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
   .taller .status-selection .field {
     flex: 1 1 260px;
     min-width: 0;
+  }
+  /* El enlace de seguimiento es largo: se corta en cualquier punto y deja un blanco táctil de 48px. */
+  .taller .tracking-link {
+    padding-block: 12px;
+    overflow-wrap: anywhere;
   }
   @media (min-width: 900px) {
     .taller .order-cols {
