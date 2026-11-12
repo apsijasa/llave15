@@ -1,4 +1,5 @@
 ---
+import { DateTime } from "luxon";
 import ReportView from "../../components/taller/ReportView.astro";
 import Base from "../../layouts/Base.astro";
 import { log } from "../../lib/log.ts";
@@ -6,8 +7,10 @@ import { SITE } from "../../lib/site.ts";
 import { clientIp } from "../../server/api/client-ip.ts";
 import { checkRateLimit, originForLog, recordAttempt } from "../../server/api/handlers.ts";
 import { getDb } from "../../server/db/client.ts";
+import { TIMEZONE } from "../../server/booking/rules.ts";
 import { getStorage } from "../../server/storage/storage.ts";
 import { viewReportByToken } from "../../server/taller/reports.ts";
+import { maintenancePlanByToken } from "../../server/taller/maintenance-plan.ts";
 
 export const prerender = false;
 
@@ -17,6 +20,7 @@ Astro.response.headers.set("x-robots-tag", "noindex");
 log.info("report.origin", { origin: originForLog(Astro.request) });
 
 let report: Awaited<ReturnType<typeof viewReportByToken>> = null;
+let plan: Awaited<ReturnType<typeof maintenancePlanByToken>> = null;
 let message = "Enlace no válido";
 Astro.response.status = 404;
 
@@ -32,7 +36,9 @@ if (Astro.request.method === "GET") {
     Astro.response.headers.set("Retry-After", limited.headers.get("Retry-After") ?? "600");
     message = "Demasiados intentos. Vuelve a intentar en 10 minutos.";
   } else {
-    report = await viewReportByToken(db, await getStorage(), Astro.params.token ?? "");
+    const token = Astro.params.token ?? "";
+    report = await viewReportByToken(db, await getStorage(), token);
+    plan = report ? await maintenancePlanByToken(db, token) : null;
     if (report) Astro.response.status = 200;
     else await recordAttempt(ctx);
   }
@@ -53,6 +59,11 @@ if (Astro.request.method === "GET") {
           <p class="report-brand"><img src={SITE.logoPath} alt={SITE.name} width="160" /></p>
           <div class="sec-head"><h1>Informe de servicio</h1></div>
           <ReportView snapshot={report.snapshot} photos={report.photos} />
+          {plan && <section>
+            <h2>Próxima mantención sugerida</h2>
+            <p>{DateTime.fromISO(plan.nextMaintenanceDate, { zone: TIMEZONE }).setLocale("es-CL").toFormat("d 'de' MMMM 'de' yyyy")}</p>
+            {plan.nextMaintenanceNote && <p>{plan.nextMaintenanceNote}</p>}
+          </section>}
         </>
       ) : <div class="sec-head"><h1>{message}</h1></div>}
     </div>

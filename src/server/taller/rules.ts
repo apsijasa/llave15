@@ -173,3 +173,6 @@ export const TAX_DOC_TYPE_LABELS: Record<(typeof TAX_DOC_TYPES)[number], string>
 export const WORKSHOP_MINUTES_PER_DAY = 360;
 export const LABEL_WIDTH_MM = 62;
 export const QC_REQUIRE_SECOND_PERSON = false;
+export const MAINTENANCE_INTERVAL_MONTHS = 6;
+export const MAINTENANCE_REMINDER_DAYS_BEFORE = 7;
+export const MAINTENANCE_REMINDER_GRACE_DAYS = 30;

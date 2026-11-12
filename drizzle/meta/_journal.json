@@ -183,6 +183,13 @@
       "when": 1794508926986,
       "tag": "0025_overconfident_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794512599432,
+      "tag": "0026_woozy_lady_vermin",
+      "breakpoints": true
     }
   ]
 }

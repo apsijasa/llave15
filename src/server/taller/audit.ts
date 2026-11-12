@@ -38,7 +38,8 @@ export type AuditAction =
   | "payment.voided"
   | "component.installed"
   | "component.voided"
-  | "report.generated";
+  | "report.generated"
+  | "report.maintenance_planned";
 
 const sensitiveKey = /email|correo|phone|telefono|rut|token|password|clave/i;
 const uuidPattern = /\b[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}\b/i;

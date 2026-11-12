@@ -13,6 +13,12 @@ import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
 import { getStorage } from "../../../../server/storage/storage.ts";
 import { whatsappShareLink } from "../../../../server/taller/approvals.ts";
+import {
+  getMaintenancePlan,
+  parseMaintenancePlan,
+  setMaintenancePlan,
+  suggestedMaintenanceDate,
+} from "../../../../server/taller/maintenance-plan.ts";
 import { formatOrderNumber } from "../../../../server/taller/orders.ts";
 import {
   generateReport,
@@ -54,6 +60,10 @@ if (!id.success) return notFound();
 const detail = await orderDetail(db, user, id.data);
 if (!detail.ok) return detail.code === "forbidden" ? forbidden() : notFound();
 let report = await getReportForStaff(db, user, id.data);
+let plan = (await getMaintenancePlan(db, user, id.data)) ?? {
+  nextMaintenanceDate: suggestedMaintenanceDate(now),
+  nextMaintenanceNote: "",
+};
 let values = {
   recommendations:
     report?.snapshot.recommendations ?? (await getReportAftercare(db, user, id.data)),
@@ -70,33 +80,56 @@ if (Astro.request.method === "POST") {
     nextChecks: String(form.get("nextChecks") ?? ""),
   };
   const parsed = reportFormSchema.safeParse(values);
-  const result = parsed.success
-    ? await generateReport(db, user, id.data, parsed.data, now)
-    : ({ ok: false, code: "validation_error" } as const);
+  const planInput = {
+    nextMaintenanceDate: form.get("nextMaintenanceDate") || null,
+    nextMaintenanceNote: form.get("nextMaintenanceNote") ?? "",
+  };
+  plan = {
+    nextMaintenanceDate: String(planInput.nextMaintenanceDate ?? "") || null,
+    nextMaintenanceNote: String(planInput.nextMaintenanceNote),
+  };
+  // El plan se valida antes de generar: regenerar el informe invalida el enlace anterior.
+  const parsedPlan = parseMaintenancePlan(planInput, now);
+  const result =
+    parsed.success && parsedPlan.success
+      ? await generateReport(db, user, id.data, parsed.data, now)
+      : ({ ok: false, code: "validation_error" } as const);
   if (result.ok) {
-    link = `${getSiteEnv().PUBLIC_SITE_URL.replace(/\/$/, "")}/informe/${result.token}`;
-    const firstName = detail.customer.name.trim().split(/\s+/)[0];
-    if (detail.customer.phoneE164)
-      whatsapp = whatsappShareLink(
-        detail.customer.phoneE164,
-        `Hola ${firstName}, aquí está el informe del servicio de tu bicicleta en Vector Bikes: ${link}`,
-      );
-    report = await getReportForStaff(db, user, id.data);
-    if (report)
-      values = {
-        recommendations: report.snapshot.recommendations,
-        nextChecks: report.snapshot.nextChecks,
-      };
+    // `result.ok` implica un plan válido: con uno inválido no se generó nada.
+    if (!parsedPlan.success) return notFound();
+    const saved = await setMaintenancePlan(db, user, id.data, parsedPlan.data, now);
+    if (!saved.ok) {
+      if (saved.code === "forbidden") return forbidden();
+      return notFound();
+    } else {
+      plan = parsedPlan.data;
+      link = `${getSiteEnv().PUBLIC_SITE_URL.replace(/\/$/, "")}/informe/${result.token}`;
+      const firstName = detail.customer.name.trim().split(/\s+/)[0];
+      if (detail.customer.phoneE164)
+        whatsapp = whatsappShareLink(
+          detail.customer.phoneE164,
+          `Hola ${firstName}, aquí está el informe del servicio de tu bicicleta en Vector Bikes: ${link}`,
+        );
+      report = await getReportForStaff(db, user, id.data);
+      if (report)
+        values = {
+          recommendations: report.snapshot.recommendations,
+          nextChecks: report.snapshot.nextChecks,
+        };
+    }
   } else {
     if (result.code === "forbidden") return forbidden();
     if (result.code === "not_found") return notFound();
     Astro.response.status = result.code === "validation_error" ? 422 : 409;
     error =
-      result.code === "validation_error"
-        ? "Recomendaciones y próximas revisiones admiten hasta 2000 caracteres."
-        : "El informe se genera cuando la orden está Lista para retirar o Entregada.";
+      result.code !== "validation_error"
+        ? "El informe se genera cuando la orden está Lista para retirar o Entregada."
+        : !parsed.success
+          ? "Recomendaciones y próximas revisiones admiten hasta 2000 caracteres."
+          : "La fecha de la próxima mantención no puede ser anterior a hoy y la nota admite hasta 300 caracteres.";
     if (!parsed.success)
       for (const issue of parsed.error.issues) fieldErrors.add(String(issue.path[0]));
+    if (!parsedPlan.success) for (const field of parsedPlan.fields) fieldErrors.add(field);
   }
 }
 const photos = report ? await loadReportPhotos(await getStorage(), report.snapshot) : {};
@@ -125,6 +158,12 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
           <label for={key}>{label}</label>
           <textarea id={key} name={key} rows="4" maxlength="2000" aria-invalid={fieldErrors.has(key)} aria-describedby={fieldErrors.has(key) ? "form-error" : undefined}>{values[key]}</textarea>
         </div>)}
+        <div class="field">
+          <label for="nextMaintenanceDate">Próxima mantención sugerida</label>
+          <input id="nextMaintenanceDate" name="nextMaintenanceDate" type="date" value={plan.nextMaintenanceDate ?? ""} aria-invalid={fieldErrors.has("nextMaintenanceDate")} aria-describedby={fieldErrors.has("nextMaintenanceDate") ? "form-error maintenance-help" : "maintenance-help"} />
+          <p id="maintenance-help">Déjala vacía si no quieres que le avisemos.</p>
+        </div>
+        <div class="field"><label for="nextMaintenanceNote">Nota para el cliente (opcional)</label><input id="nextMaintenanceNote" name="nextMaintenanceNote" type="text" maxlength="300" value={plan.nextMaintenanceNote} aria-invalid={fieldErrors.has("nextMaintenanceNote")} aria-describedby={fieldErrors.has("nextMaintenanceNote") ? "form-error" : undefined} /></div>
       </div><button class="btn" type="submit">{report ? "Regenerar informe" : "Generar informe"}</button></fieldset>
     </form></Card>
     {report && <Card><ReportView snapshot={report.snapshot} photos={photos} /></Card>}
