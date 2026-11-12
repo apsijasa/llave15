@@ -118,6 +118,8 @@ Cuando la orden esté **Lista para retirar**, registra el pago pendiente hasta d
 
 Dueño, administrador o recepción pueden abrir **Informe** cuando la orden esté Lista para retirar o Entregada. Revisa las recomendaciones sugeridas por los servicios, completa **Próximas revisiones** y pulsa **Generar informe**. Copia el enlace que aparece una sola vez o envíalo por WhatsApp. El cliente ve bicicleta, trabajo, problemas, componentes, fotos de antes y después, recomendaciones, trabajos rechazados y total. Regenerar el informe actualiza su contenido e invalida el enlace anterior. Las fichas de cliente y bicicleta conservan su historial.
 
+El formulario trae la fecha sugerida de la próxima mantención (seis meses) y una nota; el cliente la ve en el informe y, si la dejas, recibirá un recordatorio una semana antes. Déjala vacía para no avisar.
+
 ### Garantía
 
 En una orden **Entregada**, dueño, administrador o recepción pueden escribir el motivo y pulsar **Abrir garantía**. Se crea otra orden para el mismo cliente y bicicleta, vinculada a la original, y se abre su recepción. Completa nuevamente checklist, fotos, fecha y firma; la orden original se conserva.
