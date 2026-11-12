@@ -309,3 +309,7 @@ where id = '<id>';
 ### 10. Feriados 2027
 
 Antes de diciembre de 2026 (el panel lo advierte cuando el horizonte de 30 días llega a 2027), carga los feriados oficiales de 2027 con la skill `add-holidays`, corre `pnpm gate`, haz commit y vuelve a publicar. Nunca inventes fechas: usa solo las oficiales.
+
+### 11. Certificaciones del taller
+
+Se escriben en `certifications` de `src/lib/site.ts`; aparecen al pie del informe, al pie de los correos y en la sección del taller de la portada. Con la lista vacía no se muestra nada. El logo aparece en el informe público; en los correos todavía no (decisión 51).
