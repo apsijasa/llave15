@@ -97,6 +97,8 @@ Cada orden tiene un **enlace de seguimiento** público (solo primer nombre, bici
 
 En la orden se asigna el mecánico; un mecánico puede **Tomar orden** si está sin asignar y Recibida o en Diagnóstico. Registra el diagnóstico, cambia a los estados disponibles y usa **Galería** para las fotos de reparación y terminado. **Líneas** registra servicios y repuestos: los precios se editan en la misma tabla y se guardan todos con **Guardar cambios**; cualquier otro botón de la página guarda antes los precios editados, y un precio inválido detiene todo y se marca en su campo. **Componentes** conserva lo instalado y lo reemplazado en el historial de la bicicleta.
 
+Cuando las líneas estén listas, **Enviar cotización por correo** manda al cliente el presupuesto con el total y el enlace de seguimiento; se puede reenviar si cambia.
+
 ### Trabajos adicionales por WhatsApp
 
 Dueño, administrador o recepción abren **Adicional**, escriben problema, recomendación y precio en pesos y pulsan **Crear propuesta**. Copia el enlace en ese momento o pulsa **Enviar por WhatsApp** y envía el mensaje desde WhatsApp. El cliente abre el enlace y aprueba o rechaza; la decisión queda registrada y el trabajo aprobado se agrega a la orden. Si necesitas otro enlace para una propuesta pendiente, pulsa **Generar nuevo enlace**: el anterior deja de servir. El mecánico no propone adicionales ni modifica precios.
