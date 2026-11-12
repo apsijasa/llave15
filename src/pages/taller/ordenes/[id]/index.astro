@@ -14,6 +14,7 @@ import type { Action } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
 import { whatsappShareLink } from "../../../../server/taller/approvals.ts";
 import { formatOrderNumber, openWarrantyOrder } from "../../../../server/taller/orders.ts";
+import { lastQuote, sendQuote } from "../../../../server/taller/quotes.ts";
 import {
   BIKE_TYPE_LABELS,
   MANUAL_TRANSITIONS,
@@ -57,7 +58,7 @@ if (!id.success)
     headers: { "cache-control": "no-store" },
   });
 const PATH = `/taller/ordenes/${id.data}`;
-const actionSchema = z.enum(["status", "assign", "take", "notes", "warranty"]);
+const actionSchema = z.enum(["status", "assign", "take", "notes", "warranty", "quote"]);
 const warrantySchema = z.object({ reason: z.string().trim().min(3).max(300) });
 const noteFields = [
   { key: "diagnosis", label: "Diagnóstico" },
@@ -72,19 +73,23 @@ if (Astro.request.method === "POST") {
   const action = form.get("action");
   const to = form.get("to");
   const permission: Action =
-    action === "warranty"
-      ? "warranty.open"
-      : action === "assign"
-        ? "orders.assign"
-        : action === "status" && (to === "cancelada" || to === "trabajo_rechazado")
-          ? "orders.cancel"
-          : "orders.edit";
+    action === "quote"
+      ? "approvals.create"
+      : action === "warranty"
+        ? "warranty.open"
+        : action === "assign"
+          ? "orders.assign"
+          : action === "status" && (to === "cancelada" || to === "trabajo_rechazado")
+            ? "orders.cancel"
+            : "orders.edit";
   if (!can(user.role, permission) || (action === "take" && user.role !== "mechanic"))
     return forbiddenResponse();
   const parsedAction = actionSchema.safeParse(action);
   values = Object.fromEntries([...form].map(([key, value]) => [key, String(value)]));
   let result: { ok: boolean; code?: string } = { ok: false, code: "validation_error" };
-  if (parsedAction.success && parsedAction.data === "warranty") {
+  if (parsedAction.success && parsedAction.data === "quote") {
+    result = await sendQuote(db, user, id.data, now);
+  } else if (parsedAction.success && parsedAction.data === "warranty") {
     const parsed = warrantySchema.safeParse({ reason: form.get("reason") });
     if (parsed.success) {
       const warranty = await openWarrantyOrder(db, user, id.data, parsed.data, now);
@@ -124,17 +129,24 @@ if (Astro.request.method === "POST") {
   if (result.ok)
     return new Response(null, {
       status: 303,
-      headers: { location: `${PATH}?hecho=guardado`, "cache-control": "no-store" },
+      headers: {
+        location: `${PATH}?hecho=${action === "quote" ? "cotizacion" : "guardado"}`,
+        "cache-control": "no-store",
+      },
     });
   if (result.code === "forbidden") return forbiddenResponse();
   Astro.response.status =
     result.code === "not_found" ? 404 : result.code === "validation_error" ? 422 : 409;
+  const messages: Record<string, string> = {
+    not_found: "Orden no encontrada.",
+    validation_error: "Revisa los datos del formulario.",
+    no_items: "La orden no tiene líneas vigentes para cotizar.",
+    no_email: "El cliente no tiene correo registrado.",
+    send_failed: "No se pudo enviar el correo. Intenta de nuevo.",
+  };
   error =
-    result.code === "not_found"
-      ? "Orden no encontrada."
-      : result.code === "validation_error"
-        ? "Revisa los datos del formulario."
-        : "La orden cambió o esta acción no está disponible. Revisa su estado.";
+    messages[result.code ?? ""] ??
+    "La orden cambió o esta acción no está disponible. Revisa su estado.";
 }
 const detail = await orderDetail(db, user, id.data);
 if (!detail.ok) {
@@ -191,6 +203,8 @@ const nextStep = (
 const isTerminal = (TERMINAL_STATUSES as readonly OrderStatus[]).includes(
   order.status as OrderStatus,
 );
+const canQuote = can(user.role, "approvals.create") && !isTerminal;
+const quote = canQuote ? await lastQuote(db, user, order.id) : null;
 const mechanics = await listMechanics(db, user);
 const canTake =
   user.role === "mechanic" &&
@@ -210,6 +224,7 @@ const trackingText = tracking.ok
     </PageHeader>
     <OrderTabs orderId={order.id} active="" tabs={tabs} />
     {Astro.url.searchParams.get("hecho") === "guardado" && <p role="status">Cambios guardados.</p>}
+    {Astro.url.searchParams.get("hecho") === "cotizacion" && <p role="status">Cotización enviada.</p>}
     {error && <p role="alert">{error}</p>}
 
     <div class="order-cols">
@@ -217,6 +232,8 @@ const trackingText = tracking.ok
         <p>{customer.name}</p>
         {can(user.role, "customers.manage") && <dl class="data"><dt>Teléfono</dt><dd>{customer.phoneE164}</dd><dt>Correo</dt><dd>{customer.email ?? "Sin correo"}</dd><dt>RUT</dt><dd>{customer.rut ?? "Sin RUT"}</dd></dl>}
         {tracking.ok && <div class="tracking"><p class="label">Seguimiento</p><p class="tracking-link"><a href={tracking.url} target="_blank" rel="noopener">{tracking.url}</a></p>{can(user.role, "customers.manage") && customer.phoneE164 && <a class="btn ghost" href={whatsappShareLink(customer.phoneE164, trackingText)} target="_blank" rel="noopener">Enviar por WhatsApp</a>}</div>}
+        {canQuote && <form method="post" action={PATH}><input type="hidden" name="action" value="quote" /><button class="btn ghost" type="submit">Enviar cotización por correo</button></form>}
+        {quote && <p class="small">Última cotización: {quote.at.toLocaleString("es-CL", { timeZone: "America/Santiago" })} · {formatClp(quote.totalClp)}</p>}
       </Card>
       <Card id="bike-title" title="Bicicleta">
         <p>{bike.brand} {bike.model} · {BIKE_TYPE_LABELS[bike.bikeType as BikeType]}</p>

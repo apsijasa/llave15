@@ -29,7 +29,7 @@ export type ReceivedBike = {
 type Row = readonly [label: string, value: string];
 
 /** Contenido de un correo como datos: `render` escapa todo antes de armar el HTML. */
-type EmailContent = {
+export type EmailContent = {
   heading: string;
   intro: string[];
   rows: Row[];
@@ -158,7 +158,7 @@ function renderText(content: EmailContent): string {
   return lines.join("\n");
 }
 
-function render(subject: string, content: EmailContent): RenderedEmail {
+export function render(subject: string, content: EmailContent): RenderedEmail {
   return { subject, html: renderHtml(content), text: renderText(content) };
 }
 
