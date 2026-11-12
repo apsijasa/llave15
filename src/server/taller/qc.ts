@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { getEmailEnv } from "../../lib/env.ts";
+import { getEmailEnv, getSiteEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -15,6 +15,7 @@ import { recordAudit } from "./audit.ts";
 import { formatOrderNumber, recordStatusChange } from "./orders.ts";
 import { QC_CHECK_KEYS, QC_REQUIRE_SECOND_PERSON, QC_RESULTS } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
+import { ensureTrackingLink } from "./tracking.ts";
 
 export const qcFormSchema = z.object({
   checks: z.record(
@@ -103,6 +104,21 @@ async function readyNotificationOrder(db: AppDb, actor: SessionUser, orderId: st
   return order;
 }
 
+async function hasReadyNotification(db: AppDb, actor: SessionUser, orderId: string) {
+  const [sent] = await db
+    .select({ id: auditLog.id })
+    .from(auditLog)
+    .where(
+      and(
+        eq(auditLog.branchId, actor.branchId),
+        eq(auditLog.action, "notify.ready_for_pickup"),
+        eq(auditLog.entityId, orderId),
+      ),
+    )
+    .limit(1);
+  return Boolean(sent);
+}
+
 /** Post-commit: un fallo del aviso nunca cambia el resultado del control. */
 async function notifyReadyForPickup(
   db: AppDb,
@@ -114,20 +130,12 @@ async function notifyReadyForPickup(
   try {
     const order = await readyNotificationOrder(db, actor, orderId);
     if (!order || order.email === null) return;
-    const [sent] = await db
-      .select({ id: auditLog.id })
-      .from(auditLog)
-      .where(
-        and(
-          eq(auditLog.branchId, actor.branchId),
-          eq(auditLog.action, "notify.ready_for_pickup"),
-          eq(auditLog.entityId, orderId),
-        ),
-      )
-      .limit(1);
-    if (sent) return;
+    if (await hasReadyNotification(db, actor, orderId)) return;
+    const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
+    const tracking = await ensureTrackingLink(db, actor, orderId, siteUrl, now);
     const email = readyForPickupEmail({
       ...order,
+      trackingUrl: tracking.ok ? tracking.url : null,
       orderNumber: formatOrderNumber(order.number),
       bike: `${order.brand} ${order.model}`.trim(),
     });

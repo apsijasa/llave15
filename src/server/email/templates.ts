@@ -11,6 +11,7 @@ export type ReadyForPickup = {
   bike: string;
   totalClp: number;
   paidClp: number;
+  trackingUrl?: string | null;
 };
 
 export type ReceivedBike = {
@@ -22,6 +23,7 @@ export type ReceivedBike = {
   accessories: string[];
   estimatedDeliveryDate: string | null;
   warrantyOfNumber: string | null;
+  trackingUrl?: string | null;
 };
 
 type Row = readonly [label: string, value: string];
@@ -295,7 +297,7 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-/** Resumen al cliente después de finalizar la recepción, sin enlaces ni datos internos. */
+/** Resumen al cliente después de finalizar la recepción, sin datos internos. */
 export function receivedBikeEmail(order: ReceivedBike): RenderedEmail {
   const firstName = order.customerName.trim().split(/\s+/)[0] ?? "";
   const rows: Row[] = [
@@ -330,10 +332,13 @@ export function receivedBikeEmail(order: ReceivedBike): RenderedEmail {
     intro: [`Hola ${firstName},`, "Tu bicicleta quedó registrada en el taller."],
     rows,
     notes,
+    ...(order.trackingUrl
+      ? { link: { label: "Ver el estado de tu bicicleta", href: order.trackingUrl } }
+      : {}),
   });
 }
 
-/** Aviso al cliente después de aprobar el control de calidad, sin enlaces. */
+/** Aviso al cliente después de aprobar el control de calidad. */
 export function readyForPickupEmail(order: ReadyForPickup): RenderedEmail {
   const firstName = order.customerName.split(" ")[0] ?? order.customerName;
   const hours = receptionHours();
@@ -356,5 +361,8 @@ export function readyForPickupEmail(order: ReadyForPickup): RenderedEmail {
       "Puedes pagar con efectivo, transferencia o tarjeta.",
       "Si coordinamos la devolución a domicilio, te llamaremos para acordar la hora.",
     ],
+    ...(order.trackingUrl
+      ? { link: { label: "Ver el estado de tu bicicleta", href: order.trackingUrl } }
+      : {}),
   });
 }

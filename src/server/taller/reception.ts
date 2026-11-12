@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { getEmailEnv } from "../../lib/env.ts";
+import { getEmailEnv, getSiteEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -19,6 +19,7 @@ import { isChecklistComplete, listAccessories } from "./intake.ts";
 import { listItems } from "./items.ts";
 import { formatOrderNumber, getOrderHeader, recordStatusChange } from "./orders.ts";
 import { canAccessOrder } from "./status.ts";
+import { ensureTrackingLink } from "./tracking.ts";
 
 export const MAX_SIGNATURE_BYTES = 2 * 1024 * 1024;
 const signaturePrefix = "data:image/png;base64,";
@@ -292,8 +293,11 @@ async function notifyReceived(
     const order = await receivedNotificationOrder(db, actor, orderId);
     if (!order || order.email === null) return;
     if (await hasReceivedNotification(db, actor, orderId)) return;
+    const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
+    const tracking = await ensureTrackingLink(db, actor, orderId, siteUrl, now);
     const email = receivedBikeEmail({
       ...order,
+      trackingUrl: tracking.ok ? tracking.url : null,
       orderNumber: formatOrderNumber(order.number),
       bike: `${order.brand} ${order.model}`.trim(),
       items: await listItems(db, actor, orderId),

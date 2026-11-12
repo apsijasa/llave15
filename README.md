@@ -87,7 +87,7 @@ La recepción la puede hacer cualquier rol, incluido el mecánico. El mecánico 
 5. Pulsa **Continuar a fotos y firma**. Puedes **Abrir cámara** y sacar varias fotos seguidas sin salir de la página, o elegirlas de la galería: quedan en una cola de hasta 20 y se mandan todas juntas con **Subir N fotos**. Si una falla, queda en la cola para reintentarla. Toma al menos una foto de recepción y espera a que termine de subir. Pide la firma del cliente en la tablet y escribe el nombre de quien firma.
 6. Pulsa **Finalizar recepción**. Solo se completa con checklist, foto, fecha confirmada y firma; la orden queda **Recibida**. Si faltan datos, la pantalla los indica.
 
-Al finalizar la recepción, el cliente recibe un correo con el resumen si tiene correo registrado. El taller recibe una copia de ese correo y del de "Lista para retirar" en `info@vectorbikes.cl`, con el mismo contenido que vio el cliente.
+Al finalizar la recepción, el cliente recibe un correo con el resumen si tiene correo registrado. El taller recibe una copia de ese correo y del de "Lista para retirar" en `info@vectorbikes.cl`, con el mismo contenido que vio el cliente. Los dos llevan el enlace de seguimiento de la orden.
 
 ### Etiqueta y trabajo
 
