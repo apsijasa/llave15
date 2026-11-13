@@ -152,7 +152,7 @@
       "src/layouts/TallerLayout.astro",
       "e2e/inventario-ajuste.spec.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E1-T6",
