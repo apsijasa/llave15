@@ -179,7 +179,7 @@
       "src/pages/taller/index.astro",
       "tests/integration/low-stock.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E1-T7",
