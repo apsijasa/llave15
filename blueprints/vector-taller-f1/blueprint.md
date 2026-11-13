@@ -60,7 +60,7 @@ Mismo proyecto, base y despliegue (FASE1 decisión 1). Nuevo: `/api/tareas/*` co
 | **Constante:** flujo público de reserva y su API | Interfaz congelada (§5) | — |
 | **Constante:** `/reservas/cancelar`, `createBooking`/`cancelBooking` (solo `source` opcional) | Interfaz congelada | — |
 | **Constante:** columnas y estados de `bookings` (solo `+source`), 1/bloque, 4/día, teléfono, orden de locks | Interfaz congelada | — |
-| **Constante:** correos transaccionales y `sendReminders` | Interfaz congelada | — |
+| **Constante:** correos transaccionales y `sendReminders` | Interfaz congelada; excepciones: enlace de seguimiento en "Recibimos tu bicicleta" y "Lista para retirar" (decisión 49) y pie de marca con certificaciones (decisión 51), §20.3 | — |
 | **Constante:** `/admin` agenda, mes, bloqueos, detalle (solo filtro por rol y enlace "Taller") | Interfaz congelada | — |
 | **Constante:** cookie de sesión (`vb_admin_session`, 7 días, scrypt) — solo cambia la tabla | Interfaz congelada | — |
 | **Constante:** módulo WhatsApp (D-E) — único cambio: `getCronEnv()` | Interfaz congelada; excepción parcial para avisos de órdenes: decisión 53 (§20.3) | — |
