@@ -6,7 +6,7 @@
 |---|---|
 | **Epic id** | `01-base-inventario` |
 | **Tasks** | `E1-T1` … `E1-T9` (pasos F2-00 … F2-08) |
-| **Depends on** | nada — es la primera (precondición: fase plataforma en `main`) |
+| **Depends on** | nada — es la primera (precondición: fase plataforma en `main`, sin duplicados de iCloud) |
 | **Unlocks** | `02-precios-netos` |
 | **Parallel with** | ninguna |
 
@@ -28,7 +28,7 @@ Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon
 
 **Gate:** `pnpm format && pnpm gate`. Servicio: Postgres local (`vector_bikes`, `vector_bikes_e2e`, con el rol que fija `.env`). El sandbox de Codex corre solo `format`, `check`, `test`, `build`; `db:migrate`, `db:check`, `test:tablet`, `smoke` y `gate` los corre la sesión coordinadora, que también commitea. Reversión: `git reset --hard f2-<anterior>` y, si hace falta, el reinicio de la base dev de `blueprint.md` §12 (lo aprueba el operador).
 
-**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos (salvo E1-T1); **releer cada archivo antes de tocarlo** (la fase plataforma lo cambió después de escribir esto; los conteos de líneas son orientativos y el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — se usa `SITE.name` o el perfil del taller; nunca editar `drizzle/`; `db:migrate` solo en la base dev; nada se borra; dinero en pesos enteros; `branch_id` NOT NULL; `recordAudit` dentro de la transacción; correos después del commit; `db` y `now` como argumentos (nunca `new Date()` en `src/server/**`); zod en toda entrada; páginas `requireAdmin → can → zod → src/server/taller/**` con `isAllowedOrigin` en los POST.
+**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos (salvo E1-T1); **releer cada archivo antes de tocarlo** (la fase plataforma lo cambió después de escribir esto; los conteos de líneas son orientativos y el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — se usa `SITE.name` o el perfil del taller; nunca editar `drizzle/`; `db:migrate` solo en la base dev; nada se borra; dinero en pesos enteros; `branch_id` NOT NULL; `recordAudit` dentro de la transacción; correos después del commit; `db` y `now` como argumentos (nunca `new Date()` en `src/server/**`); zod en toda entrada; páginas `requireAdmin → can → zod → src/server/taller/**` con `isAllowedOrigin` en los POST. **Checkpoint:** `git add --` solo con las rutas del paso (y `drizzle` en pasos de esquema, después de la guarda de duplicados de iCloud); nunca `git add -A`.
 
 **Cobertura de tablet:** E1-T5 tiene `e2e/inventario-ajuste.spec.ts` (ajuste de stock, FASE2 §8). Proveedores y compras son de escritorio (prueba con Container API).
 
@@ -84,7 +84,7 @@ tests/integration/{payments,dashboard,dashboard-finance,indicators,indicadores-p
 |---|---|
 | `schema-payments.ts` → `payments`, `bikeComponents`, `paymentTables` | tablas Drizzle |
 | `schema-inventory.ts` → `suppliers`, `products`, `stockMovements`, `purchaseOrders`, `purchaseOrderItems`, `inventoryTables` | tablas Drizzle |
-| `stock.ts` → `applyStockMovement` | `(db, actor, { productId, kind, quantity, unitCostClp?, referenceKind?, referenceId?, note? }, now)` → `{ ok: true, movementId, stockQty, costClp } \| { ok: false, code: "not_found" \| "out_of_stock" }` (recibe la transacción) |
+| `stock.ts` → `applyStockMovement` | `(tx, actor, { productId, kind, quantity, unitCostClp?, referenceKind?, referenceId?, note? }, now)` → `{ ok: true, movementId, stockQty, costClp } \| { ok: false, code: "not_found" \| "out_of_stock" }` (solo corre dentro de la transacción de quien la llama) |
 | `products.ts` → `productFormSchema`, `createProduct`, `updateProduct`, `listProducts`, `getProduct`, `adjustStock` | `(db, actor, …, now)` → `{ ok, … }`; listas sin `costClp`/`unitCostClp` si no hay `costs.view` |
 | `low-stock.ts` → `lowStockProducts`, `branchLowStock` | `lowStockProducts(db)` → filas de todas las sucursales; `branchLowStock(db, actor)` → filas \| `null` |
 | `inventory-import.ts` → `parseInventoryCsv`, `importInventory` | `importInventory(db, email, text, now, { dryRun })` → `{ ok: true, created \| valid } \| { ok: false, code, errors?: { line, message }[] }` |
@@ -108,6 +108,7 @@ tests/integration/{payments,dashboard,dashboard-finance,indicators,indicadores-p
 - Costos: la clave no viaja sin `costs.view` (omitirla, no ponerla en `null`).
 - El resumen diario solo cambia cuando hay productos bajo mínimo: sin ellos, respuesta y correo idénticos a hoy.
 - El CSV del dueño vive fuera del repo (lleva costos).
+- El repo está en iCloud: aparecen copias `* 2.*`. Nunca se commitean; la guarda va antes de cada `git add -- drizzle`.
 
 Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/database.md`, `taller-domain.md`, `taller-ui.md`, `server-api.md`, `e2e.md`.
 
@@ -119,11 +120,11 @@ Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/database.md`, `talle
 
 **Depends on:** — · **Priority:** p0
 
-0. Precondición: `git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md` sale 0 y el árbol está limpio. Si no, detenerse.
+0. Precondiciones: `git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md` sale 0, y no hay archivos sin seguimiento con nombre `* 2` o `* 2.*` (copias de iCloud). Si los hay, la coordinadora confirma que son duplicados de su original y los borra antes del pase. Si la fase plataforma no está en `main`, detenerse.
 1. Crear `src/server/db/schema-payments.ts`: mover **tal cual** `payments` y `bikeComponents` desde `schema-orders.ts` (columnas, `$type`, defaults, índices `uq_payments_one_abono`, `idx_payments_branch_received`, `idx_bike_components_*`, CHECK `payments_*` y `bike_components_*`), con sus propias copias de `branchReference()` y `creatorReference()`; importa `workOrders`, `workOrderItems` de `./schema-orders.ts`, `bikes` de `./schema-taller.ts`, el resto de `./schema.ts`. `export const paymentTables = [payments, bikeComponents] as const;`.
 2. `schema-orders.ts`: quitar las dos tablas, sus importaciones que queden sin uso y sacarlas de `orderTables`.
 3. `scripts/db-check.ts`: importar `paymentTables` y agregarlo al recorrido de columnas.
-4. Reapuntar importadores: `grep -rn "schema-orders.ts" src scripts tests e2e` y, en cada archivo que importa `payments` o `bikeComponents`, separar esa importación hacia `schema-payments.ts`. Al generar se encontraron `src/server/taller/{payments,history,components,reports,dashboard,indicators}.ts` y `tests/integration/{payments,dashboard,dashboard-finance,indicators,indicadores-page,components}.test.ts`; si el grep encuentra otro (por ejemplo una página `.astro` agregada por la fase plataforma), se incluye y se anota en el reporte. En las pruebas, **solo** líneas de import (decisión 55).
+4. Reapuntar importadores: `grep -rn "schema-orders.ts" src scripts tests e2e` y, en cada archivo que importa `payments` o `bikeComponents`, separar esa importación hacia `schema-payments.ts`. Al generar se encontraron `src/server/taller/{payments,history,components,reports,dashboard,indicators}.ts` y `tests/integration/{payments,dashboard,dashboard-finance,indicators,indicadores-page,components}.test.ts`; si el grep encuentra otro importador en `src/` o `scripts/` (por ejemplo una página `.astro` agregada por la fase plataforma), se incluye, se agrega por nombre al Checkpoint y se anota en el reporte. En `tests/` cambian **exactamente** esos seis archivos y **solo** sus líneas de import (decisión 55); si otra prueba importa esas tablas, detenerse y reportar.
 5. `pnpm db:generate` debe decir que no hay cambios y no crear archivo.
 
 **Files**
@@ -137,23 +138,25 @@ Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/database.md`, `talle
 
 **Acceptance**
 
-1. **WHEN** la tarea 0 empieza **THE SYSTEM SHALL** tener en la rama `main` el archivo `blueprints/vector-plataforma/FASE-PLATAFORMA.md` (la fase plataforma está integrada)
+1. **WHEN** la tarea 0 empieza **THE SYSTEM SHALL** tener en la rama `main` el archivo `blueprints/vector-plataforma/FASE-PLATAFORMA.md` (la fase plataforma está integrada) y ningún archivo sin seguimiento con nombre de duplicado de iCloud (`* 2` o `* 2.*`)
 2. **WHEN** `pnpm db:generate` corre después del cambio **THE SYSTEM SHALL** no crear ni modificar ningún archivo en `drizzle/`
 3. **WHEN** se busca la definición de `payments` y de `bikeComponents` **THE SYSTEM SHALL** encontrarlas solo en `src/server/db/schema-payments.ts`, con las tablas `payments` y `bike_components`, sus columnas, índices y CHECK sin cambios
 4. **WHEN** `pnpm db:check` corre **THE SYSTEM SHALL** revisar las columnas de `allTables`, `tallerTables`, `orderTables`, `reportTables` y `paymentTables` y salir 0
-5. **WHEN** se compara `tests/` con el commit anterior **THE SYSTEM SHALL** mostrar cambios solo en líneas de import de `payments.test.ts`, `dashboard.test.ts`, `dashboard-finance.test.ts`, `indicators.test.ts`, `indicadores-page.test.ts` y `components.test.ts`
+5. **WHEN** se compara `tests/` con el commit anterior **THE SYSTEM SHALL** mostrar cambios exactamente en `payments.test.ts`, `dashboard.test.ts`, `dashboard-finance.test.ts`, `indicators.test.ts`, `indicadores-page.test.ts` y `components.test.ts`, y solo en sus líneas de import
 6. **WHEN** corre `pnpm test` **THE SYSTEM SHALL** pasar con 0 fallas y `src/server/db/schema-orders.ts` **SHALL** tener menos de 400 líneas
 
 **Verify**
 
 ```bash
 git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md   # expect: exit 0 — la fase plataforma ya está en main
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — ningún duplicado de iCloud sin seguimiento
 pnpm db:generate   # expect: exit 0, sin migración nueva
-test -z "$(git status --porcelain -- drizzle)"   # expect: exit 0 — la tarea 0 no crea ni cambia nada en drizzle/
+s="$(git status --porcelain -- drizzle)" && test -z "$s"   # expect: exit 0 — git respondió y la tarea 0 no crea ni cambia nada en drizzle/
 grep -q 'export const payments = pgTable' src/server/db/schema-payments.ts && grep -q 'export const bikeComponents = pgTable' src/server/db/schema-payments.ts   # expect: exit 0
 grep -Eq 'export const (payments|bikeComponents) = pgTable' src/server/db/schema-orders.ts; test $? -eq 1   # expect: 1 = ya no están en schema-orders.ts → la línea sale 0
 test "$(wc -l < src/server/db/schema-orders.ts | tr -d ' ')" -lt 400   # expect: exit 0
-test -z "$(git diff -U0 -- tests | grep -E '^[+-][^+-]' | grep -Ev '^[+-](import |\} from |  [A-Za-z]+,$)')"   # expect: exit 0 — en tests/ solo cambian líneas de import
+d="$(git diff HEAD --name-only -- tests)" && test "$(printf '%s\n' "$d" | LC_ALL=C sort)" = "$(printf '%s\n' tests/integration/payments.test.ts tests/integration/dashboard.test.ts tests/integration/dashboard-finance.test.ts tests/integration/indicators.test.ts tests/integration/indicadores-page.test.ts tests/integration/components.test.ts | LC_ALL=C sort)"   # expect: exit 0 — git respondió y cambiaron exactamente los seis archivos autorizados
+p="$(git diff HEAD -U0 -- tests)" && test -z "$(printf '%s\n' "$p" | grep -E '^[+-][^+-]' | grep -Ev '^[+-](import |\} from |  [A-Za-z]+,$)')"   # expect: exit 0 — en esos archivos solo cambian líneas de import
 pnpm test tests/integration/payments.test.ts tests/integration/components.test.ts tests/integration/dashboard.test.ts tests/integration/dashboard-finance.test.ts tests/integration/indicators.test.ts tests/integration/indicadores-page.test.ts   # expect: exit 0, 0 failed
 pnpm db:check   # expect: exit 0, {"ok":true,...}
 pnpm format && pnpm gate   # expect: exit 0
@@ -162,7 +165,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "refactor: f2-00 move payments and components to schema-payments" && git tag f2-00
+git add -- src/server/db/schema-orders.ts src/server/db/schema-payments.ts scripts/db-check.ts src/server/taller/payments.ts src/server/taller/history.ts src/server/taller/components.ts src/server/taller/reports.ts src/server/taller/dashboard.ts src/server/taller/indicators.ts tests/integration/payments.test.ts tests/integration/dashboard.test.ts tests/integration/dashboard-finance.test.ts tests/integration/indicators.test.ts tests/integration/indicadores-page.test.ts tests/integration/components.test.ts   # + cualquier importador extra encontrado, por nombre
+git commit -m "refactor: f2-00 move payments and components to schema-payments" && git tag f2-00
 git tag -l f2-00 | grep -qx f2-00   # expect: exit 0
 ```
 
@@ -197,7 +201,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-01 add phase 2 permissions" && git tag f2-01
+git add -- src/server/auth/permissions.ts tests/unit/permissions.test.ts
+git commit -m "feat: f2-01 add phase 2 permissions" && git tag f2-01
 git tag -l f2-01 | grep -qx f2-01   # expect: exit 0
 ```
 
@@ -246,7 +251,9 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-02 add inventory tables and pricing columns" && git tag f2-02
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-inventory.ts src/server/db/schema.ts src/server/db/schema-orders.ts scripts/db-check.ts tests/integration/inventory-schema.test.ts drizzle
+git commit -m "feat: f2-02 add inventory tables and pricing columns" && git tag f2-02
 git tag -l f2-02 | grep -qx f2-02   # expect: exit 0
 ```
 
@@ -257,7 +264,7 @@ git tag -l f2-02 | grep -qx f2-02   # expect: exit 0
 1. `tests/integration/products.test.ts` primero: los seis criterios, con usuarios de los cuatro roles en una sucursal.
 2. `rules.ts`: `PRODUCT_CATEGORIES = ["repuesto","accesorio","insumo","bicicleta_usada"] as const` + `PRODUCT_CATEGORY_LABELS` (`Repuesto`, `Accesorio`, `Insumo`, `Bicicleta usada`); `STOCK_MOVEMENT_KINDS` + `STOCK_MOVEMENT_LABELS` (`Compra`, `Venta`, `Consumo en orden`, `Ajuste`, `Devolución`, `Anulación`).
 3. `audit.ts`: agregar a `AuditAction` las 21 acciones de "Contracts", en ese orden.
-4. `stock.ts`: `applyStockMovement(db, actor, input, now)`: `select … from products where branch_id = actor.branchId and id = productId for update`; sin fila → `not_found`; `stock_qty + quantity < 0` → `out_of_stock`; en `compra`, nuevo costo = `stock_qty > 0 ? Math.round((stock_qty * cost_clp + quantity * unitCostClp) / (stock_qty + quantity)) : unitCostClp`; insertar el movimiento (CB = `actor.id`) y actualizar `stock_qty` (y `cost_clp`) con `updated_at = now`; un `23514` de `products_stock_qty_check` también devuelve `out_of_stock`. No abre transacción: la recibe.
+4. `stock.ts`: `applyStockMovement(tx, actor, input, now)`: `select … from products where branch_id = actor.branchId and id = productId for update`; sin fila → `not_found`; `stock_qty + quantity < 0` → `out_of_stock`; en `compra`, nuevo costo = `stock_qty > 0 ? Math.round((stock_qty * cost_clp + quantity * unitCostClp) / (stock_qty + quantity)) : unitCostClp`; insertar el movimiento (CB = `actor.id`) y actualizar `stock_qty` (y `cost_clp`) con `updated_at = now`; un `23514` de `products_stock_qty_check` también devuelve `out_of_stock`. No abre transacción: recibe la de quien la llama.
 5. `products.ts`: `productFormSchema` (SKU 1–40 sin espacios, nombre 2–120, categoría, unidad 1–20 por defecto `unidad`, costo y precio enteros 0–10.000.000, stock inicial 0–100.000, mínimo 0–100.000, código ≤ 64 opcional, serie ≤ 80 opcional, proveedor uuid opcional; serie obligatoria si `bicicleta_usada`). `createProduct` (`inventory.adjust`; `sku_exists` ante `23505`; stock inicial > 0 → `applyStockMovement(ajuste, nota "Stock inicial")`; audit `product.created`). `updateProduct` (`inventory.adjust`; no toca stock; audit `product.updated` con antes/después de precio y costo). `listProducts(db, actor, { q?, category?, lowOnly? })` (`inventory.view`; `q` busca en SKU, nombre y código de barras, sin distinguir mayúsculas; máximo 300; `lowOnly` = activos con `min_stock > 0 and stock_qty <= min_stock`). `getProduct(db, actor, id)` → producto + últimos 50 movimientos con nombre del usuario. `adjustStock(db, actor, id, { quantity: entero ≠ 0 entre −100.000 y 100.000, reason: 3–200 }, now)` (`inventory.adjust`; una transacción; audit `stock.adjusted` con `productId`, `quantity`, `reason`). Sin `costs.view`, quitar `costClp` de cada producto y `unitCostClp` de cada movimiento.
 
 **Files**
@@ -288,7 +295,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-03 add stock movements and product server" && git tag f2-03
+git add -- src/server/taller/stock.ts src/server/taller/products.ts src/server/taller/rules.ts src/server/taller/audit.ts tests/integration/products.test.ts
+git commit -m "feat: f2-03 add stock movements and product server" && git tag f2-03
 git tag -l f2-03 | grep -qx f2-03   # expect: exit 0
 ```
 
@@ -326,7 +334,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-04 add inventory pages and tablet stock adjustment" && git tag f2-04
+git add -- src/pages/taller/inventario/index.astro src/pages/taller/inventario/nuevo.astro 'src/pages/taller/inventario/[id].astro' src/layouts/TallerLayout.astro e2e/inventario-ajuste.spec.ts
+git commit -m "feat: f2-04 add inventory pages and tablet stock adjustment" && git tag f2-04
 git tag -l f2-04 | grep -qx f2-04   # expect: exit 0
 ```
 
@@ -347,7 +356,7 @@ git tag -l f2-04 | grep -qx f2-04   # expect: exit 0
 - `src/pages/taller/index.astro` — edit
 - `tests/integration/low-stock.test.ts` — new
 
-Reglas: `taller-domain.md`, `taller-ui.md`. Regla del nombre del taller. No cambia: respuesta y correo de alertas sin productos bajo mínimo (`tasks-maintenance.test.ts`).
+Reglas: `taller-domain.md`, `taller-ui.md`. Regla de código 14 (nombre del taller). No cambia: respuesta y correo de alertas sin productos bajo mínimo (`tasks-maintenance.test.ts`).
 
 **Acceptance**
 
@@ -367,7 +376,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-05 alert low stock on taller and daily digest" && git tag f2-05
+git add -- src/server/taller/low-stock.ts src/server/taller/maintenance.ts src/components/taller/LowStockNotice.astro src/pages/taller/index.astro tests/integration/low-stock.test.ts
+git commit -m "feat: f2-05 alert low stock on taller and daily digest" && git tag f2-05
 git tag -l f2-05 | grep -qx f2-05   # expect: exit 0
 ```
 
@@ -376,7 +386,7 @@ git tag -l f2-05 | grep -qx f2-05   # expect: exit 0
 **Depends on:** `E1-T6` · **Priority:** p1
 
 1. `tests/integration/inventory-import.test.ts` primero: CSV en strings dentro de la prueba (nunca archivos con costos en el repo).
-2. `inventory-import.ts`: `parseInventoryCsv(text)` → detecta el separador por el encabezado (`,` o `;`), exige el encabezado exacto `sku,nombre,categoria,costo,precio,stock,minimo,codigo_barras,serie` (con el separador detectado), rechaza comillas dobles con un error de línea, valida cada fila con `productFormSchema` (categoría en minúsculas: `repuesto`, `accesorio`, `insumo`, `bicicleta_usada`; vacíos = nulos), SKU repetidos dentro del archivo. `importInventory(db, email, text, now, { dryRun })`: busca el usuario activo por correo con rol `owner` o `admin` (si no, `forbidden`); si hay errores o algún SKU ya existe en la sucursal → `{ ok: false, code: "validation_error", errors: [{ line, message }] }`; si `dryRun` → `{ ok: true, valid: n }`; si no, una transacción: crea cada producto y, si `stock > 0`, `applyStockMovement(ajuste, nota "Inventario inicial", referenceKind "import" + un uuid de la importación)`; audit `inventory.imported` con el conteo; `{ ok: true, created: n }`.
+2. `inventory-import.ts`: `parseInventoryCsv(text)` → detecta el separador por el encabezado (`,` o `;`), exige el encabezado exacto `sku,nombre,categoria,costo,precio,stock,minimo,codigo_barras,serie` (con el separador detectado), rechaza comillas dobles con un error de línea, valida cada fila con `productFormSchema` (categoría en minúsculas: `repuesto`, `accesorio`, `insumo`, `bicicleta_usada`; vacíos = nulos), SKU repetidos dentro del archivo. `importInventory(db, email, text, now, { dryRun })`: busca el usuario activo por correo con rol `owner` o `admin` (si no, `forbidden`); si hay errores o algún SKU ya existe en la sucursal → `{ ok: false, code: "validation_error", errors: [{ line, message }] }`; si `dryRun` → `{ ok: true, valid: n }`; si no, una transacción: crea cada producto y, si `stock > 0`, `applyStockMovement(tx, …)` con `ajuste`, nota `Inventario inicial`, `referenceKind "import"` y un uuid de la importación; audit `inventory.imported` con el conteo; `{ ok: true, created: n }`.
 3. `scripts/inventory-import.ts`: lee `process.argv`; sin `<archivo.csv> <correo>` → mensaje de uso a stderr y `process.exit(2)` **antes** de importar o conectarse; lee el archivo, abre `postgres(getDbEnv().DATABASE_URL, { max: 1 })` + `drizzle`, llama `importInventory`, imprime JSON (sin correos ni costos), sale 0 si `ok`, 1 si no; `--dry-run` opcional.
 4. `package.json`: solo agregar `"inventory:import": "node --env-file-if-exists=.env scripts/inventory-import.ts"` (sin tocar dependencias; no agregar `packageManager`).
 
@@ -409,7 +419,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-06 import initial inventory from csv" && git tag f2-06
+git add -- src/server/taller/inventory-import.ts scripts/inventory-import.ts package.json tests/integration/inventory-import.test.ts
+git commit -m "feat: f2-06 import initial inventory from csv" && git tag f2-06
 git tag -l f2-06 | grep -qx f2-06   # expect: exit 0
 ```
 
@@ -420,7 +431,7 @@ git tag -l f2-06 | grep -qx f2-06   # expect: exit 0
 1. `tests/integration/purchases.test.ts` primero: los seis criterios.
 2. `rules.ts`: `PURCHASE_STATUSES` + `PURCHASE_STATUS_LABELS` (`Borrador`, `Enviada`, `Recibida`, `Anulada`); `PURCHASE_DOC_TYPES = ["factura","boleta","guia"]` + etiquetas (`Factura`, `Boleta`, `Guía de despacho`).
 3. `suppliers.ts`: `supplierFormSchema` (nombre 2–120, RUT opcional normalizado con `normalizeRut` → si no normaliza, `validation_error`; teléfono ≤ 30, correo opcional, notas ≤ 500); `createSupplier`/`updateSupplier` (`purchases.manage`; `23505` del índice de RUT → `rut_exists`; audit `supplier.created`/`supplier.updated` — `redactDetails` quita teléfono y correo); `listSuppliers` (`purchases.manage`).
-4. `purchases.ts`: `formatPurchaseNumber(n)` = `` `OC-${String(n).padStart(5, "0")}` ``; número con `update branches set next_purchase_number = next_purchase_number + 1 where id = $1 returning next_purchase_number - 1` (mismo manejo de PGlite/postgres-js que `allocateOrderNumber`). `createPurchase(db, actor, { supplierId, notes? }, now)` → `borrador`, audit `purchase.created`. `addPurchaseItem(db, actor, purchaseId, { productId, quantity 1–10.000, unitCostClp 0–10.000.000 }, now)` solo en `borrador` (si no, `invalid_status`), audit `purchase.item_added`. `sendPurchase` (`borrador → enviada`, audit `purchase.sent`). `receivePurchase(db, actor, purchaseId, { docType?, docNumber? }, now)`: bloquea la compra (`for update`), exige `borrador` o `enviada` con al menos una línea, por línea `applyStockMovement(compra, +quantity, unitCostClp, referenceKind "purchase_order", referenceId purchaseId)` y `received_qty = quantity`; `recibida`, `received_at`, `received_by`; audit `purchase.received`. `voidPurchase(db, actor, id, { reason 3–200 }, now)` solo `borrador`/`enviada` → `anulada` + V, audit `purchase.voided`; una `recibida` devuelve `invalid_status` (se corrige con un ajuste). `listPurchases`, `getPurchase` (líneas con producto; costos solo con `costs.view`). Todas exigen `purchases.manage`.
+4. `purchases.ts`: `formatPurchaseNumber(n)` = `` `OC-${String(n).padStart(5, "0")}` ``; número con `update branches set next_purchase_number = next_purchase_number + 1 where id = $1 returning next_purchase_number - 1` (mismo manejo de PGlite/postgres-js que `allocateOrderNumber`). `createPurchase(db, actor, { supplierId, notes? }, now)` → `borrador`, audit `purchase.created`. `addPurchaseItem(db, actor, purchaseId, { productId, quantity 1–10.000, unitCostClp 0–10.000.000 }, now)` solo en `borrador` (si no, `invalid_status`), audit `purchase.item_added`. `sendPurchase` (`borrador → enviada`, audit `purchase.sent`). `receivePurchase(db, actor, purchaseId, { docType?, docNumber? }, now)`: bloquea la compra (`for update`), exige `borrador` o `enviada` con al menos una línea, por línea `applyStockMovement(tx, …)` con `compra`, +quantity, `unitCostClp`, `referenceKind "purchase_order"`, `referenceId purchaseId`, y `received_qty = quantity`; `recibida`, `received_at`, `received_by`; audit `purchase.received`. `voidPurchase(db, actor, id, { reason 3–200 }, now)` solo `borrador`/`enviada` → `anulada` + V, audit `purchase.voided`; una `recibida` devuelve `invalid_status` (se corrige con un ajuste). `listPurchases`, `getPurchase` (líneas con producto; costos solo con `costs.view`). Todas exigen `purchases.manage`.
 
 **Files**
 - `src/server/taller/suppliers.ts` — new
@@ -449,7 +460,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-07 add suppliers and purchase orders server" && git tag f2-07
+git add -- src/server/taller/suppliers.ts src/server/taller/purchases.ts src/server/taller/rules.ts tests/integration/purchases.test.ts
+git commit -m "feat: f2-07 add suppliers and purchase orders server" && git tag f2-07
 git tag -l f2-07 | grep -qx f2-07   # expect: exit 0
 ```
 
@@ -491,6 +503,7 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-08 add supplier and purchase pages" && git tag f2-08
+git add -- src/pages/taller/proveedores/index.astro src/pages/taller/compras/index.astro 'src/pages/taller/compras/[id].astro' src/layouts/TallerLayout.astro tests/integration/compras-page.test.ts
+git commit -m "feat: f2-08 add supplier and purchase pages" && git tag f2-08
 git tag -l f2-08 | grep -qx f2-08   # expect: exit 0
 ```

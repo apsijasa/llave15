@@ -28,7 +28,7 @@ Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon
 
 **Gate:** `pnpm format && pnpm gate`. El sandbox de Codex corre solo `format`, `check`, `test`, `build`; el resto y el commit, la sesión coordinadora. Reversión: `git reset --hard f2-<anterior>`.
 
-**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name`; nada se borra; dinero en pesos enteros; zod en toda entrada; costos (`valueAtCostClp`, `partsMarginClp`, comisión de Mercado Pago) solo con `costs.view`; páginas `requireAdmin → can → zod → src/server/taller/**` con `isAllowedOrigin` en los POST.
+**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name`; nada se borra; dinero en pesos enteros; zod en toda entrada; costos (`valueAtCostClp`, `partsMarginClp`, comisión de Mercado Pago) solo con `costs.view`; páginas `requireAdmin → can → zod → src/server/taller/**` con `isAllowedOrigin` en los POST. **Checkpoint:** `git add --` solo con las rutas del paso; nunca `git add -A` (el repo está en iCloud y acumula copias `* 2.*`).
 
 **Cobertura de tablet:** E5-T1 tiene `e2e/caja-efectivo.spec.ts` (cobro en efectivo con caja abierta, FASE2 §8). Indicadores es de escritorio (`e2e/indicadores.spec.ts` existente debe seguir verde).
 
@@ -76,7 +76,7 @@ Sin esquema nuevo. Se leen: `cash_sessions`, `cash_movements`, `expenses`, `paym
 ## Conventions that bite in this area
 
 - El spec de caja **deja la caja deshabilitada al terminar** (cierra la sesión y apaga el interruptor): los demás specs no cobran en efectivo, pero ninguno debe heredar una caja habilitada.
-- `ReportView`/`Intl` no se usan aquí: los montos de páginas y del informe de caja van con `formatClp`.
+- Los montos de páginas y del cierre de caja van con `formatClp` (determinista).
 - `phase2Health` no imprime datos personales: solo conteos.
 - `f2:check` contra producción lo corre el dueño; Claude nunca toca producción.
 
@@ -123,7 +123,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-31 add the cash page and tablet cash sale" && git tag f2-31
+git add -- src/pages/taller/caja/index.astro src/layouts/TallerLayout.astro e2e/caja-efectivo.spec.ts tests/integration/caja-page.test.ts
+git commit -m "feat: f2-31 add the cash page and tablet cash sale" && git tag f2-31
 git tag -l f2-31 | grep -qx f2-31   # expect: exit 0
 ```
 
@@ -131,7 +132,7 @@ git tag -l f2-31 | grep -qx f2-31   # expect: exit 0
 
 **Depends on:** `E5-T1` · **Priority:** p0
 
-1. Localizar las dos migraciones: `grep -lE 'CREATE TABLE ("public"\.)?"cash_sessions"' drizzle/*.sql` y `grep -l 'ADD COLUMN "cash_session_id"' drizzle/*.sql`.
+1. Localizar las dos migraciones: `grep -lE 'CREATE TABLE ("public"\.)?"cash_sessions"' drizzle/*.sql` y `grep -l 'ADD COLUMN "cash_session_id"' drizzle/*.sql` (formato de drizzle-kit: una sentencia por línea con comillas dobles, como `drizzle/0001_huge_ultron.sql` línea 18 `ALTER TABLE "bookings" ADD COLUMN "whatsapp_consent_at" …`).
 2. `docs/ventanas/f2-v3.md` con: `## Qué trae` (caja, gastos, devoluciones; tag `f2-32`; la caja llega **deshabilitada**), `## Migraciones` (los dos nombres), `## Precondiciones` (taller cerrado, respaldo del día, V2 publicada, gate verde), `## Pasos en Replit` (BITACORA §2 con `corepack pnpm@12.4.2`), `## Verificación después de publicar` (panel *Database*, solo lectura: `select cash_control_enabled from branches;` → `false`; `select count(*) from cash_sessions;` → 0; abrir `/taller/caja`), `## Corte de caja (C5)` (lo hace el dueño cuando quiera: habilitar en `/taller/caja`, abrir la primera sesión, cerrarla al final del día; `pnpm f2:check` cada día), `## Reversión` (cerrar la sesión y deshabilitar; o republicar el anterior).
 
 **Files**
@@ -160,7 +161,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "docs: f2-32 prepare publication window v3" && git tag f2-32
+git add -- docs/ventanas/f2-v3.md
+git commit -m "docs: f2-32 prepare publication window v3" && git tag f2-32
 git tag -l f2-32 | grep -qx f2-32   # expect: exit 0
 git ls-files --error-unmatch docs/ventanas/f2-v3.md   # expect: exit 0
 ```
@@ -198,7 +200,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-33 compute stage b finance indicators" && git tag f2-33
+git add -- src/server/taller/indicators-finance.ts tests/integration/indicators-finance.test.ts
+git commit -m "feat: f2-33 compute stage b finance indicators" && git tag f2-33
 git tag -l f2-33 | grep -qx f2-33   # expect: exit 0
 ```
 
@@ -235,7 +238,8 @@ pnpm format && pnpm gate   # expect: exit 0 (incluye e2e/indicadores.spec.ts sin
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-34 show stage b blocks on indicators page" && git tag f2-34
+git add -- src/pages/taller/indicadores.astro src/components/taller/FinanceBlocks.astro tests/integration/indicadores-finance-page.test.ts
+git commit -m "feat: f2-34 show stage b blocks on indicators page" && git tag f2-34
 git tag -l f2-34 | grep -qx f2-34   # expect: exit 0
 ```
 
@@ -280,6 +284,7 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-35 add phase health check and close the phase" && git tag f2-35
+git add -- src/server/taller/phase2-health.ts scripts/f2-check.ts package.json README.md tests/integration/phase2-health.test.ts
+git commit -m "feat: f2-35 add phase health check and close the phase" && git tag f2-35
 git tag -l f2-35 | grep -qx f2-35   # expect: exit 0
 ```

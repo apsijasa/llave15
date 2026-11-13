@@ -4,14 +4,14 @@
 > Forma: herramienta interna (`internal-tool`) sobre el sitio + taller existentes
 > Runtime track: el del repo (Node 24, pnpm 12.4.2, Astro 7, TypeScript 6) — pins de `pnpm-lock.yaml`
 > Modo de emisión: bundle (`blueprint.md`, `tasks.json`, `epics/01…05`, `workspace/`, `WORKSPACE_BASE`)
-> Versión del blueprint: 1 · Versiones verificadas: 2026-11-13 — ver §11
+> Versión del blueprint: 2 (corrige la ronda 1 de validación: 3 MAJOR, 3 MINOR) · Versiones verificadas: 2026-11-13 — ver §11
 > Fuente autoritativa: `blueprints/vector-taller-f2/FASE2.md`, aprobado por el dueño el 13-11-2026 (decisión 55). Este documento no la modifica.
 
 Identificadores: cada paso se llama `F2-NN` (de `F2-00`, la tarea 0, a `F2-35`); su tarea en `tasks.json` es `E<épica>-T<n>` y su tag de checkpoint es `f2-NN`. Las decisiones propias de este blueprint se numeran `F2-D1`, `F2-D2`, …; solo se citan por número las decisiones globales 1–55 del blueprint de la fase 1 (la 56 y siguientes pertenecen a otras fases). Equivalencias en el mapa de §9.
 
 La construcción es **supervisada**, igual que la fase 1 y la etapa A: la sesión coordinadora (Claude) escribe un encargo por tarea (`docs/encargos/F2-NN-*.md`, plantilla de `docs/encargos/README.md`), Codex implementa con pruebas primero, Claude revisa, corre `pnpm db:migrate`, `pnpm db:check`, `pnpm gate` y commitea. El dueño publica en Replit.
 
-**Precondición de toda la fase (decisión del dueño, 13-11-2026):** la "fase plataforma" (una instalación por taller: perfil en `shops/<slug>/` elegido por `SHOP_SLUG`, `SITE` y reglas de reserva derivadas del perfil, CHECK de `bookings` relajados en `schema.ts`, ningún literal "Vector Bikes" en `src/` con una prueba guardiana) está integrada en `main` **antes** de la tarea 0. Se comprueba con `git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md` (§10 y F2-00). Este blueprint se escribió sobre el commit `76ebdce`, anterior a esa fase: **cada paso relee los archivos que toca** y no confía en los conteos de líneas citados aquí (§20.2).
+**Precondición de toda la fase (decisión del dueño, 13-11-2026):** la "fase plataforma" (una instalación por taller: perfil en `shops/<slug>/` elegido por `SHOP_SLUG`, `SITE` y reglas de reserva derivadas del perfil, CHECK de `bookings` relajados en `schema.ts`, ningún literal "Vector Bikes" en `src/` con una prueba guardiana) está integrada en `main` **antes** de la tarea 0. Se comprueba con `git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md` (§10 y F2-00). Además, el árbol no tiene archivos sin seguimiento duplicados por iCloud (`* 2`, `* 2.*`, BITACORA): la sesión coordinadora los borra después de confirmar que son copias. Este blueprint se escribió sobre el commit `76ebdce`, anterior a la fase plataforma: **cada paso relee los archivos que toca** y no confía en los conteos de líneas citados aquí (§20.2).
 
 **Regla transversal de esta fase:** ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal; se usa `SITE` (o el perfil del taller que expone la fase plataforma). Aplica a cada paso y está en `workspace/CLAUDE.md`.
 
@@ -23,7 +23,7 @@ La construcción es **supervisada**, igual que la fase 1 y la etapa A: la sesió
 Que un repuesto vendido o usado en una orden descuente stock solo, que el día cierre con la caja cuadrada sin planilla y que el dueño vea ingresos, egresos y margen del período en `/taller/indicadores` (FASE2 §1). Escala: una sucursal, dos personas en el mostrador, del orden de 150 productos, 10 a 20 bicicletas por semana. Principio central (FASE2 §4): ningún número de stock ni de caja se escribe a mano; todo es consecuencia de un movimiento con autor, fecha y referencia.
 
 ### Current state
-Repo en `main` (`76ebdce` al generar; la fase plataforma se integra antes de empezar). Astro 7 SSR en Replit Autoscale, Postgres 16 vía Drizzle 0.45. Esquema en cuatro archivos que importan en un sentido: `schema.ts` ← `schema-taller.ts` ← `schema-orders.ts` (399 líneas: órdenes, líneas, fotos, firmas, aprobaciones, control de calidad, **pagos** y **componentes**) ← `schema-reports.ts`. Dominio en `src/server/taller/**`: `items.ts` (385 líneas; `recomputeOrderTotals`, `addPartItem`, `voidItem`, `listItems` que devuelve la fila completa), `orders.ts` (395; dos inserciones de `work_orders`: `insertReceptionOrder` y `openWarrantyOrder`, numeradas por `allocateOrderNumber`), `payments.ts` (229; `recordPayment`, `voidPayment`, `listPayments`, `recomputePaid`), `delivery.ts` (`completeDelivery` exige `paid_clp = total_clp`), `indicators.ts` (289; Etapa A, decisión 54), `history.ts` (319), `reports.ts` (390), `approvals.ts` (369), `reception.ts` (372), `qc.ts`, `quotes.ts`, `maintenance.ts` (resumen diario de atrasos). Correos en `src/server/email/templates.ts` (371) y `order-templates.ts`. 29 acciones en `permissions.ts`. Pruebas: Vitest + PGlite (una conexión: `FOR UPDATE` concurrente se traba, BITACORA §8), 16 specs de Playwright en tablet, `scripts/smoke.sh`; compuerta `pnpm gate`. Sin inventario, caja, proveedores, ventas ni costos.
+Repo en `main` (`76ebdce` al generar; la fase plataforma se integra antes de empezar). Astro 7 SSR en Replit Autoscale, Postgres 16 vía Drizzle 0.45. Esquema en cuatro archivos que importan en un sentido: `schema.ts` ← `schema-taller.ts` ← `schema-orders.ts` (399 líneas: órdenes, líneas, fotos, firmas, aprobaciones, control de calidad, **pagos** y **componentes**) ← `schema-reports.ts`. Dominio en `src/server/taller/**`: `items.ts` (385 líneas; `recomputeOrderTotals`, `addPartItem`, `voidItem`, `listItems` que devuelve la fila completa), `orders.ts` (395; dos inserciones de `work_orders`: `insertReceptionOrder` y `openWarrantyOrder`, numeradas por `allocateOrderNumber`), `payments.ts` (229; `recordPayment`, `voidPayment`, `listPayments`, `recomputePaid`), `delivery.ts` (`completeDelivery` exige `paid_clp = total_clp`), `indicators.ts` (289; Etapa A, decisión 54), `history.ts` (319), `reports.ts` (390), `approvals.ts` (369), `reception.ts` (372), `qc.ts`, `quotes.ts`, `maintenance.ts` (resumen diario de atrasos). Correos en `src/server/email/templates.ts` (371) y `order-templates.ts`. 29 acciones en `permissions.ts`. Pruebas: Vitest + PGlite (una conexión: `FOR UPDATE` concurrente se traba, BITACORA §8), specs de Playwright en tablet, `scripts/smoke.sh`; compuerta `pnpm gate`. Sin inventario, caja, proveedores, ventas ni costos.
 
 ### Target state
 Mismo proyecto, base y despliegue (FASE2 §2.1.1). Cadena de esquema final: `schema.ts` ← `schema-taller.ts` ← `schema-inventory.ts` ← `schema-orders.ts` ← `schema-reports.ts` ← `schema-cash.ts` ← `schema-sales.ts` ← `schema-payments.ts` (F2-D1). Nuevo dominio: `stock.ts` (único punto que cambia stock), `products.ts`, `suppliers.ts`, `purchases.ts`, `part-stock.ts`, `order-totals.ts` (neto/IVA/total por régimen), `order-creation.ts`, `sales.ts`, `sale-void.ts`, `cash.ts`, `refunds.ts`, `expenses.ts`, `low-stock.ts`, `inventory-import.ts`, `indicators-finance.ts`, `phase2-health.ts`. Páginas servidor sin islas nuevas: `/taller/inventario`, `/nuevo`, `/[id]`, `/taller/proveedores`, `/taller/compras`, `/[id]`, `/taller/ventas`, `/nueva`, `/taller/gastos`, `/taller/caja`; grupo de menú "Inventario y caja". Dos interruptores por sucursal: `branches.new_order_pricing_mode` (`final`|`neto`) y `branches.cash_control_enabled`. Siete acciones nuevas. Tres ventanas de publicación (V1, V2, V3).
@@ -149,7 +149,7 @@ tests/integration/<archivo>.test.ts                             # uno nuevo por 
 
 ### Delta
 - **Nuevos:** 4 archivos de esquema, 17 módulos de dominio, `email/amounts.ts`, 3 componentes, 10 páginas, 2 scripts, 3 specs, 3 documentos de ventana y las pruebas de cada paso.
-- **Modificados:** `schema.ts`, `schema-orders.ts`, `db-check.ts`, `permissions.ts`, `rules.ts`, `audit.ts`, `items.ts`, `orders.ts`, `payments.ts`, `history.ts`, `components.ts`, `reports.ts`, `dashboard.ts`, `indicators.ts`, `maintenance.ts`, `reception.ts`, `qc.ts`, `quotes.ts`, `approvals.ts`, `templates.ts`, `order-templates.ts`, `TallerLayout.astro`, `ReportView.astro`, seis páginas existentes, `package.json` (dos scripts), `README.md`; solo las líneas de import de seis pruebas (F2-00) y `permissions.test.ts` (F2-01), ambas autorizadas por la decisión 55.
+- **Modificados:** `schema.ts`, `schema-orders.ts`, `db-check.ts`, `permissions.ts`, `rules.ts`, `audit.ts`, `items.ts`, `orders.ts`, `payments.ts`, `history.ts`, `components.ts`, `reports.ts`, `dashboard.ts`, `indicators.ts`, `maintenance.ts`, `reception.ts`, `qc.ts`, `quotes.ts`, `approvals.ts`, `templates.ts`, `order-templates.ts`, `TallerLayout.astro`, `ReportView.astro`; las páginas existentes `src/pages/taller/index.astro`, `src/pages/taller/catalogo/index.astro`, `src/pages/taller/indicadores.astro`, `src/pages/aprobacion/[token].astro`, `src/pages/taller/ordenes/[id]/index.astro`, `src/pages/taller/ordenes/[id]/recepcion.astro`, `src/pages/taller/ordenes/[id]/entrega.astro`, `src/pages/taller/ordenes/[id]/lineas.astro` y `src/pages/taller/ordenes/[id]/adicional.astro`; `package.json` (dos scripts), `README.md`; solo las líneas de import de seis pruebas (F2-00) y `permissions.test.ts` (F2-01), ambas autorizadas por la decisión 55.
 - **Eliminados:** nada. `allocateOrderNumber` se **mueve** a `order-creation.ts` con la misma firma (ningún importador fuera de `orders.ts`; F2-D17).
 
 ---
@@ -251,7 +251,7 @@ Producción: la sucursal ya existe; sus columnas nuevas toman los valores por de
 ## 5. Diseño de API
 
 ### Conventions
-- Funciones de dominio: `(db, actor, …, now)` → `{ ok: true, … } | { ok: false, code }`; solo lo inesperado lanza. Cuando un error se descubre dentro de una transacción después de escribir, se lanza un error centinela y se traduce a `{ ok: false, code }` fuera de ella (devolver un error no revierte; comentario existente en `items.ts`).
+- Funciones de dominio: `(db, actor, …, now)` → `{ ok: true, … } | { ok: false, code }`; solo lo inesperado lanza. Cuando un error se descubre dentro de una transacción después de escribir, se lanza un error centinela y se traduce a `{ ok: false, code }` fuera de ella (devolver un error no revierte; comentario existente en `items.ts`). Las funciones internas que **solo** corren dentro de una transacción ajena reciben `tx` como primer argumento (`applyStockMovement`, `requireOpenCashSession`, `recordCashMovement`, `voidCashMovementFor`, `reverseItemStock`).
 - Códigos nuevos: `out_of_stock`, `cash_closed`, `cash_session_open`, `cash_session_closed`, `cash_control_off`, `rut_exists`, `sku_exists`, `invalid_amount`, `invalid_status`, `forbidden`, `not_found`, `validation_error`.
 - Páginas `/taller/**`: POST → 303 a la misma página con `?hecho=<acción>`, o 4xx con el error en texto (`role="alert"`): `validation_error`/`invalid_amount` 422, `forbidden` 403, `not_found` 404, el resto 409.
 - Validación: esquemas zod exportados por cada módulo; mensajes en español de Chile.
@@ -392,9 +392,10 @@ Toda función recibe `actor` y filtra por `actor.branchId`; toda fila nueva usa 
 1. Una sesión por paso; **≤ 5 archivos escritos a mano** (lo generado en `drizzle/` no cuenta). **Única excepción declarada: F2-00** (mover dos tablas e importadores; mecánico; F2-D2). ≤ 6 criterios.
 2. Pruebas primero, en rojo; después la implementación. Cada paso lleva Archivos, Hacer, reglas que aplican, Done when, Verify y Checkpoint; la dirección completa está en su épica, que es autocontenida.
 3. Verify es shell literal desde la raíz; toda línea sale 0 cuando el paso es correcto; los fallos esperados afirman su código. La última línea siempre es `pnpm format && pnpm gate   # expect: exit 0`. El sandbox de Codex corre solo `format`, `check`, `test` y `build`; `db:migrate`, `db:check`, `test:tablet`, `smoke` y `gate` los corre la sesión coordinadora (BITACORA §8).
-4. Ningún Verify afirma estado de commit; los únicos `git` en Verify (F2-00) comprueban que el paso **no** cambió `drizzle/` y que en `tests/` solo cambiaron imports, sin depender del commit del paso.
-5. Un paso no está hecho hasta que su Verify y los anteriores sigan pasando. Esta fase no agrega variables de entorno.
-6. **Checkpoint:** `git add -A && git commit -m "<tipo>: f2-NN <descripción en inglés>" && git tag f2-NN` (sin trailers). Antes de cada pase el árbol está limpio. Reversión: `git reset --hard f2-<NN-1>` y, si el paso migró la base dev, reiniciarla con el comando de §12 (lo aprueba el operador cada vez).
+4. Ningún Verify afirma estado de commit; los únicos `git` en Verify (F2-00) comprueban la precondición y que el paso **no** cambió `drizzle/` y solo tocó los imports autorizados en `tests/`, comparando el árbol de trabajo contra `HEAD` y verificando que `git` respondió antes de leer su salida.
+5. Un paso no está hecho hasta que su Verify pasa y `pnpm gate` sigue en verde. El Verify de cada paso se corre una sola vez, antes de su Checkpoint: varios comparan contra `HEAD` o contra la migración más nueva y no se repiten en pasos posteriores. La regresión de lo anterior la cubren `pnpm gate` y la compuerta de §20.1. Esta fase no agrega variables de entorno.
+   Patrón de duplicados de iCloud: `' 2(\.[^/]*)?$'` cubre los archivos sueltos, que es el caso observado en este repo. Carpetas duplicadas (`drizzle 2/`) o sufijos ` 3` quedan fuera a propósito (F2-D26); si aparecen, la coordinadora los borra a mano antes de seguir.
+6. **Checkpoint:** `git add -- <los archivos del paso>` (en los pasos de esquema también `drizzle`, después de comprobar que no hay duplicados de iCloud sin seguimiento), luego `git commit -m "<tipo>: f2-NN <descripción en inglés>" && git tag f2-NN` (sin trailers). **Nunca `git add -A`**: en el repo pueden aparecer copias `* 2.*` de iCloud y archivos del dueño sin seguimiento (F2-D26). Reversión: `git reset --hard f2-<NN-1>` y, si el paso migró la base dev, reiniciarla con el comando de §12 (lo aprueba el operador cada vez).
 7. Nunca saltar adelante; un paso bloqueado se reporta.
 8. Pasos de esquema: editar → `pnpm db:generate` (si pregunta, detenerse) → pruebas PGlite → `pnpm db:migrate` → `pnpm db:check`.
 9. **Cada paso relee los archivos que toca** antes de editarlos: la fase plataforma cambió `schema.ts`, `site.ts` y las plantillas después de que se escribió este blueprint; los conteos de líneas citados son orientativos y el criterio es "< 400" sobre el archivo real.
@@ -446,38 +447,41 @@ Toda función recibe `actor` y filtra por `actor.branchId`; toda fila nueva usa 
 
 La cadena es lineal a propósito: un solo builder (Codex) por vez, un encargo por tarea (`CLAUDE.md`, "Reparto con Codex").
 
-**Reglas por paso (abreviatura en cada paso):** R-db = `.claude/rules/database.md` · R-dom = `taller-domain.md` · R-api = `server-api.md` · R-ui = `taller-ui.md` · R-e2e = `e2e.md` · NN = No negociables de `CLAUDE.md` (siempre: 4 secretos/PII, 5 `drizzle/`, 2 migrar solo dev, 7 compuerta, y la regla del nombre del taller).
+**Reglas por paso (abreviatura en cada paso):** R-db = `.claude/rules/database.md` · R-dom = `taller-domain.md` · R-api = `server-api.md` · R-ui = `taller-ui.md` · R-e2e = `e2e.md` · NN = No negociables de `CLAUDE.md` · RC = reglas de código de `CLAUDE.md` (siempre: NN 4 secretos/PII, NN 5 `drizzle/`, NN 2 migrar solo dev, NN 7 compuerta, y RC 14, el nombre del taller).
 
 ---
 
 #### F2-00 — Partir `schema-orders.ts` (tarea 0) (E1-T1)
-**Precondición (operador):** la fase plataforma está en `main` (primera línea del Verify) y el árbol está limpio.
+**Precondición (operador):** la fase plataforma está en `main` y no hay duplicados de iCloud sin seguimiento (`* 2`, `* 2.*`); si los hay, la coordinadora confirma que son copias y los borra antes del pase. Ambas cosas son las dos primeras líneas del Verify.
 **Archivos (excepción declarada, F2-D2):** `src/server/db/schema-orders.ts` · `src/server/db/schema-payments.ts` (nuevo) · `scripts/db-check.ts` · `src/server/taller/{payments,history,components,reports,dashboard,indicators}.ts` (solo imports) · `tests/integration/{payments,dashboard,dashboard-finance,indicators,indicadores-page,components}.test.ts` (solo líneas de import; decisión 55).
-**Hacer:** mover `payments` y `bikeComponents` tal cual (nombres, columnas, índices, CHECK) a `schema-payments.ts` (importa de `schema-orders.ts`, `schema-taller.ts`, `schema.ts`; copia sus helpers `branchReference`/`creatorReference`), exportar `paymentTables = [payments, bikeComponents] as const`, quitarlos de `orderTables`; `db-check.ts` recorre también `paymentTables`; reapuntar todo importador (`grep -rn "schema-orders.ts" src scripts tests e2e` y quedarse con los que importan esas dos tablas). Sin migración.
+**Hacer:** mover `payments` y `bikeComponents` tal cual (nombres, columnas, índices, CHECK) a `schema-payments.ts` (importa de `schema-orders.ts`, `schema-taller.ts`, `schema.ts`; copia sus helpers `branchReference`/`creatorReference`), exportar `paymentTables = [payments, bikeComponents] as const`, quitarlos de `orderTables`; `db-check.ts` recorre también `paymentTables`; reapuntar todo importador de `src/` y `scripts/` (`grep -rn "schema-orders.ts" src scripts tests e2e` y quedarse con los que importan esas dos tablas; si aparece uno fuera de la lista, se agrega por nombre al Checkpoint y al reporte). En `tests/` solo cambian los seis archivos autorizados. Sin migración.
 **Reglas:** R-db · NN 5, 7 · No cambia: nombres de tabla y columna, ninguna aserción de prueba.
 **Done when**
-- [ ] WHEN la tarea 0 empieza THE SYSTEM SHALL tener en la rama `main` el archivo `blueprints/vector-plataforma/FASE-PLATAFORMA.md` (la fase plataforma está integrada)
+- [ ] WHEN la tarea 0 empieza THE SYSTEM SHALL tener en la rama `main` el archivo `blueprints/vector-plataforma/FASE-PLATAFORMA.md` (la fase plataforma está integrada) y ningún archivo sin seguimiento con nombre de duplicado de iCloud (`* 2` o `* 2.*`)
 - [ ] WHEN `pnpm db:generate` corre después del cambio THE SYSTEM SHALL no crear ni modificar ningún archivo en `drizzle/`
 - [ ] WHEN se busca la definición de `payments` y de `bikeComponents` THE SYSTEM SHALL encontrarlas solo en `src/server/db/schema-payments.ts`, con las tablas `payments` y `bike_components`, sus columnas, índices y CHECK sin cambios
 - [ ] WHEN `pnpm db:check` corre THE SYSTEM SHALL revisar las columnas de `allTables`, `tallerTables`, `orderTables`, `reportTables` y `paymentTables` y salir 0
-- [ ] WHEN se compara `tests/` con el commit anterior THE SYSTEM SHALL mostrar cambios solo en líneas de import de `payments.test.ts`, `dashboard.test.ts`, `dashboard-finance.test.ts`, `indicators.test.ts`, `indicadores-page.test.ts` y `components.test.ts`
+- [ ] WHEN se compara `tests/` con el commit anterior THE SYSTEM SHALL mostrar cambios exactamente en `payments.test.ts`, `dashboard.test.ts`, `dashboard-finance.test.ts`, `indicators.test.ts`, `indicadores-page.test.ts` y `components.test.ts`, y solo en sus líneas de import
 - [ ] WHEN corre `pnpm test` THE SYSTEM SHALL pasar con 0 fallas y `src/server/db/schema-orders.ts` SHALL tener menos de 400 líneas
 **Verify**
 ```bash
 git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md   # expect: exit 0 — la fase plataforma ya está en main
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — ningún duplicado de iCloud sin seguimiento
 pnpm db:generate   # expect: exit 0, sin migración nueva
-test -z "$(git status --porcelain -- drizzle)"   # expect: exit 0 — la tarea 0 no crea ni cambia nada en drizzle/
+s="$(git status --porcelain -- drizzle)" && test -z "$s"   # expect: exit 0 — git respondió y la tarea 0 no crea ni cambia nada en drizzle/
 grep -q 'export const payments = pgTable' src/server/db/schema-payments.ts && grep -q 'export const bikeComponents = pgTable' src/server/db/schema-payments.ts   # expect: exit 0
 grep -Eq 'export const (payments|bikeComponents) = pgTable' src/server/db/schema-orders.ts; test $? -eq 1   # expect: 1 = ya no están en schema-orders.ts → la línea sale 0
 test "$(wc -l < src/server/db/schema-orders.ts | tr -d ' ')" -lt 400   # expect: exit 0
-test -z "$(git diff -U0 -- tests | grep -E '^[+-][^+-]' | grep -Ev '^[+-](import |\} from |  [A-Za-z]+,$)')"   # expect: exit 0 — en tests/ solo cambian líneas de import
+d="$(git diff HEAD --name-only -- tests)" && test "$(printf '%s\n' "$d" | LC_ALL=C sort)" = "$(printf '%s\n' tests/integration/payments.test.ts tests/integration/dashboard.test.ts tests/integration/dashboard-finance.test.ts tests/integration/indicators.test.ts tests/integration/indicadores-page.test.ts tests/integration/components.test.ts | LC_ALL=C sort)"   # expect: exit 0 — git respondió y cambiaron exactamente los seis archivos autorizados
+p="$(git diff HEAD -U0 -- tests)" && test -z "$(printf '%s\n' "$p" | grep -E '^[+-][^+-]' | grep -Ev '^[+-](import |\} from |  [A-Za-z]+,$)')"   # expect: exit 0 — en esos archivos solo cambian líneas de import
 pnpm test tests/integration/payments.test.ts tests/integration/components.test.ts tests/integration/dashboard.test.ts tests/integration/dashboard-finance.test.ts tests/integration/indicators.test.ts tests/integration/indicadores-page.test.ts   # expect: exit 0, 0 failed
 pnpm db:check   # expect: exit 0, {"ok":true,...}
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "refactor: f2-00 move payments and components to schema-payments" && git tag f2-00
+git add -- src/server/db/schema-orders.ts src/server/db/schema-payments.ts scripts/db-check.ts src/server/taller/payments.ts src/server/taller/history.ts src/server/taller/components.ts src/server/taller/reports.ts src/server/taller/dashboard.ts src/server/taller/indicators.ts tests/integration/payments.test.ts tests/integration/dashboard.test.ts tests/integration/dashboard-finance.test.ts tests/integration/indicators.test.ts tests/integration/indicadores-page.test.ts tests/integration/components.test.ts   # + cualquier importador extra encontrado, por nombre
+git commit -m "refactor: f2-00 move payments and components to schema-payments" && git tag f2-00
 git tag -l f2-00 | grep -qx f2-00   # expect: exit 0
 ```
 
@@ -498,7 +502,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-01 add phase 2 permissions" && git tag f2-01
+git add -- src/server/auth/permissions.ts tests/unit/permissions.test.ts
+git commit -m "feat: f2-01 add phase 2 permissions" && git tag f2-01
 git tag -l f2-01 | grep -qx f2-01   # expect: exit 0
 ```
 
@@ -525,13 +530,15 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-02 add inventory tables and pricing columns" && git tag f2-02
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-inventory.ts src/server/db/schema.ts src/server/db/schema-orders.ts scripts/db-check.ts tests/integration/inventory-schema.test.ts drizzle
+git commit -m "feat: f2-02 add inventory tables and pricing columns" && git tag f2-02
 git tag -l f2-02 | grep -qx f2-02   # expect: exit 0
 ```
 
 #### F2-03 — Stock y productos: servidor (E1-T4)
 **Archivos:** `src/server/taller/stock.ts` · `src/server/taller/products.ts` · `src/server/taller/rules.ts` · `src/server/taller/audit.ts` · `tests/integration/products.test.ts`
-**Hacer:** `applyStockMovement` (§5); `products.ts` con `productFormSchema`, `createProduct` (stock inicial como `ajuste` con nota `Stock inicial`), `updateProduct` (sin tocar stock), `listProducts` (filtros `q` sobre SKU/nombre/código, `category`, `lowOnly`), `getProduct` (+50 movimientos), `adjustStock`; omisión de costos sin `costs.view`; `rules.ts`: categorías, tipos de movimiento y sus etiquetas; `audit.ts`: las 21 acciones de auditoría de la fase (lista en la épica 01).
+**Hacer:** `applyStockMovement(tx, actor, input, now)` (§5); `products.ts` con `productFormSchema`, `createProduct` (stock inicial como `ajuste` con nota `Stock inicial`), `updateProduct` (sin tocar stock), `listProducts` (filtros `q` sobre SKU/nombre/código, `category`, `lowOnly`), `getProduct` (+50 movimientos), `adjustStock`; omisión de costos sin `costs.view`; `rules.ts`: categorías, tipos de movimiento y sus etiquetas; `audit.ts`: las 21 acciones de auditoría de la fase (lista en la épica 01).
 **Reglas:** R-dom · NN 9, 14, 16, 17 · No cambia: acciones de auditoría existentes.
 **Done when**
 - [ ] WHEN `adjustStock` registra +5 con motivo sobre un producto con stock 0 THE SYSTEM SHALL dejar `stock_qty = 5`, un `stock_movements` `ajuste` con `quantity = 5` y el motivo, y una fila `stock.adjusted` en `audit_log` con el usuario
@@ -547,7 +554,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-03 add stock movements and product server" && git tag f2-03
+git add -- src/server/taller/stock.ts src/server/taller/products.ts src/server/taller/rules.ts src/server/taller/audit.ts tests/integration/products.test.ts
+git commit -m "feat: f2-03 add stock movements and product server" && git tag f2-03
 git tag -l f2-03 | grep -qx f2-03   # expect: exit 0
 ```
 
@@ -567,14 +575,15 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-04 add inventory pages and tablet stock adjustment" && git tag f2-04
+git add -- src/pages/taller/inventario/index.astro src/pages/taller/inventario/nuevo.astro 'src/pages/taller/inventario/[id].astro' src/layouts/TallerLayout.astro e2e/inventario-ajuste.spec.ts
+git commit -m "feat: f2-04 add inventory pages and tablet stock adjustment" && git tag f2-04
 git tag -l f2-04 | grep -qx f2-04   # expect: exit 0
 ```
 
 #### F2-05 — Stock bajo mínimo (E1-T6)
 **Archivos:** `src/server/taller/low-stock.ts` · `src/server/taller/maintenance.ts` · `src/components/taller/LowStockNotice.astro` · `src/pages/taller/index.astro` · `tests/integration/low-stock.test.ts`
 **Hacer:** `lowStockProducts(db)` (todas las sucursales; activos con `min_stock > 0 and stock_qty <= min_stock`, F2-D11) y `branchLowStock(db, actor)` (`purchases.manage`; si no, `null`); `sendOverdueDigest` suma la lista solo si no está vacía; aviso en `/taller` para dueño y administración.
-**Reglas:** R-dom · R-ui · NN regla del nombre del taller (el asunto usa `SITE.name`) · No cambia: respuesta y correo de alertas sin productos bajo mínimo.
+**Reglas:** R-dom · R-ui · RC 14 (el asunto usa `SITE.name`) · No cambia: respuesta y correo de alertas sin productos bajo mínimo.
 **Done when**
 - [ ] WHEN `/api/tareas/alertas` corre sin órdenes atrasadas ni productos bajo mínimo THE SYSTEM SHALL responder 200 con `ok: true`, `overdue: 0`, `sent: false` y sin la clave `lowStock`
 - [ ] WHEN hay 2 productos activos con `min_stock > 0` y `stock_qty <= min_stock` y ninguna orden atrasada THE SYSTEM SHALL enviar a `SHOP_NOTIFY_EMAIL` un correo con asunto `Stock bajo mínimo: 2 · ` seguido de `SITE.name`, y responder `ok: true`, `overdue: 0`, `sent: true`, `lowStock: 2`
@@ -588,13 +597,14 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-05 alert low stock on taller and daily digest" && git tag f2-05
+git add -- src/server/taller/low-stock.ts src/server/taller/maintenance.ts src/components/taller/LowStockNotice.astro src/pages/taller/index.astro tests/integration/low-stock.test.ts
+git commit -m "feat: f2-05 alert low stock on taller and daily digest" && git tag f2-05
 git tag -l f2-05 | grep -qx f2-05   # expect: exit 0
 ```
 
 #### F2-06 — Importación inicial desde CSV (E1-T7)
 **Archivos:** `src/server/taller/inventory-import.ts` · `scripts/inventory-import.ts` · `package.json` (solo el script) · `tests/integration/inventory-import.test.ts`
-**Hacer:** `parseInventoryCsv(text)` y `importInventory(db, email, rows, now, { dryRun })` todo-o-nada; el script: `pnpm inventory:import <archivo.csv> <correo> [--dry-run]`, salida 0 / 1 (datos inválidos) / 2 (uso). El CSV del dueño vive fuera del repo.
+**Hacer:** `parseInventoryCsv(text)` y `importInventory(db, email, text, now, { dryRun })` todo-o-nada; el script: `pnpm inventory:import <archivo.csv> <correo> [--dry-run]`, salida 0 / 1 (datos inválidos) / 2 (uso). El CSV del dueño vive fuera del repo.
 **Reglas:** R-dom · NN 4 (el script nunca imprime correos completos ni costos en logs), 14 · No cambia: ninguna dependencia de `package.json`.
 **Done when**
 - [ ] WHEN `importInventory` recibe un CSV válido de 3 filas con encabezado `sku,nombre,categoria,costo,precio,stock,minimo,codigo_barras,serie` THE SYSTEM SHALL crear 3 productos y, por cada `stock` mayor que 0, un `stock_movements` `ajuste` con nota `Inventario inicial`, en una sola transacción
@@ -612,7 +622,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-06 import initial inventory from csv" && git tag f2-06
+git add -- src/server/taller/inventory-import.ts scripts/inventory-import.ts package.json tests/integration/inventory-import.test.ts
+git commit -m "feat: f2-06 import initial inventory from csv" && git tag f2-06
 git tag -l f2-06 | grep -qx f2-06   # expect: exit 0
 ```
 
@@ -634,7 +645,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-07 add suppliers and purchase orders server" && git tag f2-07
+git add -- src/server/taller/suppliers.ts src/server/taller/purchases.ts src/server/taller/rules.ts tests/integration/purchases.test.ts
+git commit -m "feat: f2-07 add suppliers and purchase orders server" && git tag f2-07
 git tag -l f2-07 | grep -qx f2-07   # expect: exit 0
 ```
 
@@ -656,7 +668,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-08 add supplier and purchase pages" && git tag f2-08
+git add -- src/pages/taller/proveedores/index.astro src/pages/taller/compras/index.astro 'src/pages/taller/compras/[id].astro' src/layouts/TallerLayout.astro tests/integration/compras-page.test.ts
+git commit -m "feat: f2-08 add supplier and purchase pages" && git tag f2-08
 git tag -l f2-08 | grep -qx f2-08   # expect: exit 0
 ```
 
@@ -679,7 +692,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-09 compute net vat and total for neto orders" && git tag f2-09
+git add -- src/server/taller/order-totals.ts src/server/taller/items.ts src/server/taller/rules.ts tests/integration/pricing-totals.test.ts
+git commit -m "feat: f2-09 compute net vat and total for neto orders" && git tag f2-09
 git tag -l f2-09 | grep -qx f2-09   # expect: exit 0
 ```
 
@@ -703,7 +717,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-10 copy branch pricing mode on order creation" && git tag f2-10
+git add -- src/server/taller/order-creation.ts src/server/taller/orders.ts src/pages/taller/catalogo/index.astro tests/integration/pricing-switch.test.ts
+git commit -m "feat: f2-10 copy branch pricing mode on order creation" && git tag f2-10
 git tag -l f2-10 | grep -qx f2-10   # expect: exit 0
 ```
 
@@ -725,13 +740,14 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-11 show net vat and total on order screens" && git tag f2-11
+git add -- src/components/taller/OrderAmounts.astro 'src/pages/taller/ordenes/[id]/index.astro' 'src/pages/taller/ordenes/[id]/recepcion.astro' 'src/pages/taller/ordenes/[id]/entrega.astro' tests/integration/order-amounts-page.test.ts
+git commit -m "feat: f2-11 show net vat and total on order screens" && git tag f2-11
 git tag -l f2-11 | grep -qx f2-11   # expect: exit 0
 ```
 
 #### F2-12 — Repuesto ligado a producto (E2-T4)
 **Archivos:** `src/server/taller/part-stock.ts` (nuevo) · `src/server/taller/items.ts` · `src/pages/taller/ordenes/[id]/lineas.astro` · `tests/integration/part-stock.test.ts`
-**Hacer:** `addProductPartItem` (`items.add_part`; precio por régimen, F2-D16; costo congelado; `consumo_orden`), `reverseItemStock` que `voidItem` llama cuando la línea tiene producto; `listItems` omite `unitCostClp` sin `costs.view`; en Líneas, "Agregar repuesto del inventario" y el desglose `neto` con `OrderAmounts`.
+**Hacer:** `addProductPartItem` (`items.add_part`; precio por régimen, F2-D16; costo congelado; `consumo_orden`), `reverseItemStock(tx, actor, item, now)` que `voidItem` llama cuando la línea tiene producto; `listItems` omite `unitCostClp` sin `costs.view`; en Líneas, "Agregar repuesto del inventario" y el desglose `neto` con `OrderAmounts`.
 **Reglas:** R-dom · R-ui · NN 12, 14, 16, 17 · No cambia: `addPartItem` sin producto, firmas de `voidItem` y `listItems`.
 **Done when**
 - [ ] WHEN `addProductPartItem` agrega 1 unidad de un producto con `stock_qty = 5` a una orden THE SYSTEM SHALL dejar `stock_qty = 4`, una línea `repuesto` con `product_id` y `unit_cost_clp` igual al costo del producto, y un movimiento `consumo_orden` de -1 que referencia esa línea
@@ -748,14 +764,15 @@ pnpm format && pnpm gate   # expect: exit 0 (incluye e2e/lineas-guardar-cambios.
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-12 link part lines to inventory products" && git tag f2-12
+git add -- src/server/taller/part-stock.ts src/server/taller/items.ts 'src/pages/taller/ordenes/[id]/lineas.astro' tests/integration/part-stock.test.ts
+git commit -m "feat: f2-12 link part lines to inventory products" && git tag f2-12
 git tag -l f2-12 | grep -qx f2-12   # expect: exit 0
 ```
 
 #### F2-13 — Desglose en las plantillas de correo (E2-T5)
 **Archivos:** `src/server/email/amounts.ts` (nuevo) · `src/server/email/templates.ts` · `src/server/email/order-templates.ts` · `tests/unit/pricing-emails.test.ts`
 **Hacer:** `amounts.ts` (sin importar `templates.ts`) devuelve filas `[etiqueta, monto]`; `ReceivedBike` gana `pricingMode?`, `ReadyForPickup` gana `pricing?`, `QuoteEmail` gana `pricingMode?`; `quoteTotalClp(items, mode?)`.
-**Reglas:** R-dom · NN regla del nombre del taller · No cambia: salida de las tres plantillas sin régimen o con `final`.
+**Reglas:** R-dom · RC 14 · No cambia: salida de las tres plantillas sin régimen o con `final`.
 **Done when**
 - [ ] WHEN `receivedBikeEmail` recibe líneas por 10.000 y `pricingMode: neto` THE SYSTEM SHALL incluir en `text` y en `html` las filas `Neto` `$10.000`, `IVA (19%)` `$1.900` y `Total cotizado` `$11.900`
 - [ ] WHEN `readyForPickupEmail` recibe una orden `neto` con neto 10.000, IVA 1.900, total 11.900 y abonado 5.000 THE SYSTEM SHALL mostrar `Neto`, `IVA (19%)`, `Total` `$11.900`, `Abonado` `$5.000` y `Saldo` `$6.900`
@@ -770,14 +787,15 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-13 render net and vat rows in order emails" && git tag f2-13
+git add -- src/server/email/amounts.ts src/server/email/templates.ts src/server/email/order-templates.ts tests/unit/pricing-emails.test.ts
+git commit -m "feat: f2-13 render net and vat rows in order emails" && git tag f2-13
 git tag -l f2-13 | grep -qx f2-13   # expect: exit 0
 ```
 
 #### F2-14 — Desglose en los envíos (E2-T6)
 **Archivos:** `src/server/taller/reception.ts` · `src/server/taller/qc.ts` · `src/server/taller/quotes.ts` · `tests/integration/pricing-notifications.test.ts`
 **Hacer:** las tres consultas que arman los correos agregan `pricingMode` (y en `qc.ts`, `subtotalClp`/`vatClp`); `sendQuote` pasa el régimen y audita el total con IVA.
-**Reglas:** R-dom · NN 4, 6 (correos después del commit) · No cambia: condiciones de envío y auditoría `notify.*`.
+**Reglas:** R-dom · NN 4 · RC 6 (correos después del commit) · No cambia: condiciones de envío y auditoría `notify.*`.
 **Done when**
 - [ ] WHEN se finaliza la recepción de una orden `neto` con líneas por 10.000 THE SYSTEM SHALL enviar `Recibimos tu bicicleta` con `IVA (19%)` `$1.900` y `Total cotizado` `$11.900`
 - [ ] WHEN el control de calidad aprueba una orden `neto` de neto 10.000 THE SYSTEM SHALL enviar `Lista para retirar` con `Neto`, `IVA (19%)` y `Total` `$11.900`
@@ -791,7 +809,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-14 send the breakdown in order emails" && git tag f2-14
+git add -- src/server/taller/reception.ts src/server/taller/qc.ts src/server/taller/quotes.ts tests/integration/pricing-notifications.test.ts
+git commit -m "feat: f2-14 send the breakdown in order emails" && git tag f2-14
 git tag -l f2-14 | grep -qx f2-14   # expect: exit 0
 ```
 
@@ -813,7 +832,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-15 freeze the breakdown in the service report" && git tag f2-15
+git add -- src/server/taller/report-snapshot.ts src/server/taller/reports.ts src/components/taller/ReportView.astro tests/integration/report-pricing.test.ts
+git commit -m "feat: f2-15 freeze the breakdown in the service report" && git tag f2-15
 git tag -l f2-15 | grep -qx f2-15   # expect: exit 0
 ```
 
@@ -835,7 +855,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-16 show net and vat on approvals" && git tag f2-16
+git add -- src/server/taller/approvals.ts 'src/pages/aprobacion/[token].astro' 'src/pages/taller/ordenes/[id]/adicional.astro' tests/integration/approval-pricing.test.ts
+git commit -m "feat: f2-16 show net and vat on approvals" && git tag f2-16
 git tag -l f2-16 | grep -qx f2-16   # expect: exit 0
 ```
 
@@ -859,7 +880,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "docs: f2-17 prepare publication window v1" && git tag f2-17
+git add -- docs/ventanas/f2-v1.md
+git commit -m "docs: f2-17 prepare publication window v1" && git tag f2-17
 git tag -l f2-17 | grep -qx f2-17   # expect: exit 0
 git ls-files --error-unmatch docs/ventanas/f2-v1.md   # expect: exit 0 — commiteado una línea arriba
 ```
@@ -885,7 +907,9 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-18 add sales schema" && git tag f2-18
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-sales.ts src/server/db/schema.ts scripts/db-check.ts tests/integration/sales-schema.test.ts drizzle
+git commit -m "feat: f2-18 add sales schema" && git tag f2-18
 git tag -l f2-18 | grep -qx f2-18   # expect: exit 0
 ```
 
@@ -911,7 +935,9 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-19 extend payments additively for sales and fees" && git tag f2-19
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-payments.ts src/server/taller/payments.ts src/server/taller/history.ts tests/integration/payments-extension.test.ts drizzle
+git commit -m "feat: f2-19 extend payments additively for sales and fees" && git tag f2-19
 git tag -l f2-19 | grep -qx f2-19   # expect: exit 0
 ```
 
@@ -927,14 +953,16 @@ git tag -l f2-19 | grep -qx f2-19   # expect: exit 0
 **Verify**
 ```bash
 pnpm test tests/integration/payment-method-check.test.ts tests/integration/payments.test.ts tests/integration/indicators.test.ts   # expect: exit 0, 0 failed
-f="$(ls drizzle/*.sql | sort | tail -1)"; test "$(grep -c . "$f")" = 2 && test "$(grep -c 'payments_method_check' "$f")" = 2   # expect: exit 0 — la migración más nueva solo reemplaza el CHECK
+f="$(ls drizzle/*.sql | sort | tail -1)"; grep -qF 'DROP CONSTRAINT "payments_method_check"' "$f" && grep -qF 'ADD CONSTRAINT "payments_method_check"' "$f" && { grep -Eq 'CREATE TABLE|CREATE (UNIQUE )?INDEX|DROP INDEX|ADD COLUMN|DROP COLUMN|ALTER COLUMN|RENAME' "$f"; test $? -eq 1; } && test -z "$(grep -oE 'CONSTRAINT "[a-z_]+"' "$f" | grep -v '"payments_method_check"')"   # expect: exit 0 — la migración más nueva solo quita y vuelve a crear payments_method_check
 pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-20 replace payment method check for mercado pago" && git tag f2-20
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-payments.ts src/server/taller/rules.ts tests/integration/payment-method-check.test.ts drizzle
+git commit -m "feat: f2-20 replace payment method check for mercado pago" && git tag f2-20
 git tag -l f2-20 | grep -qx f2-20   # expect: exit 0
 ```
 
@@ -957,7 +985,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-21 add counter sales server and customer history" && git tag f2-21
+git add -- src/server/taller/sales.ts src/server/taller/sale-void.ts src/server/taller/rules.ts src/server/taller/history.ts tests/integration/sales.test.ts
+git commit -m "feat: f2-21 add counter sales server and customer history" && git tag f2-21
 git tag -l f2-21 | grep -qx f2-21   # expect: exit 0
 ```
 
@@ -977,7 +1006,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-22 add sale pages and tablet counter sale" && git tag f2-22
+git add -- src/pages/taller/ventas/index.astro src/pages/taller/ventas/nueva.astro src/layouts/TallerLayout.astro e2e/venta-mostrador.spec.ts
+git commit -m "feat: f2-22 add sale pages and tablet counter sale" && git tag f2-22
 git tag -l f2-22 | grep -qx f2-22   # expect: exit 0
 ```
 
@@ -1000,7 +1030,8 @@ pnpm format && pnpm gate   # expect: exit 0 (incluye e2e/entrega.spec.ts sin cam
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-23 record mercado pago on order payments" && git tag f2-23
+git add -- src/server/taller/payments.ts 'src/pages/taller/ordenes/[id]/entrega.astro' src/server/taller/indicators.ts tests/integration/mercadopago-payments.test.ts
+git commit -m "feat: f2-23 record mercado pago on order payments" && git tag f2-23
 git tag -l f2-23 | grep -qx f2-23   # expect: exit 0
 ```
 
@@ -1018,13 +1049,14 @@ pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
 f="$(grep -lE 'CREATE TABLE ("public"\.)?"sales"' drizzle/*.sql)"; test -f "$f" && { grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' "$f"; test $? -eq 1; } && grep -qF "$(basename "$f")" docs/ventanas/f2-v2.md   # expect: exit 0
 f="$(grep -l 'ADD COLUMN "sale_id"' drizzle/*.sql)"; test -f "$f" && { grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' "$f"; test $? -eq 1; } && grep -qF "$(basename "$f")" docs/ventanas/f2-v2.md   # expect: exit 0
-f="$(grep -l 'DROP CONSTRAINT "payments_method_check"' drizzle/*.sql)"; test -f "$f" && grep -qF "$(basename "$f")" docs/ventanas/f2-v2.md   # expect: exit 0
+f="$(grep -l 'DROP CONSTRAINT "payments_method_check"' drizzle/*.sql)"; test -f "$f" && grep -qF 'ADD CONSTRAINT "payments_method_check"' "$f" && grep -qF "$(basename "$f")" docs/ventanas/f2-v2.md   # expect: exit 0 — una sola migración la quita y la vuelve a crear
 grep -qF '## Precondiciones' docs/ventanas/f2-v2.md && grep -qF '## Pasos en Replit' docs/ventanas/f2-v2.md && grep -qF '## Verificación después de publicar' docs/ventanas/f2-v2.md   # expect: exit 0
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "docs: f2-24 prepare publication window v2" && git tag f2-24
+git add -- docs/ventanas/f2-v2.md
+git commit -m "docs: f2-24 prepare publication window v2" && git tag f2-24
 git tag -l f2-24 | grep -qx f2-24   # expect: exit 0
 git ls-files --error-unmatch docs/ventanas/f2-v2.md   # expect: exit 0
 ```
@@ -1050,7 +1082,9 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-25 add cash sessions movements and expenses schema" && git tag f2-25
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-cash.ts src/server/db/schema.ts scripts/db-check.ts tests/integration/cash-schema.test.ts drizzle
+git commit -m "feat: f2-25 add cash sessions movements and expenses schema" && git tag f2-25
 git tag -l f2-25 | grep -qx f2-25   # expect: exit 0
 ```
 
@@ -1074,13 +1108,15 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-26 link payments and sales to cash sessions" && git tag f2-26
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-payments.ts src/server/db/schema-sales.ts tests/integration/cash-links-schema.test.ts drizzle
+git commit -m "feat: f2-26 link payments and sales to cash sessions" && git tag f2-26
 git tag -l f2-26 | grep -qx f2-26   # expect: exit 0
 ```
 
 #### F2-27 — Caja: servidor (E4-T3)
 **Archivos:** `src/server/taller/cash.ts` · `src/server/taller/rules.ts` · `tests/integration/cash.test.ts`
-**Hacer:** `openCashSession`, `closeCashSession`, `currentCashSession`, `listCashSessions`, `setCashControl` (`dashboard.finance`), `requireOpenCashSession(tx, branchId)` → `off` | `closed` | `{ sessionId }`, `recordCashMovement`, `voidCashMovementFor`, `dayPaymentsSummary`; etiquetas de caja en `rules.ts`.
+**Hacer:** `openCashSession`, `closeCashSession`, `currentCashSession`, `listCashSessions`, `setCashControl` (`dashboard.finance`), `requireOpenCashSession(tx, branchId)` → `off` | `closed` | `{ sessionId }`, `recordCashMovement(tx, …)`, `voidCashMovementFor(tx, …)`, `dayPaymentsSummary`; etiquetas de caja en `rules.ts`.
 **Reglas:** R-dom · NN 15, 16 · No cambia: nada existente.
 **Done when**
 - [ ] WHEN la caja está habilitada y `reception` abre una sesión con 20.000 THE SYSTEM SHALL crearla con `opened_by` y `opening_cash_clp = 20000` y registrar `cash.opened`, y una segunda apertura SHALL devolver `ok: false` con código `cash_session_open`
@@ -1096,7 +1132,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-27 add cash session server" && git tag f2-27
+git add -- src/server/taller/cash.ts src/server/taller/rules.ts tests/integration/cash.test.ts
+git commit -m "feat: f2-27 add cash session server" && git tag f2-27
 git tag -l f2-27 | grep -qx f2-27   # expect: exit 0
 ```
 
@@ -1119,7 +1156,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-28 route cash order payments through the session" && git tag f2-28
+git add -- src/server/taller/payments.ts 'src/pages/taller/ordenes/[id]/entrega.astro' tests/integration/cash-order-payments.test.ts
+git commit -m "feat: f2-28 route cash order payments through the session" && git tag f2-28
 git tag -l f2-28 | grep -qx f2-28   # expect: exit 0
 ```
 
@@ -1142,7 +1180,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-29 route cash sales and refunds through the session" && git tag f2-29
+git add -- src/server/taller/sales.ts src/server/taller/sale-void.ts src/server/taller/refunds.ts tests/integration/cash-sales-refunds.test.ts
+git commit -m "feat: f2-29 route cash sales and refunds through the session" && git tag f2-29
 git tag -l f2-29 | grep -qx f2-29   # expect: exit 0
 ```
 
@@ -1165,7 +1204,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-30 add expenses server and page" && git tag f2-30
+git add -- src/server/taller/expenses.ts src/server/taller/rules.ts src/pages/taller/gastos/index.astro src/layouts/TallerLayout.astro tests/integration/expenses.test.ts
+git commit -m "feat: f2-30 add expenses server and page" && git tag f2-30
 git tag -l f2-30 | grep -qx f2-30   # expect: exit 0
 ```
 
@@ -1188,7 +1228,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-31 add the cash page and tablet cash sale" && git tag f2-31
+git add -- src/pages/taller/caja/index.astro src/layouts/TallerLayout.astro e2e/caja-efectivo.spec.ts tests/integration/caja-page.test.ts
+git commit -m "feat: f2-31 add the cash page and tablet cash sale" && git tag f2-31
 git tag -l f2-31 | grep -qx f2-31   # expect: exit 0
 ```
 
@@ -1211,7 +1252,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "docs: f2-32 prepare publication window v3" && git tag f2-32
+git add -- docs/ventanas/f2-v3.md
+git commit -m "docs: f2-32 prepare publication window v3" && git tag f2-32
 git tag -l f2-32 | grep -qx f2-32   # expect: exit 0
 git ls-files --error-unmatch docs/ventanas/f2-v3.md   # expect: exit 0
 ```
@@ -1235,7 +1277,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-33 compute stage b finance indicators" && git tag f2-33
+git add -- src/server/taller/indicators-finance.ts tests/integration/indicators-finance.test.ts
+git commit -m "feat: f2-33 compute stage b finance indicators" && git tag f2-33
 git tag -l f2-33 | grep -qx f2-33   # expect: exit 0
 ```
 
@@ -1256,7 +1299,8 @@ pnpm format && pnpm gate   # expect: exit 0 (incluye e2e/indicadores.spec.ts sin
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-34 show stage b blocks on indicators page" && git tag f2-34
+git add -- src/pages/taller/indicadores.astro src/components/taller/FinanceBlocks.astro tests/integration/indicadores-finance-page.test.ts
+git commit -m "feat: f2-34 show stage b blocks on indicators page" && git tag f2-34
 git tag -l f2-34 | grep -qx f2-34   # expect: exit 0
 ```
 
@@ -1281,7 +1325,8 @@ pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
-git add -A && git commit -m "feat: f2-35 add phase health check and close the phase" && git tag f2-35
+git add -- src/server/taller/phase2-health.ts scripts/f2-check.ts package.json README.md tests/integration/phase2-health.test.ts
+git commit -m "feat: f2-35 add phase health check and close the phase" && git tag f2-35
 git tag -l f2-35 | grep -qx f2-35   # expect: exit 0
 ```
 
@@ -1308,19 +1353,19 @@ Leído del código (`items.ts`, `payments.ts`, `delivery.ts`, `templates.ts`, `o
 | b3 | Etapa A de indicadores con cuatro métodos | `indicators.test.ts`, `indicadores-page.test.ts` sin cambios | Exacta |
 | b4 | Resumen diario sin productos bajo mínimo | `tasks-maintenance.test.ts` sin cambios | Exacta |
 
-**Harness:** `pnpm test && pnpm build && pnpm test:tablet` sobre el árbol del paso, más la comprobación de que ninguna prueba existente cambió después de la decisión 55: `test -z "$(git diff --name-only --diff-filter=MD f2-01 HEAD -- tests e2e)"` (§20.1).
+**Harness:** `pnpm test && pnpm build && pnpm test:tablet` sobre el árbol del paso, más la comprobación de que ninguna prueba existente cambió después de la decisión 55 y de que el tag de referencia existe: `git rev-parse --verify -q f2-01 >/dev/null && test -z "$(git diff --name-only --diff-filter=MD f2-01 HEAD -- tests e2e)"` (§20.1).
 **Convivencia:** `work_orders.pricing_mode` congela el régimen de cada orden al crearla; las órdenes `final` conviven para siempre con las `neto` y nunca se reescriben. `branches.cash_control_enabled` decide por sucursal si el efectivo pasa por la caja; con el interruptor apagado el código recorre exactamente el camino de hoy. Sin escritura doble: cada pago o venta pasa por un solo punto de entrada que crea pago y movimiento en la misma transacción.
 **Período sombra:** no hay dos sistemas que comparar; el "sombra" es el mes de operación con `pnpm f2:check` diario y la caja cerrada cada día.
 
 #### Corte
-| Fase | Qué cambia | Afecta a | Reversible por | Verify |
-|---|---|---|---|---|
-| C1. Ventana V1 publicada | Inventario, compras, repuestos ligados, columnas de precio; régimen sigue `final` | Personal | Republicar el deployment anterior (el esquema solo creció) | F2-17 |
-| C2. Corte de precios | El dueño confirma que el catálogo y los productos están cargados netos y cambia a `neto` en `/taller/catalogo` | Órdenes creadas después | Volver a `final` en la misma pantalla (solo afecta a las órdenes que se creen después; las `neto` creadas quedan `neto`) | `pricing-switch.test.ts` |
-| C3. Ventana V2 publicada | Ventas, Mercado Pago, CHECK de método | Personal, clientes de mostrador | Republicar el anterior; el CHECK nuevo es un superconjunto | F2-24 |
-| C4. Ventana V3 publicada | Tablas de caja y gastos; caja **deshabilitada** | Nadie hasta C5 | Republicar el anterior | F2-32 |
-| C5. Corte de caja | El dueño habilita el control en `/taller/caja` y la recepción abre la primera sesión | Cobros en efectivo | Cerrar la sesión y deshabilitar el control (minutos, sin publicar) | `cash.test.ts`, `e2e/caja-efectivo.spec.ts` |
-| C6. Decomisión `F2-DC1` | Ver abajo | — | Un commit revertible | Su propia prueba |
+| Fase | Qué cambia | Afecta a | Done when (decidible en el Mac) | Reversible por | Verify |
+|---|---|---|---|---|---|
+| C1. Ventana V1 publicada | Inventario, compras, repuestos ligados, columnas de precio; régimen sigue `final` | Personal | WHEN corre el Verify de F2-17 en el tag `f2-17` THE SYSTEM SHALL salir 0 (una migración aditiva, documentada en `docs/ventanas/f2-v1.md`) | Republicar el deployment anterior (el esquema solo creció) | Verify de F2-17 |
+| C2. Corte de precios | El dueño confirma que el catálogo y los productos están cargados netos y cambia a `neto` en `/taller/catalogo` | Órdenes creadas después | WHEN el interruptor pasa a `neto` THE SYSTEM SHALL crear las órdenes nuevas en `neto` sin tocar las existentes (`pricing-switch.test.ts` criterios 1 y 3) | Volver a `final` en la misma pantalla (solo afecta a las órdenes que se creen después; las `neto` creadas quedan `neto`) | `pnpm test tests/integration/pricing-switch.test.ts` |
+| C3. Ventana V2 publicada | Ventas, Mercado Pago, CHECK de método | Personal, clientes de mostrador | WHEN corre el Verify de F2-24 en el tag `f2-24` THE SYSTEM SHALL salir 0 (tres migraciones; solo la del CHECK con `DROP CONSTRAINT`) | Republicar el anterior; el CHECK nuevo es un superconjunto | Verify de F2-24 |
+| C4. Ventana V3 publicada | Tablas de caja y gastos; caja **deshabilitada** | Nadie hasta C5 | WHEN corre el Verify de F2-32 en el tag `f2-32` THE SYSTEM SHALL salir 0 (dos migraciones aditivas) | Republicar el anterior | Verify de F2-32 |
+| C5. Corte de caja | El dueño habilita el control en `/taller/caja` y la recepción abre la primera sesión | Cobros en efectivo | WHEN la caja se habilita, se abre, cobra en efectivo y se cierra THE SYSTEM SHALL dejar el ingreso en la sesión y diferencia 0 (`e2e/caja-efectivo.spec.ts`) | Cerrar la sesión y deshabilitar el control (minutos, sin publicar) | `pnpm build && pnpm test:tablet e2e/caja-efectivo.spec.ts` |
+| C6. Decomisión `F2-DC1` | Fijar ambos regímenes (ver abajo) | — | WHEN el dueño intenta volver a `final` o deshabilitar la caja después del período THE SYSTEM SHALL responder `pricing_locked` o `cash_control_locked` | Un commit revertible | `pnpm test tests/integration/pricing-lock.test.ts` (en ese encargo) |
 
 **Interruptor:** ambos cortes se revierten con un POST en la interfaz (segundos, sin publicar). Un problema de código se revierte republicando el deployment anterior desde *Deployments* de Replit (minutos).
 
@@ -1355,7 +1400,7 @@ NOT APPLICABLE — no se mueven datos: las órdenes anteriores conservan `final`
 | Chromium de Playwright | el de `@playwright/test` | lo deja el Bootstrap |
 | git, rsync, cmp | los de macOS | `git --version` |
 | **Fase plataforma en `main`** | — | `git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md` |
-| **Árbol limpio** | — | `git status --porcelain` vacío (al generar había un `docs/auditoria-seo-2026-10-20.md` sin seguimiento: el dueño lo commitea o lo mueve antes) |
+| **Sin duplicados de iCloud sin seguimiento** | — | `u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" \| grep -E ' 2(\.[^/]*)?$')"`. Al generar había copias como `drizzle/0025_overconfident_stone_men 2.sql` y `src/server/taller/tracking 2.ts`: la coordinadora confirma que son duplicados (mismo contenido que su original) y los borra antes del Bootstrap. Otros archivos sin seguimiento del dueño (por ejemplo `docs/auditoria-seo-2026-10-20.md`) pueden quedarse: ningún Checkpoint usa `git add -A` |
 
 ### Cuentas
 Ninguna nueva para el build. Cuenta de Mercado Pago del taller solo para conocer la comisión real (FASE2 §12.3); el sistema no guarda credenciales.
@@ -1378,18 +1423,20 @@ Esta fase **no agrega variables**. Las existentes (tabla de `CLAUDE.md`) no camb
 
 ### Bootstrap
 ```bash
-# Desde la raíz del repo, con el bundle commiteado, el árbol limpio y pnpm --version = 12.4.2.
-# El orden importa: precondiciones → archivos que gobiernan a los agentes (workspace/) → install →
-# navegador → .env → chequeo estático → commit. No crea ni altera ninguna base; no toca producción.
+# Desde la raíz del repo, con el bundle commiteado y pnpm --version = 12.4.2.
+# El orden importa: precondiciones (plataforma, duplicados de iCloud, base del workspace) → archivos que
+# gobiernan a los agentes (workspace/) → install → navegador → .env → chequeo estático → commit de rutas
+# nombradas. No crea ni altera ninguna base; no toca producción.
 git rev-parse --git-dir >/dev/null 2>&1 || git init -b main   # el repo ya existe: no hace nada
-git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md   # precondición: fase plataforma integrada; si falta, sale 128 y se detiene
+git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md   # precondición: fase plataforma integrada; si falta, git falla y el bloque se detiene
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # precondición: sin duplicados de iCloud; si los hay, la coordinadora los confirma y borra antes
 base="$(cat blueprints/vector-taller-f2/WORKSPACE_BASE)"; for f in CLAUDE.md AGENTS.md .claude/settings.json .claude/rules/database.md .claude/rules/taller-domain.md .claude/rules/taller-ui.md .claude/skills/add-migration/SKILL.md; do cmp -s "$f" "blueprints/vector-taller-f2/workspace/$f" || git show "$base:$f" | cmp -s - "$f" || { echo "$f cambió después de $base: re-fusionar workspace/ y actualizar WORKSPACE_BASE"; exit 1; }; done   # guarda: cada archivo es la versión base o ya la fusionada; sale 0 en ambas
 rsync -a blueprints/vector-taller-f2/workspace/ ./   # reemplaza con las versiones fusionadas; sale 0 aunque no haya cambios
 pnpm install --frozen-lockfile
 pnpm exec playwright install chromium   # ya instalado: sale 0
 test -f .env || cp .env.example .env
 pnpm check
-git add CLAUDE.md AGENTS.md .claude/settings.json .claude/rules .claude/skills && (git diff --cached --quiet || git commit -m "chore: bootstrap phase 2 workspace")
+git add -- CLAUDE.md AGENTS.md .claude/settings.json .claude/rules .claude/skills && (git diff --cached --quiet || git commit -m "chore: bootstrap phase 2 workspace")
 ```
 **Re-fusión obligatoria (lo esperado):** la fase plataforma cambia `CLAUDE.md` y `AGENTS.md` antes de esta fase, así que en la primera corrida la guarda **se detiene**. La sesión coordinadora lleva entonces los cambios de la plataforma a las copias de `workspace/` (sin perder lo de esta fase), escribe en `WORKSPACE_BASE` el hash de `main` sobre el que fusionó, commitea el bundle y vuelve a correr el bloque. Así ninguna copia pisa lo que la plataforma escribió.
 **Seguro de correr dos veces.** Ningún paso edita un archivo que entrega `workspace/` (`package.json` y el lockfile nunca están ahí), así que la segunda corrida encuentra cada archivo igual a la versión fusionada (`cmp` sale 0), `rsync` no cambia nada, `pnpm install --frozen-lockfile`, `playwright install`, `test -f .env ||` y el commit condicionado salen 0. El `git add` nombra rutas: no arrastra archivos ajenos sin seguimiento.
@@ -1500,6 +1547,7 @@ Comparaciones de píxeles; la publicación en Replit; el lector de códigos; la 
 | CSRF | `isAllowedOrigin` en todo POST nuevo | páginas |
 | Datos personales | Proveedores con las mismas reglas que clientes (FASE2 §7): `redactDetails` en auditoría, sin PII en logs; ventas sin cliente no guardan nada personal; Mercado Pago solo identificadores | `audit.ts`, `log.ts` |
 | Comandos destructivos | Reinicio de la base dev y `git reset --hard`: confirmación del operador; `rm -rf`, `git push`, `drizzle-kit push/drop/--custom` en `deny` | `.claude/settings.json` |
+| Commits | Cada Checkpoint agrega solo rutas nombradas; nunca `git add -A` (F2-D26) | §9 regla 6 |
 | Producción | Claude nunca la toca; el dueño corre `inventory:import` y `f2:check` contra producción | checklist §20.1 |
 
 Régimen: Ley 21.719 (Chile). Los costos no son datos personales, pero sí información comercial: nunca salen al mecánico ni a páginas públicas.
@@ -1552,13 +1600,13 @@ Si una no está instalada, se sigue con este blueprint y se anota en una línea.
 `workspace/` refleja la raíz del repo y lo copia el Bootstrap (§10). **En brownfield, los archivos de `workspace/` son versiones fusionadas**: conservan el contenido del repo en `WORKSPACE_BASE` y agregan lo de esta fase; reemplazan a los actuales al copiarse, solo después de la guarda que verifica que nadie los cambió desde esa base. Ningún paso edita un archivo de esta lista. Nunca se emite `.claude/commands/`. Los archivos bajo `workspace/` son la fuente literal; esta sección describe su contenido.
 
 ### 19.1 `CLAUDE.md`
-`workspace/CLAUDE.md`: el `CLAUDE.md` del repo completo, con: comandos `pnpm inventory:import` (desde F2-06) y `pnpm f2:check` (desde F2-35); "Estado del build" apuntando a `blueprints/vector-taller-f2/tasks.json`, sus épicas, este blueprint, `FASE2.md` y los encargos `docs/encargos/F2-NN-*.md` que escribe la sesión coordinadora antes de cada pase; camino de una venta; la cadena de ocho archivos de esquema; filas nuevas en "Dónde vive cada cosa" (stock, precios netos, caja, costos); la regla del nombre del taller; No negociable 14–19 de la fase 2; "Reparto con Codex" literal.
+`workspace/CLAUDE.md`: el `CLAUDE.md` del repo completo, con: comandos `pnpm inventory:import` (desde F2-06) y `pnpm f2:check` (desde F2-35); "Estado del build" apuntando a `blueprints/vector-taller-f2/tasks.json`, sus épicas, este blueprint, `FASE2.md` y los encargos `docs/encargos/F2-NN-*.md` que escribe la sesión coordinadora antes de cada pase; camino de una venta; la cadena de ocho archivos de esquema; filas nuevas en "Dónde vive cada cosa" (stock, precios netos, caja, costos); la regla de código 14 (nombre del taller); No negociable 14–19 de la fase 2; "Reparto con Codex" literal.
 
 ### 19.2 `AGENTS.md`
 `workspace/AGENTS.md`: el del repo completo con los mismos cambios en comandos, orden de trabajo, esquema, regla 14 (nombre del taller) y No negociable sincronizado.
 
 ### 19.3 `.claude/settings.json`
-El allowlist existente completo más: la línea literal `rsync -a blueprints/vector-taller-f2/workspace/ ./`, `cmp:*`, `git show:*`, `git cat-file:*`, `basename:*`, `sort:*`, `tail:*`, `pnpm inventory:import:*`, `pnpm f2:check`, `node scripts/inventory-import.ts`, `DATABASE_URL=postgres://127.0.0.1:1/x node scripts/f2-check.ts`. Cubre cada Verify, cada Checkpoint y §20.1. Deny sin cambios.
+El allowlist existente completo más: la línea literal `rsync -a blueprints/vector-taller-f2/workspace/ ./`, `cmp:*`, `git show:*`, `git cat-file:*`, `basename:*`, `sort:*`, `LC_ALL=C sort:*`, `tail:*`, `echo:*`, `pnpm inventory:import:*`, `pnpm f2:check`, `node scripts/inventory-import.ts`, `DATABASE_URL=postgres://127.0.0.1:1/x node scripts/f2-check.ts`. Cubre cada Verify, cada Checkpoint y §20.1. Deny sin cambios.
 
 ### 19.4 Skills del proyecto
 | Skill | Se activa con | Automatiza |
@@ -1611,6 +1659,8 @@ Ningún paquete con resolución no trivial nuevo.
 | Script de salud | `package.json` (F2-35) | `node --env-file-if-exists=.env scripts/f2-check.ts` | Verify F2-35, `CLAUDE.md`, `AGENTS.md`, `settings.json` | yes |
 | Copia del workspace | §10 | `rsync -a blueprints/vector-taller-f2/workspace/ ./` | `settings.json` (literal) | yes |
 | Base del workspace | `WORKSPACE_BASE` | `76ebdce` | §10 (guarda) | yes |
+| Patrón de duplicados de iCloud | §10 | `' 2(\.[^/]*)?$'` | Verify de F2-00, Checkpoints de pasos de esquema | yes |
+| Seis pruebas autorizadas en F2-00 | decisión 55 | `tests/integration/{payments,dashboard,dashboard-finance,indicators,indicadores-page,components}.test.ts` | Verify y Checkpoint de F2-00, `tasks.json` `files`, épica 01 | yes |
 | Rutas del menú | `TallerLayout.astro` | `/taller/inventario`, `/taller/proveedores`, `/taller/compras`, `/taller/ventas`, `/taller/gastos`, `/taller/caja` | Verify F2-04, 08, 22, 30, 31; §6 | yes |
 | Etiqueta de IVA | `rules.ts` (`VAT_RATE_PERCENT = 19`) | `IVA (19%)` | F2-11, 13, 14, 15, 16, specs | yes |
 | Prefijos de número | `purchases.ts`, `sales.ts`, `orders.ts` | `OC-00001`, `VM-00001`, `OT-00001` | Verify F2-07, F2-21, specs | yes |
@@ -1628,7 +1678,7 @@ Cada contrato se ejerce en el primer paso donde existen ambos lados: las página
 | Costo promedio 1150 | F2-03, F2-07 | mismo paso | (5×1000 + 5×1300)/10 = 1150 | aritmética | yes |
 | Netos de indicadores 20.000, 12.000, 40 | F2-33 | F2-33 | `Math.round(11900 × 100 / 119)` = 10000 ×2; 20000 − 8000; 8000×100/20000 | aritmética | yes |
 | Caja 32.000 / −1.000; 15.950 | F2-27, F2-31 | mismo paso | 20000+15000−3000; 31000−32000; 10000+5950 | aritmética | yes |
-| Forma de la migración de F2-20 (dos líneas no vacías con `payments_method_check`) | drizzle-kit 0.31.10 | F2-20 | una sentencia por línea separadas por `--> statement-breakpoint` | **no verificada en esta sesión** (ver "Literales sin verificar" del informe de retorno) | yes, con la condición de que la coordinadora la confirme |
+| Texto de las migraciones que buscan los Verify de F2-20, F2-24 y F2-32 (`DROP CONSTRAINT "…"`, `ADD CONSTRAINT "…"`, `ADD COLUMN "…"`, `CREATE TABLE "…"`) | drizzle-kit 0.31.10 | F2-20, F2-24, F2-32 | los Verify no cuentan líneas: buscan la presencia de las dos sentencias del CHECK y la ausencia de cualquier otra sentencia o nombre de restricción | evidencia del formato y de las comillas en el propio repo: `drizzle/0001_huge_ultron.sql` línea 17 `ALTER TABLE "bookings" DROP CONSTRAINT "bookings_status_check";--> statement-breakpoint` y línea 18 `ALTER TABLE "bookings" ADD COLUMN "whatsapp_consent_at" …` | yes |
 | `OC-00001`, `VM-00001` | F2-07, F2-21 | mismo paso | `padStart(5, "0")` como `formatOrderNumber` | n/a | yes |
 
 ---
@@ -1644,9 +1694,9 @@ pnpm db:migrate                  # expect: exit 0
 pnpm db:check                    # expect: exit 0, {"ok":true,...}
 pnpm build                       # expect: exit 0
 pnpm test:build                  # expect: exit 0
-pnpm test:tablet                 # expect: exit 0, 0 failed (los 16 specs existentes y los 3 nuevos)
+pnpm test:tablet                 # expect: exit 0, 0 failed (todos los specs de e2e/, incluidos los tres nuevos)
 sh scripts/smoke.sh              # expect: exit 0
-test -z "$(git diff --name-only --diff-filter=MD f2-01 HEAD -- tests e2e)"   # expect: exit 0 — ninguna prueba existente cambió después de F2-01
+git rev-parse --verify -q f2-01 >/dev/null && test -z "$(git diff --name-only --diff-filter=MD f2-01 HEAD -- tests e2e)"   # expect: exit 0 — el tag existe y ninguna prueba existente cambió después de F2-01
 pnpm gate                        # expect: exit 0
 ```
 **Criterios FASE2 §14 → prueba:** tabla al final de F2-35 (§9).
@@ -1654,6 +1704,7 @@ pnpm gate                        # expect: exit 0
 **Compuertas manuales (una vez, después del build):**
 - [ ] Un tag por paso: `test "$(git tag -l 'f2-*' | wc -l | tr -d ' ')" = 36` sale 0.
 - [ ] Archivos commiteados, uno por invocación: `git ls-files --error-unmatch CLAUDE.md`, `… AGENTS.md`, `… .claude/settings.json`, `… .claude/rules/database.md`, `… docs/ventanas/f2-v1.md`, `… docs/ventanas/f2-v2.md`, `… docs/ventanas/f2-v3.md` — cada uno sale 0; y `git check-ignore -q docs/ventanas/f2-v1.md; test $? -eq 1` (1 = no ignorado; 128 = uso, y entonces falla).
+- [ ] Ningún duplicado de iCloud quedó commiteado: `test -z "$(git ls-files | grep -E ' 2(\.[^/]*)?$')"` sale 0.
 - [ ] Bootstrap re-ejecutado sobre el árbol terminado: **sale 0**, `package.json` conserva sus scripts nuevos y `pnpm test` sigue en 0.
 - [ ] §19.6: cada fila dice `Comparado: yes` y `pnpm check` se corrió con `blueprints/vector-taller-f2/` presente.
 - [ ] §9.1: harness verde e interruptores ensayados una vez en local (régimen `neto`→`final`, caja habilitar→deshabilitar).
@@ -1672,12 +1723,13 @@ pnpm gate                        # expect: exit 0
 | Riesgo | Prob. | Impacto | Señal temprana | Mitigación |
 |---|---|---|---|---|
 | `schema-orders.ts` en el límite (399 líneas) | A | M | Un paso de esquema lo pasa de 400 | F2-00 primero y solo; F2-02 lo vuelve a medir (dueño de la mitigación: la coordinadora) |
-| Reemplazar `payments_method_check` no es aditivo | M | A | drizzle-kit pregunta o la migración trae más sentencias | Paso propio (F2-20), generación propia, Verify de dos líneas, ventana V2 con aviso de Replit |
+| Reemplazar `payments_method_check` no es aditivo | M | A | drizzle-kit pregunta o la migración trae más sentencias | Paso propio (F2-20), generación propia, Verify que exige solo las dos sentencias del CHECK, ventana V2 con aviso de Replit |
 | Stock negativo por dos consumos simultáneos | B | A | `stockDrift` > 0 o un `23514` en logs | `for update` + CHECK; prueba secuencial + CHECK (PGlite de una conexión) |
 | Confusión entre pago de orden y movimiento de caja | M | M | `cashUnlinked` > 0 | Un solo punto de entrada (`recordPayment`, `createSale`, `recordExpense`) crea los dos |
 | Costos filtrándose al mecánico | M | A | Una clave `costClp`/`unitCostClp`/`feeClp` en una respuesta | Prueba de omisión por rol en cada función que los devuelve (`listItems`, `listPayments`, `products`, `sales`) |
 | Líneas de repuesto antiguas sin producto | A | B | Margen de repuestos en cero al empezar | Aceptado (FASE2 §11); el margen crece con las líneas nuevas |
 | **La fase plataforma cambió `schema.ts`, `site.ts`, las plantillas de correo, `CLAUDE.md` y `AGENTS.md` después de escribir este blueprint** | A | M | Un conteo de líneas o un fragmento citado no coincide con el archivo; la guarda del Bootstrap se detiene | Regla 9 de §9: cada paso relee los archivos que toca; los criterios dicen "< 400" sobre el archivo real; la guarda de `WORKSPACE_BASE` obliga a re-fusionar el workspace (dueño: la coordinadora) |
+| **Duplicados de iCloud (`* 2.*`) en el árbol** (BITACORA; al generar había en `drizzle/`, `src/` y `tests/`) | A | M | Un archivo `… 2.sql` en `drizzle/` aplicado como migración, o un `… 2.ts` commiteado | Precondición de F2-00 y del Bootstrap; Checkpoints con rutas nombradas y guarda antes de `git add -- drizzle`; compuerta manual de §20.1 (F2-D26) |
 | Archivos cerca del límite: `orders.ts` 395, `items.ts` 385, `templates.ts` 371, `reception.ts` 372, `reports.ts` 390, `approvals.ts` 369, `history.ts` 319, `payments.ts` 229, `indicators.ts` 289 | A | M | Un Verify `wc -l` falla | Extracciones planificadas: `order-totals.ts`, `order-creation.ts`, `part-stock.ts`, `email/amounts.ts`, `report-snapshot.ts`, `indicators-finance.ts`, `sale-void.ts` |
 | Pruebas existentes que se rompen | M | A | Un archivo de `tests/` aparece modificado | Interruptores por defecto apagados; filas condicionales (Mercado Pago, `lowStock`, snapshot); gate de §20.1 sobre `git diff f2-01` |
 | Duración del `pnpm gate` con tres specs más | M | M | Tiempos de espera en tablet | Specs cortos; gate con la carga del Mac baja (BITACORA §8) |
@@ -1717,6 +1769,7 @@ Numeración propia de este blueprint (`F2-D#`). Las decisiones globales 1–55 v
 | F2-D23 | 36 pasos, sobre el rango orientativo | Pasos más grandes | Límite de 5 archivos, nueve superficies con desglose, tres ventanas | — |
 | F2-D24 | Precondición: fase plataforma en `main`; guarda de `WORKSPACE_BASE` en el Bootstrap | Copiar el workspace sin mirar | La plataforma reescribe `CLAUDE.md`/`AGENTS.md`; copiar a ciegas borraría su trabajo | La plataforma no toca esos archivos |
 | F2-D25 | Ningún texto para el usuario escribe el nombre del taller: `SITE.name` o el perfil | Literal en plantillas nuevas | Decisión del dueño (fase plataforma); una prueba guardiana lo hace cumplir | — |
+| F2-D26 | Cada Checkpoint agrega solo rutas nombradas (y `drizzle` tras comprobar que no hay duplicados de iCloud); nunca `git add -A` | `git add -A` como en la fase 1 | El repo está sincronizado con iCloud y acumula copias `* 2.*` y archivos del dueño sin seguimiento | El repo sale de iCloud |
 
 ### 20.4 Qué construir después
 1. **Link de pago y webhook de Mercado Pago** — fase posterior, después de un mes conciliando a mano (FASE3).

@@ -37,6 +37,7 @@
       "Bash(node --env-file-if-exists=.env --input-type=module -e \"if (process.env.REPLIT_DEPLOYMENT) process.exit(2); const { default: postgres } = await import('postgres'); const sql = postgres(process.env.DATABASE_URL, { max: 1 }); await sql\\`delete from admin_sessions where user_id is null\\`; await sql.end();\")",
       "Bash(node scripts/inventory-import.ts)",
       "Bash(DATABASE_URL=postgres://127.0.0.1:1/x node scripts/f2-check.ts)",
+      "Bash(DATABASE_URL=postgres://127.0.0.1:1/x node scripts/f2-check.ts 2>&1)",
       "Bash(node -v)",
       "Bash(node -e:*)",
       "Bash(node -p:*)",

@@ -27,7 +27,7 @@ Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon
 
 **Gate:** `pnpm format && pnpm gate`. El sandbox de Codex corre solo `format`, `check`, `test`, `build`; el resto y el commit, la sesión coordinadora. Reversión: `git reset --hard f2-<anterior>` y, si hace falta, el reinicio de la base dev de `blueprint.md` §12.
 
-**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name`; nunca editar `drizzle/`; nada se borra (anular con `voided_at`/`voided_by` y motivo); dinero en pesos enteros; `recordAudit` dentro de la transacción; `db` y `now` como argumentos; zod en toda entrada; **con el interruptor apagado, el camino de hoy sin cambios** (las pruebas existentes de pagos y ventas no se tocan).
+**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name`; nunca editar `drizzle/`; nada se borra (anular con `voided_at`/`voided_by` y motivo); dinero en pesos enteros; `recordAudit` dentro de la transacción; `db` y `now` como argumentos; zod en toda entrada; **con el interruptor apagado, el camino de hoy sin cambios** (las pruebas existentes de pagos y ventas no se tocan). **Checkpoint:** `git add --` solo con las rutas del paso (y `drizzle` en pasos de esquema, después de la guarda de duplicados de iCloud); nunca `git add -A`.
 
 **Cobertura de tablet:** la pantalla de caja y su spec (cobro en efectivo con caja abierta) llegan en la épica 05 (E5-T1). Gastos es de escritorio (prueba con Container API).
 
@@ -64,14 +64,14 @@ tests/integration/{cash-schema,cash-links-schema,cash,cash-order-payments,cash-s
 
 ## Contracts
 
-**Consumed:** `applyStockMovement`, `recordAudit`, `can`, `createSale`/`voidSale` (E3-T4), `recordPayment`/`voidPayment`, `localToday`, `TIMEZONE`, `RECORDABLE_PAYMENT_METHODS`, `PAYMENT_METHOD_LABELS`, `formatClp`, `SITE`.
+**Consumed:** `applyStockMovement(tx, …)`, `recordAudit`, `can`, `createSale`/`voidSale` (E3-T4), `recordPayment`/`voidPayment`, `localToday`, `TIMEZONE`, `RECORDABLE_PAYMENT_METHODS`, `PAYMENT_METHOD_LABELS`, `formatClp`, `SITE`.
 
 **Produced:**
 
 | Export | Signature |
 |---|---|
 | `schema-cash.ts` → `cashSessions`, `cashMovements`, `expenses`, `cashTables` | tablas Drizzle |
-| `cash.ts` → `openCashSession`, `closeCashSession`, `currentCashSession`, `listCashSessions`, `setCashControl`, `requireOpenCashSession`, `recordCashMovement`, `voidCashMovementFor`, `dayPaymentsSummary` | `requireOpenCashSession(tx, branchId)` → `{ mode: "off" } \| { mode: "closed" } \| { mode: "open", sessionId }`; `voidCashMovementFor(tx, actor, referenceKind, referenceId, now)` → `{ ok: true } \| { ok: false, code: "cash_session_closed" }` |
+| `cash.ts` → `openCashSession`, `closeCashSession`, `currentCashSession`, `listCashSessions`, `setCashControl`, `requireOpenCashSession`, `recordCashMovement`, `voidCashMovementFor`, `dayPaymentsSummary` | `requireOpenCashSession(tx, branchId)` → `{ mode: "off" } \| { mode: "closed" } \| { mode: "open", sessionId }`; `recordCashMovement(tx, actor, input, now)`; `voidCashMovementFor(tx, actor, referenceKind, referenceId, now)` → `{ ok: true } \| { ok: false, code: "cash_session_closed" }` (las tres solo dentro de la transacción de quien llama) |
 | `refunds.ts` → `refundFormSchema`, `registerRefund` | `registerRefund(db, actor, input, now)` |
 | `expenses.ts` → `expenseFormSchema`, `recordExpense`, `voidExpense`, `listExpenses` | `(db, actor, …, now)` |
 | `rules.ts` → `CASH_MOVEMENT_KIND_LABELS`, `CASH_REFERENCE_LABELS`, `EXPENSE_CATEGORIES`, `EXPENSE_CATEGORY_LABELS`, `EXPENSE_METHODS` | etiquetas: `Ingreso`, `Egreso`; `Pago`, `Gasto`, `Devolución de venta`, `Devolución de orden`; `Arriendo`, `Sueldos`, `Servicios`, `Insumos`, `Repuestos`, `Otros` |
@@ -132,7 +132,9 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-25 add cash sessions movements and expenses schema" && git tag f2-25
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-cash.ts src/server/db/schema.ts scripts/db-check.ts tests/integration/cash-schema.test.ts drizzle
+git commit -m "feat: f2-25 add cash sessions movements and expenses schema" && git tag f2-25
 git tag -l f2-25 | grep -qx f2-25   # expect: exit 0
 ```
 
@@ -172,7 +174,9 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-26 link payments and sales to cash sessions" && git tag f2-26
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-payments.ts src/server/db/schema-sales.ts tests/integration/cash-links-schema.test.ts drizzle
+git commit -m "feat: f2-26 link payments and sales to cash sessions" && git tag f2-26
 git tag -l f2-26 | grep -qx f2-26   # expect: exit 0
 ```
 
@@ -180,7 +184,7 @@ git tag -l f2-26 | grep -qx f2-26   # expect: exit 0
 
 **Depends on:** `E4-T2` · **Priority:** p0
 
-1. `tests/integration/cash.test.ts` primero: los seis criterios (movimientos de prueba con `recordCashMovement`).
+1. `tests/integration/cash.test.ts` primero: los seis criterios (movimientos de prueba con `recordCashMovement` dentro de una transacción).
 2. `rules.ts`: etiquetas de caja de "Contracts".
 3. `cash.ts`: `setCashControl(db, actor, { enabled }, now)` (`dashboard.finance`; apagar con sesión abierta → `cash_session_open`; si cambia, audit `cash.control_changed` con `{ enabled }`; si no cambia, `{ ok: true, changed: false }`). `openCashSession(db, actor, { openingCashClp: 0–10.000.000, note? }, now)` (`cash.open_close`; control apagado → `cash_control_off`; `23505` → `cash_session_open`; audit `cash.opened`). `closeCashSession(db, actor, { countedCashClp: 0–10.000.000, note? }, now)` (`cash.open_close`; sesión abierta con `for update`, si no `not_found`; esperado y diferencia; audit `cash.closed` con `expectedCashClp`, `countedCashClp`, `differenceClp`). `currentCashSession(db, actor)` → sesión abierta + movimientos con origen y totales, o `null`. `listCashSessions(db, actor)` → últimas 30. `requireOpenCashSession(tx, branchId)`. `recordCashMovement(tx, actor, { sessionId, kind, amountClp, referenceKind, referenceId, note? }, now)`. `voidCashMovementFor(tx, actor, referenceKind, referenceId, now)`: si el movimiento vigente pertenece a una sesión cerrada → `cash_session_closed`; si no, `voided_at`/`voided_by`. `dayPaymentsSummary(db, actor, now)` → por método (`RECORDABLE_PAYMENT_METHODS`), suma y cantidad de pagos vigentes recibidos en el día local (`TIMEZONE`), de órdenes y de ventas. Todas las funciones exigen `cash.open_close` salvo `setCashControl` (`dashboard.finance`); el mecánico recibe `forbidden`.
 
@@ -210,7 +214,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-27 add cash session server" && git tag f2-27
+git add -- src/server/taller/cash.ts src/server/taller/rules.ts tests/integration/cash.test.ts
+git commit -m "feat: f2-27 add cash session server" && git tag f2-27
 git tag -l f2-27 | grep -qx f2-27   # expect: exit 0
 ```
 
@@ -219,7 +224,7 @@ git tag -l f2-27 | grep -qx f2-27   # expect: exit 0
 **Depends on:** `E4-T3` · **Priority:** p0
 
 1. `tests/integration/cash-order-payments.test.ts` primero: los seis criterios.
-2. `payments.ts` → `recordPayment`: dentro de la transacción, si `method === "efectivo"`, `requireOpenCashSession(tx, actor.branchId)`: `off` → como hoy; `closed` → `{ ok: false, code: "cash_closed" }` sin escribir; `open` → insertar el pago con `cash_session_id` y `recordCashMovement(ingreso, amount, "payment", paymentId)`. Otros métodos: como hoy. `voidPayment`: si el pago tiene `cash_session_id`, primero `voidCashMovementFor(tx, actor, "payment", paymentId, now)`; si devuelve `cash_session_closed`, devolverlo sin anular el pago (error centinela si ya se escribió algo).
+2. `payments.ts` → `recordPayment`: dentro de la transacción, si `method === "efectivo"`, `requireOpenCashSession(tx, actor.branchId)`: `off` → como hoy; `closed` → `{ ok: false, code: "cash_closed" }` sin escribir; `open` → insertar el pago con `cash_session_id` y `recordCashMovement(tx, …)` con `ingreso`, el monto, `"payment"` y el id del pago. Otros métodos: como hoy. `voidPayment`: si el pago tiene `cash_session_id`, primero `voidCashMovementFor(tx, actor, "payment", paymentId, now)`; si devuelve `cash_session_closed`, devolverlo sin anular el pago (error centinela si ya se escribió algo).
 3. `entrega.astro`: mapear `cash_closed` → "La caja está cerrada: ábrela en Caja antes de cobrar en efectivo." y `cash_session_closed` → "La caja de ese pago ya se cerró: registra una devolución en Caja.", ambos 409.
 
 **Files**
@@ -249,7 +254,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-28 route cash order payments through the session" && git tag f2-28
+git add -- src/server/taller/payments.ts 'src/pages/taller/ordenes/[id]/entrega.astro' tests/integration/cash-order-payments.test.ts
+git commit -m "feat: f2-28 route cash order payments through the session" && git tag f2-28
 git tag -l f2-28 | grep -qx f2-28   # expect: exit 0
 ```
 
@@ -258,9 +264,9 @@ git tag -l f2-28 | grep -qx f2-28   # expect: exit 0
 **Depends on:** `E4-T4` · **Priority:** p0
 
 1. `tests/integration/cash-sales-refunds.test.ts` primero: los seis criterios.
-2. `sales.ts` → `createSale`: con `method === "efectivo"`, `requireOpenCashSession` antes de escribir nada: `closed` → `cash_closed`; `open` → la venta y el pago llevan `cash_session_id` y se crea `recordCashMovement(ingreso, total, "payment", paymentId)`; `off` → como en E3-T4.
-3. `sale-void.ts` → `voidSale`: por cada pago con `cash_session_id`, `voidCashMovementFor`; si alguno devuelve `cash_session_closed`, devolverlo sin cambiar la venta (error centinela).
-4. `refunds.ts`: `refundFormSchema` = `{ saleNumber?: /^VM-\d{5}$/, workOrderId?: uuid (exactamente uno de los dos), amountClp: entero > 0, reason: 3–200, returnedSku?: string, returnedQuantity?: 1–100 }`. `registerRefund(db, actor, input, now)`: `payments.void`; `requireOpenCashSession`: `off` → `cash_control_off`, `closed` → `cash_closed`; resolver la venta (o la orden) de la sucursal; tope = pagado vigente − devoluciones vigentes previas (Σ `egreso` con `reference_kind` `sale_refund`/`order_refund` y ese `reference_id`); si `amountClp` lo supera → `invalid_amount`; `recordCashMovement(egreso, amount, "sale_refund" | "order_refund", id, note = reason)`; si hay producto devuelto (solo ventas): el SKU debe ser un ítem de esa venta y `returnedQuantity` ≤ vendido − ya devuelto, → `applyStockMovement(devolucion, +returnedQuantity, unit_cost_clp del ítem, "sale_refund", saleId)`; audit `cash.refund` con `{ reference, amountClp, reason, returnedQuantity? }` (el responsable es `actor`).
+2. `sales.ts` → `createSale`: con `method === "efectivo"`, `requireOpenCashSession(tx, …)` antes de escribir nada: `closed` → `cash_closed`; `open` → la venta y el pago llevan `cash_session_id` y se crea `recordCashMovement(tx, …)` con `ingreso`, el total, `"payment"` y el id del pago; `off` → como en E3-T4.
+3. `sale-void.ts` → `voidSale`: por cada pago con `cash_session_id`, `voidCashMovementFor(tx, …)`; si alguno devuelve `cash_session_closed`, devolverlo sin cambiar la venta (error centinela).
+4. `refunds.ts`: `refundFormSchema` = `{ saleNumber?: /^VM-\d{5}$/, workOrderId?: uuid (exactamente uno de los dos), amountClp: entero > 0, reason: 3–200, returnedSku?: string, returnedQuantity?: 1–100 }`. `registerRefund(db, actor, input, now)`: `payments.void`; `requireOpenCashSession(tx, …)`: `off` → `cash_control_off`, `closed` → `cash_closed`; resolver la venta (o la orden) de la sucursal; tope = pagado vigente − devoluciones vigentes previas (Σ `egreso` con `reference_kind` `sale_refund`/`order_refund` y ese `reference_id`); si `amountClp` lo supera → `invalid_amount`; `recordCashMovement(tx, …)` con `egreso`, el monto, `"sale_refund"` o `"order_refund"`, el id y `note = reason`; si hay producto devuelto (solo ventas): el SKU debe ser un ítem de esa venta y `returnedQuantity` ≤ vendido − ya devuelto → `applyStockMovement(tx, …)` con `devolucion`, `+returnedQuantity`, `unit_cost_clp` del ítem, `"sale_refund"`, `saleId`; audit `cash.refund` con `{ reference, amountClp, reason, returnedQuantity? }` (el responsable es `actor`).
 
 **Files**
 - `src/server/taller/sales.ts` — edit
@@ -290,7 +296,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-29 route cash sales and refunds through the session" && git tag f2-29
+git add -- src/server/taller/sales.ts src/server/taller/sale-void.ts src/server/taller/refunds.ts tests/integration/cash-sales-refunds.test.ts
+git commit -m "feat: f2-29 route cash sales and refunds through the session" && git tag f2-29
 git tag -l f2-29 | grep -qx f2-29   # expect: exit 0
 ```
 
@@ -300,7 +307,7 @@ git tag -l f2-29 | grep -qx f2-29   # expect: exit 0
 
 1. `tests/integration/expenses.test.ts` primero: los cinco criterios de servidor y el render de `/taller/gastos` para `reception` (403) con el patrón de `indicadores-page.test.ts`.
 2. `rules.ts`: `EXPENSE_CATEGORIES` + etiquetas; `EXPENSE_METHODS = ["efectivo","transferencia","tarjeta","otro"]`.
-3. `expenses.ts`: `expenseFormSchema` (`category`, `amountClp` entero 1–100.000.000, `expenseDate` ISO, `description` 2–200, `supplierId?`, `method`, `docType?`, `docNumber?` ≤ 30). `recordExpense(db, actor, input, now)` (`expenses.record`; si `efectivo`: `requireOpenCashSession` → `closed` → `cash_closed`; `open` → `cash_session_id` + `recordCashMovement(egreso, amount, "expense", expenseId)`; audit `expense.recorded`). `voidExpense(db, actor, id, { reason 3–200 }, now)` (`expenses.record`; si tiene sesión, `voidCashMovementFor`; `cash_session_closed` sin cambios; V + `void_reason`; audit `expense.voided`). `listExpenses(db, actor, { from, to })` (≤ 366 días, vigentes y anuladas marcadas).
+3. `expenses.ts`: `expenseFormSchema` (`category`, `amountClp` entero 1–100.000.000, `expenseDate` ISO, `description` 2–200, `supplierId?`, `method`, `docType?`, `docNumber?` ≤ 30). `recordExpense(db, actor, input, now)` (`expenses.record`; si `efectivo`: `requireOpenCashSession(tx, …)` → `closed` → `cash_closed`; `open` → `cash_session_id` + `recordCashMovement(tx, …)` con `egreso`, el monto, `"expense"` y el id del gasto; audit `expense.recorded`). `voidExpense(db, actor, id, { reason 3–200 }, now)` (`expenses.record`; si tiene sesión, `voidCashMovementFor(tx, …)`; `cash_session_closed` sin cambios; V + `void_reason`; audit `expense.voided`). `listExpenses(db, actor, { from, to })` (≤ 366 días, vigentes y anuladas marcadas).
 4. `gastos/index.astro` (`expenses.record`; escritorio): formulario `Categoría`, `Monto neto`, `Fecha`, `Descripción`, `Proveedor (opcional)`, `Medio`, `Documento`, `Folio`, botón `Registrar gasto` → 303 `?hecho=record`, aviso `Gasto registrado.`; lista del mes en curso con rango `Desde`/`Hasta`; anular con `Motivo` → `?hecho=void`, aviso `Gasto anulado.`; `cash_closed` → 409 "La caja está cerrada: ábrela en Caja antes de un gasto en efectivo." Título con `SITE.name`.
 5. `TallerLayout.astro`: en "Inventario y caja", `Gastos` (`/taller/gastos`, `expenses.record`).
 
@@ -333,6 +340,7 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-30 add expenses server and page" && git tag f2-30
+git add -- src/server/taller/expenses.ts src/server/taller/rules.ts src/pages/taller/gastos/index.astro src/layouts/TallerLayout.astro tests/integration/expenses.test.ts
+git commit -m "feat: f2-30 add expenses server and page" && git tag f2-30
 git tag -l f2-30 | grep -qx f2-30   # expect: exit 0
 ```

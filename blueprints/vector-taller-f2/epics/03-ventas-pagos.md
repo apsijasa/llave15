@@ -28,7 +28,7 @@ Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon
 
 **Gate:** `pnpm format && pnpm gate`. El sandbox de Codex corre solo `format`, `check`, `test`, `build`; `db:migrate`, `db:check`, `test:tablet`, `smoke`, `gate` y el commit los hace la sesión coordinadora. Reversión: `git reset --hard f2-<anterior>` y, si hace falta, el reinicio de la base dev de `blueprint.md` §12.
 
-**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (la fase plataforma pudo cambiarlo; el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name`; nunca editar `drizzle/` ni usar `--custom`; nada se borra (anular con `voided_at`, `voided_by` y motivo); dinero en pesos enteros; `recordAudit` dentro de la transacción; zod en toda entrada; costos (`unitCostClp`, `feeClp`, `netClp`) solo con `costs.view`; Mercado Pago **solo registro**: nada de credenciales ni llamadas a su API.
+**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (la fase plataforma pudo cambiarlo; el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name`; nunca editar `drizzle/` ni usar `--custom`; nada se borra (anular con `voided_at`, `voided_by` y motivo); dinero en pesos enteros; `recordAudit` dentro de la transacción; zod en toda entrada; costos (`unitCostClp`, `feeClp`, `netClp`) solo con `costs.view`; Mercado Pago **solo registro**: nada de credenciales ni llamadas a su API. **Checkpoint:** `git add --` solo con las rutas del paso (y `drizzle` en pasos de esquema, después de la guarda de duplicados de iCloud); nunca `git add -A`.
 
 **Cobertura de tablet:** E3-T5 tiene `e2e/venta-mostrador.spec.ts` (venta de mostrador, FASE2 §8).
 
@@ -66,9 +66,11 @@ tests/integration/{sales-schema,payments-extension,payment-method-check,sales,me
 
 `schema-sales.ts` importa de `schema.ts`, `schema-taller.ts` (`customers`) y `schema-inventory.ts` (`products`); `schema-payments.ts` importa `sales` de `schema-sales.ts`. Ventas siempre en régimen neto: precios de producto netos, IVA sobre el subtotal con descuento (`vatOfNet`).
 
+**Forma de las migraciones (evidencia en el repo):** drizzle-kit 0.31.10 escribe una sentencia por línea con comillas dobles, por ejemplo `drizzle/0001_huge_ultron.sql` línea 17: `ALTER TABLE "bookings" DROP CONSTRAINT "bookings_status_check";--> statement-breakpoint`, y línea 18: `ALTER TABLE "bookings" ADD COLUMN "whatsapp_consent_at" …`. Los Verify de E3-T3 y E3-T7 buscan `DROP CONSTRAINT "payments_method_check"`, `ADD CONSTRAINT "payments_method_check"` y `ADD COLUMN "sale_id"` en ese formato, sin contar líneas.
+
 ## Contracts
 
-**Consumed:** `applyStockMovement`, `vatOfNet`, `grossOfNet`, `RECORDABLE_PAYMENT_METHODS` (E3-T3), `recordAudit`, `can`, `findCustomerByPhone` (`customers.ts`), `listProducts`, `formatClp`, `customerTimeline`/`sortTimeline` (`history.ts`), `workshopIndicators`, `SITE`.
+**Consumed:** `applyStockMovement(tx, …)`, `vatOfNet`, `grossOfNet`, `RECORDABLE_PAYMENT_METHODS` (E3-T3), `recordAudit`, `can`, `findCustomerByPhone` (`customers.ts`), `listProducts`, `formatClp`, `customerTimeline`/`sortTimeline` (`history.ts`), `workshopIndicators`, `SITE`.
 
 **Produced:**
 
@@ -94,7 +96,7 @@ tests/integration/{sales-schema,payments-extension,payment-method-check,sales,me
 - Una venta se crea **pagada** en una sola transacción: venta, ítems, movimientos de stock y pago. Cualquier error después de escribir se traduce con un error centinela para revertir todo.
 - `PAYMENT_METHODS` no cambia (la Etapa A de indicadores afirma cuatro filas); los formularios usan `RECORDABLE_PAYMENT_METHODS`.
 - `payments.work_order_id` deja de ser obligatorio: todo código que lo usa como `string` lo trata como `string | null`.
-- La migración de E3-T3 debe traer **solo** el reemplazo de `payments_method_check`; si drizzle-kit pregunta algo o trae más sentencias, detenerse y reportar.
+- La migración de E3-T3 debe traer **solo** el reemplazo de `payments_method_check`; si drizzle-kit pregunta algo o trae otra sentencia o restricción, detenerse y reportar.
 - `e2e/**` no afirma números exactos de venta: `/VM-\d{5}/`.
 
 Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/database.md`, `taller-domain.md`, `taller-ui.md`, `server-api.md`, `e2e.md`.
@@ -143,7 +145,9 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-18 add sales schema" && git tag f2-18
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-sales.ts src/server/db/schema.ts scripts/db-check.ts tests/integration/sales-schema.test.ts drizzle
+git commit -m "feat: f2-18 add sales schema" && git tag f2-18
 git tag -l f2-18 | grep -qx f2-18   # expect: exit 0
 ```
 
@@ -188,7 +192,9 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-19 extend payments additively for sales and fees" && git tag f2-19
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-payments.ts src/server/taller/payments.ts src/server/taller/history.ts tests/integration/payments-extension.test.ts drizzle
+git commit -m "feat: f2-19 extend payments additively for sales and fees" && git tag f2-19
 git tag -l f2-19 | grep -qx f2-19   # expect: exit 0
 ```
 
@@ -199,7 +205,7 @@ git tag -l f2-19 | grep -qx f2-19   # expect: exit 0
 1. `tests/integration/payment-method-check.test.ts` primero: inserción `mercadopago` con y sin `external_id`; método `cheque`; las dos listas de `rules.ts`.
 2. `schema-payments.ts`: **solo** cambiar `payments_method_check` a `method in ('transferencia', 'tarjeta', 'efectivo', 'otro', 'mercadopago')` y el `$type` de `method`. Nada más en esta generación.
 3. `rules.ts`: `RECORDABLE_PAYMENT_METHODS = [...PAYMENT_METHODS, "mercadopago"] as const`; `PAYMENT_METHOD_LABELS` pasa a `Record<RecordablePaymentMethod, string>` con `mercadopago: "Mercado Pago"`; `PAYMENT_METHODS` sin cambios.
-4. `pnpm db:generate`: la migración debe tener exactamente dos sentencias, ambas sobre `payments_method_check`. Si trae otra cosa o pregunta, detenerse.
+4. `pnpm db:generate`: la migración debe contener `DROP CONSTRAINT "payments_method_check"` y `ADD CONSTRAINT "payments_method_check"` y ninguna otra sentencia ni restricción. Si trae otra cosa o pregunta, detenerse.
 
 **Files**
 - `src/server/db/schema-payments.ts` — edit
@@ -219,7 +225,7 @@ Reglas: `database.md` (excepción declarada de la decisión 55). No negociables 
 
 ```bash
 pnpm test tests/integration/payment-method-check.test.ts tests/integration/payments.test.ts tests/integration/indicators.test.ts   # expect: exit 0, 0 failed
-f="$(ls drizzle/*.sql | sort | tail -1)"; test "$(grep -c . "$f")" = 2 && test "$(grep -c 'payments_method_check' "$f")" = 2   # expect: exit 0 — la migración más nueva solo reemplaza el CHECK
+f="$(ls drizzle/*.sql | sort | tail -1)"; grep -qF 'DROP CONSTRAINT "payments_method_check"' "$f" && grep -qF 'ADD CONSTRAINT "payments_method_check"' "$f" && { grep -Eq 'CREATE TABLE|CREATE (UNIQUE )?INDEX|DROP INDEX|ADD COLUMN|DROP COLUMN|ALTER COLUMN|RENAME' "$f"; test $? -eq 1; } && test -z "$(grep -oE 'CONSTRAINT "[a-z_]+"' "$f" | grep -v '"payments_method_check"')"   # expect: exit 0 — la migración más nueva solo quita y vuelve a crear payments_method_check
 pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
 pnpm format && pnpm gate   # expect: exit 0
@@ -228,7 +234,9 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-20 replace payment method check for mercado pago" && git tag f2-20
+u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud antes de agregar drizzle/
+git add -- src/server/db/schema-payments.ts src/server/taller/rules.ts tests/integration/payment-method-check.test.ts drizzle
+git commit -m "feat: f2-20 replace payment method check for mercado pago" && git tag f2-20
 git tag -l f2-20 | grep -qx f2-20   # expect: exit 0
 ```
 
@@ -238,8 +246,8 @@ git tag -l f2-20 | grep -qx f2-20   # expect: exit 0
 
 1. `tests/integration/sales.test.ts` primero: los seis criterios (producto de 5.000 netos y costo 3.000, stock 3; usuarios de los cuatro roles; un cliente sin órdenes).
 2. `rules.ts`: `SALE_STATUSES = ["abierta","pagada","anulada"]` + etiquetas (`Abierta`, `Pagada`, `Anulada`).
-3. `sales.ts`: `formatSaleNumber(n)` = `` `VM-${String(n).padStart(5, "0")}` ``. `previewSale(db, actor, input)` (`sales.record`; sin escribir; productos activos de la sucursal; devuelve líneas con precio, `subtotalClp`, `vatClp`, `totalClp` o `out_of_stock`/`invalid_amount`). `createSale(db, actor, input, now)`: `sales.record`; `discountClp > 0` sin `items.override_price` → `forbidden`; zod; transacción: número (`update branches set next_sale_number = next_sale_number + 1 … returning next_sale_number - 1`), leer y bloquear cada producto, `subtotal = Σ(quantity × price_clp) − discount` (< 0 o total 0 → `invalid_amount`), `vat = vatOfNet(subtotal)`, `total`; insertar la venta (`abierta`), sus `sale_items` (precio y costo congelados), `applyStockMovement(venta, -quantity, cost_clp, "sale", saleId)` por ítem (si `out_of_stock`, error centinela → revertir); insertar el pago (`kind: "final"`, `sale_id`, `amount_clp = total`, método; en `mercadopago`, `external_id`, `fee_clp` y `net_clp = total − fee`); venta `pagada` con `paid_clp = total`; audit `sale.created` (`number`, `totalClp`, líneas), `sale.discounted` (`amountClp`, `reason`) si hay descuento, `payment.recorded` con `entity: "sale"`. `listSales(db, actor, { from, to })` (`sales.record`; fechas locales, ≤ 31 días; sin `unitCostClp` ni `feeClp` si no hay `costs.view`). `listCustomerSales(db, actor, customerId)`.
-4. `sale-void.ts`: `voidSale(db, actor, saleId, { reason: 3–200 }, now)`: `payments.void`; venta `pagada` o `abierta` de la sucursal (si no, `invalid_status`); transacción: `anulada` con `voided_at`, `voided_by`, `void_reason`; `applyStockMovement(anulacion, +quantity, unit_cost_clp, "sale", saleId)` por ítem; anular sus pagos vigentes (`voided_at`, `voided_by`); audit `sale.voided` y `payment.voided` (`entity: "sale"`).
+3. `sales.ts`: `formatSaleNumber(n)` = `` `VM-${String(n).padStart(5, "0")}` ``. `previewSale(db, actor, input)` (`sales.record`; sin escribir; productos activos de la sucursal; devuelve líneas con precio, `subtotalClp`, `vatClp`, `totalClp` o `out_of_stock`/`invalid_amount`). `createSale(db, actor, input, now)`: `sales.record`; `discountClp > 0` sin `items.override_price` → `forbidden`; zod; transacción: número (`update branches set next_sale_number = next_sale_number + 1 … returning next_sale_number - 1`), leer y bloquear cada producto, `subtotal = Σ(quantity × price_clp) − discount` (< 0 o total 0 → `invalid_amount`), `vat = vatOfNet(subtotal)`, `total`; insertar la venta (`abierta`), sus `sale_items` (precio y costo congelados), `applyStockMovement(tx, …)` con `venta`, `-quantity`, `cost_clp`, `"sale"`, `saleId` por ítem (si `out_of_stock`, error centinela → revertir); insertar el pago (`kind: "final"`, `sale_id`, `amount_clp = total`, método; en `mercadopago`, `external_id`, `fee_clp` y `net_clp = total − fee`); venta `pagada` con `paid_clp = total`; audit `sale.created` (`number`, `totalClp`, líneas), `sale.discounted` (`amountClp`, `reason`) si hay descuento, `payment.recorded` con `entity: "sale"`. `listSales(db, actor, { from, to })` (`sales.record`; fechas locales, ≤ 31 días; sin `unitCostClp` ni `feeClp` si no hay `costs.view`). `listCustomerSales(db, actor, customerId)`.
+4. `sale-void.ts`: `voidSale(db, actor, saleId, { reason: 3–200 }, now)`: `payments.void`; venta `pagada` o `abierta` de la sucursal (si no, `invalid_status`); transacción: `anulada` con `voided_at`, `voided_by`, `void_reason`; `applyStockMovement(tx, …)` con `anulacion`, `+quantity`, `unit_cost_clp`, `"sale"`, `saleId` por ítem; anular sus pagos vigentes (`voided_at`, `voided_by`); audit `sale.voided` y `payment.voided` (`entity: "sale"`).
 5. `history.ts`: `TimelineEvent.kind` gana `"sale"` (y su lugar en `KIND_ORDER`, antes de `payment`); `customerTimeline` agrega, para las ventas vigentes del cliente, `{ at, kind: "sale", title: `Venta ${formatSaleNumber(n)}`, detail: formatClp(total) }` y ya no devuelve `[]` si el cliente tiene ventas aunque no tenga órdenes (ordenar con `sortTimeline` en ese caso). Los eventos existentes no cambian.
 
 **Files**
@@ -271,7 +279,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-21 add counter sales server and customer history" && git tag f2-21
+git add -- src/server/taller/sales.ts src/server/taller/sale-void.ts src/server/taller/rules.ts src/server/taller/history.ts tests/integration/sales.test.ts
+git commit -m "feat: f2-21 add counter sales server and customer history" && git tag f2-21
 git tag -l f2-21 | grep -qx f2-21   # expect: exit 0
 ```
 
@@ -309,7 +318,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-22 add sale pages and tablet counter sale" && git tag f2-22
+git add -- src/pages/taller/ventas/index.astro src/pages/taller/ventas/nueva.astro src/layouts/TallerLayout.astro e2e/venta-mostrador.spec.ts
+git commit -m "feat: f2-22 add sale pages and tablet counter sale" && git tag f2-22
 git tag -l f2-22 | grep -qx f2-22   # expect: exit 0
 ```
 
@@ -350,7 +360,8 @@ pnpm format && pnpm gate   # expect: exit 0 (incluye e2e/entrega.spec.ts sin cam
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-23 record mercado pago on order payments" && git tag f2-23
+git add -- src/server/taller/payments.ts 'src/pages/taller/ordenes/[id]/entrega.astro' src/server/taller/indicators.ts tests/integration/mercadopago-payments.test.ts
+git commit -m "feat: f2-23 record mercado pago on order payments" && git tag f2-23
 git tag -l f2-23 | grep -qx f2-23   # expect: exit 0
 ```
 
@@ -380,7 +391,7 @@ pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
 f="$(grep -lE 'CREATE TABLE ("public"\.)?"sales"' drizzle/*.sql)"; test -f "$f" && { grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' "$f"; test $? -eq 1; } && grep -qF "$(basename "$f")" docs/ventanas/f2-v2.md   # expect: exit 0
 f="$(grep -l 'ADD COLUMN "sale_id"' drizzle/*.sql)"; test -f "$f" && { grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' "$f"; test $? -eq 1; } && grep -qF "$(basename "$f")" docs/ventanas/f2-v2.md   # expect: exit 0
-f="$(grep -l 'DROP CONSTRAINT "payments_method_check"' drizzle/*.sql)"; test -f "$f" && grep -qF "$(basename "$f")" docs/ventanas/f2-v2.md   # expect: exit 0
+f="$(grep -l 'DROP CONSTRAINT "payments_method_check"' drizzle/*.sql)"; test -f "$f" && grep -qF 'ADD CONSTRAINT "payments_method_check"' "$f" && grep -qF "$(basename "$f")" docs/ventanas/f2-v2.md   # expect: exit 0 — una sola migración la quita y la vuelve a crear
 grep -qF '## Precondiciones' docs/ventanas/f2-v2.md && grep -qF '## Pasos en Replit' docs/ventanas/f2-v2.md && grep -qF '## Verificación después de publicar' docs/ventanas/f2-v2.md   # expect: exit 0
 pnpm format && pnpm gate   # expect: exit 0
 ```
@@ -388,7 +399,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "docs: f2-24 prepare publication window v2" && git tag f2-24
+git add -- docs/ventanas/f2-v2.md
+git commit -m "docs: f2-24 prepare publication window v2" && git tag f2-24
 git tag -l f2-24 | grep -qx f2-24   # expect: exit 0
 git ls-files --error-unmatch docs/ventanas/f2-v2.md   # expect: exit 0
 ```

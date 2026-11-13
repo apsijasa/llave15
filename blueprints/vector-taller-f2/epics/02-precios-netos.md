@@ -27,7 +27,7 @@ Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon
 
 **Gate:** `pnpm format && pnpm gate`. Servicio: Postgres local. El sandbox de Codex corre solo `format`, `check`, `test`, `build`; el resto lo corre la sesión coordinadora, que commitea. Reversión: `git reset --hard f2-<anterior>`.
 
-**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (la fase plataforma cambió `site.ts`, las plantillas de correo y quizá páginas; los conteos son orientativos, el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name` o el perfil; nada se borra; dinero en pesos enteros; correos después del commit; `db` y `now` como argumentos; zod en toda entrada; **una orden `final` debe producir exactamente la misma salida que hoy** (las pruebas existentes no se tocan).
+**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (la fase plataforma cambió `site.ts`, las plantillas de correo y quizá páginas; los conteos son orientativos, el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name` o el perfil; nada se borra; dinero en pesos enteros; correos después del commit; `db` y `now` como argumentos; zod en toda entrada; **una orden `final` debe producir exactamente la misma salida que hoy** (las pruebas existentes no se tocan). **Checkpoint:** `git add --` solo con las rutas del paso; nunca `git add -A` (el repo está en iCloud y acumula copias `* 2.*`).
 
 **Cobertura de tablet:** sin specs nuevos; las pantallas de orden ya tienen specs (`entrega`, `lineas-guardar-cambios`, `recepcion-*`) que deben seguir verdes sin cambios. Las órdenes de esos specs nacen `final`.
 
@@ -60,7 +60,7 @@ Sin esquema nuevo (todo lo creó E1-T3). Se usan: `branches.new_order_pricing_mo
 
 ## Contracts
 
-**Consumed:** `recordAudit`, `can`, `getOrderHeader`, `canAccessOrder`, `TERMINAL_STATUSES`, `applyStockMovement` (`stock.ts`), `getProduct`/`listProducts` (`products.ts`), `formatClp`, `render`, `SITE`, `getEmailEnv`, `createTransport`, `ensureTrackingLink`, `sendShopCopy`, `isAllowedOrigin`, `requireAdmin`.
+**Consumed:** `recordAudit`, `can`, `getOrderHeader`, `canAccessOrder`, `TERMINAL_STATUSES`, `applyStockMovement(tx, …)` (`stock.ts`), `getProduct`/`listProducts` (`products.ts`), `formatClp`, `render`, `SITE`, `getEmailEnv`, `createTransport`, `ensureTrackingLink`, `sendShopCopy`, `isAllowedOrigin`, `requireAdmin`.
 
 **Produced:**
 
@@ -70,7 +70,7 @@ Sin esquema nuevo (todo lo creó E1-T3). Se usan: `branches.new_order_pricing_mo
 | `order-totals.ts` → `recomputeOrderTotals` | `(db, orderId, now)` — misma firma; `items.ts` la reexporta |
 | `order-creation.ts` → `allocateOrderNumber`, `allocateNewOrder`, `getNewOrderPricingMode`, `setNewOrderPricingMode` | `allocateNewOrder(db, branchId)` → `{ number, pricingMode }`; `setNewOrderPricingMode(db, actor, { mode }, now)` → `{ ok: true, changed } \| { ok: false, code }` |
 | `OrderAmounts.astro` | props `{ netText, vatLabel, vatText, totalLabel, totalText }`; rinde tres pares `<dt>/<dd class="mono">` |
-| `part-stock.ts` → `productPartSchema`, `addProductPartItem`, `reverseItemStock` | `addProductPartItem(db, actor, orderId, { productId, quantity }, now)` → `{ ok: true, itemId } \| { ok: false, code }` |
+| `part-stock.ts` → `productPartSchema`, `addProductPartItem`, `reverseItemStock` | `addProductPartItem(db, actor, orderId, { productId, quantity }, now)` → `{ ok: true, itemId } \| { ok: false, code }`; `reverseItemStock(tx, actor, item, now)` (solo dentro de la transacción de `voidItem`) |
 | `email/amounts.ts` → `OrderPricing`, `amountRows`, `pricingFromNet` | `amountRows(totalLabel, totalClp, pricing?)` → `[label, amountClp][]` |
 | `report-snapshot.ts` → `snapshotSchema`, `ReportSnapshot` | v1 + `subtotalClp?`, `vatClp?`, `vatRatePercent?` |
 
@@ -125,7 +125,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-09 compute net vat and total for neto orders" && git tag f2-09
+git add -- src/server/taller/order-totals.ts src/server/taller/items.ts src/server/taller/rules.ts tests/integration/pricing-totals.test.ts
+git commit -m "feat: f2-09 compute net vat and total for neto orders" && git tag f2-09
 git tag -l f2-09 | grep -qx f2-09   # expect: exit 0
 ```
 
@@ -167,7 +168,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-10 copy branch pricing mode on order creation" && git tag f2-10
+git add -- src/server/taller/order-creation.ts src/server/taller/orders.ts src/pages/taller/catalogo/index.astro tests/integration/pricing-switch.test.ts
+git commit -m "feat: f2-10 copy branch pricing mode on order creation" && git tag f2-10
 git tag -l f2-10 | grep -qx f2-10   # expect: exit 0
 ```
 
@@ -207,7 +209,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-11 show net vat and total on order screens" && git tag f2-11
+git add -- src/components/taller/OrderAmounts.astro 'src/pages/taller/ordenes/[id]/index.astro' 'src/pages/taller/ordenes/[id]/recepcion.astro' 'src/pages/taller/ordenes/[id]/entrega.astro' tests/integration/order-amounts-page.test.ts
+git commit -m "feat: f2-11 show net vat and total on order screens" && git tag f2-11
 git tag -l f2-11 | grep -qx f2-11   # expect: exit 0
 ```
 
@@ -216,7 +219,7 @@ git tag -l f2-11 | grep -qx f2-11   # expect: exit 0
 **Depends on:** `E2-T3` · **Priority:** p0
 
 1. `tests/integration/part-stock.test.ts` primero: los seis criterios (orden `neto` y `final`, producto de costo 3.000 y precio 5.000; `listItems` para los cuatro roles).
-2. `part-stock.ts`: `productPartSchema = { productId: uuid, quantity: 1–100 }`. `addProductPartItem(db, actor, orderId, input, now)`: `items.add_part` (el mecánico no la tiene); transacción: bloquear la orden (`select … for update`), `getOrderHeader` + `canAccessOrder` + estado no terminal (mismo criterio que `items.ts`); leer el producto activo de la sucursal (si no, `not_found`); precio = `neto` ? `price_clp` : `grossOfNet(price_clp)` (F2-D16); insertar la línea `repuesto`/`inicial` con `description = name`, `product_id`, `unit_cost_clp = cost_clp`; `applyStockMovement(consumo_orden, -quantity, unitCostClp = cost_clp, referenceKind "work_order_item", referenceId item.id)`; si devuelve `out_of_stock`, **lanzar** un error centinela para revertir y traducirlo afuera a `{ ok: false, code: "out_of_stock" }`; `recomputeOrderTotals` (importado de `order-totals.ts`); audit `item.added` con `productId`. `reverseItemStock(db, actor, item, now)`: si `item.productId`, `applyStockMovement(anulacion, +quantity, unitCostClp = item.unitCostClp, referenceKind "work_order_item", referenceId item.id)`.
+2. `part-stock.ts`: `productPartSchema = { productId: uuid, quantity: 1–100 }`. `addProductPartItem(db, actor, orderId, input, now)`: `items.add_part` (el mecánico no la tiene); transacción: bloquear la orden (`select … for update`), `getOrderHeader` + `canAccessOrder` + estado no terminal (mismo criterio que `items.ts`); leer el producto activo de la sucursal (si no, `not_found`); precio = `neto` ? `price_clp` : `grossOfNet(price_clp)` (F2-D16); insertar la línea `repuesto`/`inicial` con `description = name`, `product_id`, `unit_cost_clp = cost_clp`; `applyStockMovement(tx, …)` con `consumo_orden`, `-quantity`, `unitCostClp = cost_clp`, `referenceKind "work_order_item"`, `referenceId item.id`; si devuelve `out_of_stock`, **lanzar** un error centinela para revertir y traducirlo afuera a `{ ok: false, code: "out_of_stock" }`; `recomputeOrderTotals` (importado de `order-totals.ts`); audit `item.added` con `productId`. `reverseItemStock(tx, actor, item, now)`: si `item.productId`, `applyStockMovement(tx, …)` con `anulacion`, `+quantity`, `unitCostClp = item.unitCostClp`, `referenceKind "work_order_item"`, `referenceId item.id`.
 3. `items.ts`: en `voidItem`, cuando la línea cambió (`changed.length > 0`), llamar `reverseItemStock(tx, actor, item, now)` antes de recalcular. `listItems`: si `!can(actor.role, "costs.view")`, devolver cada fila sin `unitCostClp` (desestructurar). Sin otros cambios.
 4. `lineas.astro`: formulario "Agregar repuesto del inventario" (solo con `items.add_part`): select `Producto` (activos con stock > 0: `SKU · nombre · stock N · $precio`), `Cantidad`, botón `Agregar del inventario` → POST `action=add_product` → 303 `?hecho=add_product`; `out_of_stock` → 409 "No hay stock suficiente de ese producto."; en `neto`, el total de la página usa `OrderAmounts` (`Total para el cliente`), en `final` el marcado de hoy.
 
@@ -248,7 +251,8 @@ pnpm format && pnpm gate   # expect: exit 0 (incluye e2e/lineas-guardar-cambios.
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-12 link part lines to inventory products" && git tag f2-12
+git add -- src/server/taller/part-stock.ts src/server/taller/items.ts 'src/pages/taller/ordenes/[id]/lineas.astro' tests/integration/part-stock.test.ts
+git commit -m "feat: f2-12 link part lines to inventory products" && git tag f2-12
 git tag -l f2-12 | grep -qx f2-12   # expect: exit 0
 ```
 
@@ -267,7 +271,7 @@ git tag -l f2-12 | grep -qx f2-12   # expect: exit 0
 - `src/server/email/order-templates.ts` — edit
 - `tests/unit/pricing-emails.test.ts` — new
 
-Reglas: `taller-domain.md`. Regla del nombre del taller (asuntos con `SITE.name`, como ya los deja la fase plataforma). No cambia: salida sin régimen o con `final`; `received-email.test.ts`, `ready-email.test.ts`.
+Reglas: `taller-domain.md`. Regla de código 14 (asuntos con `SITE.name`, como ya los deja la fase plataforma). No cambia: salida sin régimen o con `final`; `received-email.test.ts`, `ready-email.test.ts`.
 
 **Acceptance**
 
@@ -288,7 +292,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-13 render net and vat rows in order emails" && git tag f2-13
+git add -- src/server/email/amounts.ts src/server/email/templates.ts src/server/email/order-templates.ts tests/unit/pricing-emails.test.ts
+git commit -m "feat: f2-13 render net and vat rows in order emails" && git tag f2-13
 git tag -l f2-13 | grep -qx f2-13   # expect: exit 0
 ```
 
@@ -307,7 +312,7 @@ git tag -l f2-13 | grep -qx f2-13   # expect: exit 0
 - `src/server/taller/quotes.ts` — edit
 - `tests/integration/pricing-notifications.test.ts` — new
 
-Reglas: `taller-domain.md`. No negociables 4, 6. No cambia: condiciones de envío, auditoría `notify.*`, pruebas de notificaciones existentes.
+Reglas: `taller-domain.md`. No negociable 4 · regla de código 6 (correos después del commit). No cambia: condiciones de envío, auditoría `notify.*`, pruebas de notificaciones existentes.
 
 **Acceptance**
 
@@ -327,7 +332,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-14 send the breakdown in order emails" && git tag f2-14
+git add -- src/server/taller/reception.ts src/server/taller/qc.ts src/server/taller/quotes.ts tests/integration/pricing-notifications.test.ts
+git commit -m "feat: f2-14 send the breakdown in order emails" && git tag f2-14
 git tag -l f2-14 | grep -qx f2-14   # expect: exit 0
 ```
 
@@ -367,7 +373,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-15 freeze the breakdown in the service report" && git tag f2-15
+git add -- src/server/taller/report-snapshot.ts src/server/taller/reports.ts src/components/taller/ReportView.astro tests/integration/report-pricing.test.ts
+git commit -m "feat: f2-15 freeze the breakdown in the service report" && git tag f2-15
 git tag -l f2-15 | grep -qx f2-15   # expect: exit 0
 ```
 
@@ -407,7 +414,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "feat: f2-16 show net and vat on approvals" && git tag f2-16
+git add -- src/server/taller/approvals.ts 'src/pages/aprobacion/[token].astro' 'src/pages/taller/ordenes/[id]/adicional.astro' tests/integration/approval-pricing.test.ts
+git commit -m "feat: f2-16 show net and vat on approvals" && git tag f2-16
 git tag -l f2-16 | grep -qx f2-16   # expect: exit 0
 ```
 
@@ -418,7 +426,7 @@ git tag -l f2-16 | grep -qx f2-16   # expect: exit 0
 1. Localizar la migración de la ventana: `grep -lE 'CREATE TABLE ("public"\.)?"products"' drizzle/*.sql` (la generada en F2-02). Leerla y confirmar que solo agrega.
 2. Escribir `docs/ventanas/f2-v1.md` con estas secciones literales:
    - `## Qué trae` — inventario, compras, repuestos ligados, columnas de precio y el interruptor (en `final`); tag `f2-17`.
-   - `## Migraciones` — el nombre exacto del archivo (p. ej. el que devolvió el grep) y lo que crea.
+   - `## Migraciones` — el nombre exacto del archivo que devolvió el grep y lo que crea.
    - `## Precondiciones` — taller cerrado; respaldo de la base del día; `main` en el tag `f2-17` con `pnpm gate` verde; régimen de precios en `final` (el corte C2 es posterior y lo decide el dueño).
    - `## Pasos en Replit` — los de BITACORA §2 "Publicar con cambios de esquema": `git fetch origin`, `git reset --hard origin/main`, `git log --oneline -1`, `corepack pnpm@12.4.2 install --frozen-lockfile`, `corepack pnpm@12.4.2 db:migrate`, `corepack pnpm@12.4.2 db:check`, `rm -rf node_modules`, Deployments → Republish.
    - `## Verificación después de publicar` — en el panel *Database* de producción, solo lectura: `select count(*) from products;` responde (tabla existe); `select new_order_pricing_mode from branches;` → `final`; abrir `/taller/inventario` como dueño.
@@ -450,7 +458,8 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -A && git commit -m "docs: f2-17 prepare publication window v1" && git tag f2-17
+git add -- docs/ventanas/f2-v1.md
+git commit -m "docs: f2-17 prepare publication window v1" && git tag f2-17
 git tag -l f2-17 | grep -qx f2-17   # expect: exit 0
 git ls-files --error-unmatch docs/ventanas/f2-v1.md   # expect: exit 0 — commiteado una línea arriba
 ```
