@@ -1,6 +1,6 @@
 # FASE PLATAFORMA — Un taller por instalación
 
-> **Borrador del 13 de noviembre de 2026**, escrito por la sesión coordinadora a pedido del dueño ("¿qué hay que cambiar para que otros talleres ocupen el programa?"). Es la **entrada** para `/the-architect:architect-brownfield`, no el blueprint. Cuando el dueño lo apruebe y registre la decisión de §13, se genera el bundle en `blueprints/vector-plataforma/` (§15).
+> **Aprobado por el dueño el 13 de noviembre de 2026 (decisión 56), con la plataforma antes que la construcción de la fase 2.** Escrito por la sesión coordinadora a pedido del dueño ("¿qué hay que cambiar para que otros talleres ocupen el programa?"). Es la **entrada** para `/the-architect:architect-brownfield`, no el blueprint; el bundle se genera en `blueprints/vector-plataforma/` (§15).
 >
 > Fuentes: diagnóstico de acoplamiento del 13-11-2026 (resumido en §5 y §6); `blueprints/vector-taller-f1/FASE1.md` §2.1 decisión 4 y §2.4; `blueprints/vector-taller-f1/blueprint.md` §1 (No-Objetivos y constantes), §5 (Interfaces held constant) y §20.3; `blueprints/vector-taller-f2/FASE2.md` §2.5; `docs/encargos/README.md`.
 
@@ -162,7 +162,7 @@ Sin hex nuevos ni reglas nuevas en `global.css` salvo la propiedad del wordmark 
 
 **Decisión de apertura** (el dueño la registra en `blueprints/vector-taller-f1/blueprint.md` §20.3 antes del primer paso, con el número libre siguiente; hoy es el 56): "Una instalación por taller; perfil en `shops/<slug>/`". Aprueba §2 de este documento. Enmienda el No negociable 6 de `AGENTS.md` y `CLAUDE.md` para aclarar que una instalación por taller no es multi-sucursal ni multi-tenant. Levanta, solo para lo descrito en §2.3, las constantes del blueprint de la fase 1 §1 sobre columnas de `bookings`, correos transaccionales y tokens de `global.css`. Autoriza modificar la **firma** (no los valores esperados) de las llamadas en pruebas existentes cuando un paso cambie la firma de `validate` en `booking-state.ts` o de funciones de `handlers.ts` y `manual-booking.ts`, en el paso que la cambia.
 
-**Orden con la fase 2.** La fase 2 fue aprobada el 13-11-2026 (decisión 55) y no tiene blueprint todavía. Las dos fases tocan páginas, correos y `handlers.ts`, así que van en serie. Recomendación de la coordinadora: **esta fase primero.** Es más corta (11 a 13 pasos contra 18 a 24), no tiene dependencias con la fase 2, y si va antes, las 15 o más pantallas nuevas de la fase 2 nacen usando `SITE.name` y la guardia las vigila. Si la fase 2 va primero, esta fase limpia esas pantallas también y crece en dos o tres pasos. Lo decide el dueño.
+**Orden con la fase 2.** La fase 2 fue aprobada el 13-11-2026 (decisión 55) y no tiene blueprint todavía. Las dos fases tocan páginas, correos y `handlers.ts`, así que van en serie. **Decidido por el dueño el 13-11-2026: esta fase primero.** Es más corta (11 a 13 pasos contra 18 a 24), no tiene dependencias con la fase 2, y si va antes, las 15 o más pantallas nuevas de la fase 2 nacen usando `SITE.name` y la guardia las vigila. Si la fase 2 va primero, esta fase limpia esas pantallas también y crece en dos o tres pasos.
 
 ## 14. Criterios de aceptación de la fase
 
