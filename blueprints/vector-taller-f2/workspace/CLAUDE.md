@@ -65,7 +65,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | Esquema | ocho archivos que importan en un solo sentido: `src/server/db/schema.ts` (base, sucursal, usuarios) ← `schema-taller.ts` (auditoría, catálogo, clientes, bicis) ← `schema-inventory.ts` (productos, movimientos de stock, proveedores, compras) ← `schema-orders.ts` (órdenes y lo que cuelga) ← `schema-reports.ts` (informe, seguimiento, avisos) ← `schema-cash.ts` (caja, gastos) ← `schema-sales.ts` (ventas) ← `schema-payments.ts` (pagos, componentes) → `pnpm db:generate` → `pnpm db:migrate` |
 | Conexión | `src/server/db/client.ts` (`getDb()`, tipo `AppDb`); los módulos reciben `db` como argumento |
 | Entorno | `src/lib/env.ts` (accesores por funcionalidad); nunca `process.env` en otro lado |
-| Nombre y datos del taller | `SITE` (`src/lib/site.ts`, derivado del perfil del taller de la fase plataforma); nunca un literal |
+| Nombre y datos del taller | `SITE` (`src/lib/site.ts`); nunca un literal (la fase plataforma, después, lo derivará del perfil del taller) |
 | Reglas del negocio (reservas) | `src/server/booking/rules.ts` |
 | Reglas del taller (estados, transiciones, checklists, capacidad, etiqueta, categorías, medios de pago, IVA) | `src/server/taller/rules.ts` (`VAT_RATE_PERCENT`, `vatOfNet`, `netOfGross`) |
 | Totales de la orden (régimen `final`/`neto`) | `src/server/taller/order-totals.ts` (`recomputeOrderTotals`, reexportado por `items.ts`) |
@@ -137,7 +137,7 @@ Fuente: `docs/design-preview.html`. Monocromo, reglas de 1px, radio 2px, sin som
 | `E2E_DATABASE_URL` (opcional; por defecto `…/vector_bikes_e2e`) | F1-06 | `e2e/**`, `playwright.config.ts` |
 | `STORAGE_DRIVER` (`local`/`replit`), `STORAGE_LOCAL_DIR`, `STORAGE_BUCKET_ID` | F1-08 | `src/server/storage/storage.ts` |
 
-Las variables de la fase plataforma (`SHOP_SLUG` y las que defina) están en su blueprint. La fase 2 no agrega variables. `.env.example` se commitea y se mantiene al día. En Replit, los valores reales van en *Secrets*.
+La fase 2 no agrega variables. `.env.example` se commitea y se mantiene al día. En Replit, los valores reales van en *Secrets*.
 
 ## Reglas diferidas
 

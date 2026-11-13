@@ -6,7 +6,7 @@
     "dependencies": [],
     "priority": "p0",
     "acceptance": [
-      "WHEN la tarea 0 empieza THE SYSTEM SHALL tener en la rama `main` el archivo `blueprints/vector-plataforma/FASE-PLATAFORMA.md` (la fase plataforma está integrada) y ningún archivo sin seguimiento con nombre de duplicado de iCloud (`* 2` o `* 2.*`)",
+      "WHEN la tarea 0 empieza THE SYSTEM SHALL tener ningún archivo sin seguimiento con nombre de duplicado de iCloud (`* 2` o `* 2.*`)",
       "WHEN `pnpm db:generate` corre después del cambio THE SYSTEM SHALL no crear ni modificar ningún archivo en `drizzle/`",
       "WHEN se busca la definición de `payments` y de `bikeComponents` THE SYSTEM SHALL encontrarlas solo en `src/server/db/schema-payments.ts`, con las tablas `payments` y `bike_components`, sus columnas, índices y CHECK sin cambios",
       "WHEN `pnpm db:check` corre THE SYSTEM SHALL revisar las columnas de `allTables`, `tallerTables`, `orderTables`, `reportTables` y `paymentTables` y salir 0",
@@ -14,7 +14,6 @@
       "WHEN corre `pnpm test` THE SYSTEM SHALL pasar con 0 fallas y `src/server/db/schema-orders.ts` SHALL tener menos de 400 líneas"
     ],
     "verify": [
-      "git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md   # expect: exit 0 — la fase plataforma ya está en main",
       "u=\"$(git ls-files --others --exclude-standard)\" && test -z \"$(printf '%s\\n' \"$u\" | grep -E ' 2(\\.[^/]*)?$')\"   # expect: exit 0 — ningún duplicado de iCloud sin seguimiento",
       "pnpm db:generate   # expect: exit 0, sin migración nueva",
       "s=\"$(git status --porcelain -- drizzle)\" && test -z \"$s\"   # expect: exit 0 — git respondió y la tarea 0 no crea ni cambia nada en drizzle/",

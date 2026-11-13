@@ -6,7 +6,7 @@
 |---|---|
 | **Epic id** | `01-base-inventario` |
 | **Tasks** | `E1-T1` … `E1-T9` (pasos F2-00 … F2-08) |
-| **Depends on** | nada — es la primera (precondición: fase plataforma en `main`, sin duplicados de iCloud) |
+| **Depends on** | nada — es la primera (precondición: sin duplicados de iCloud) |
 | **Unlocks** | `02-precios-netos` |
 | **Parallel with** | ninguna |
 
@@ -28,7 +28,7 @@ Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon
 
 **Gate:** `pnpm format && pnpm gate`. Servicio: Postgres local (`vector_bikes`, `vector_bikes_e2e`, con el rol que fija `.env`). El sandbox de Codex corre solo `format`, `check`, `test`, `build`; `db:migrate`, `db:check`, `test:tablet`, `smoke` y `gate` los corre la sesión coordinadora, que también commitea. Reversión: `git reset --hard f2-<anterior>` y, si hace falta, el reinicio de la base dev de `blueprint.md` §12 (lo aprueba el operador).
 
-**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos (salvo E1-T1); **releer cada archivo antes de tocarlo** (la fase plataforma lo cambió después de escribir esto; los conteos de líneas son orientativos y el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — se usa `SITE.name` o el perfil del taller; nunca editar `drizzle/`; `db:migrate` solo en la base dev; nada se borra; dinero en pesos enteros; `branch_id` NOT NULL; `recordAudit` dentro de la transacción; correos después del commit; `db` y `now` como argumentos (nunca `new Date()` en `src/server/**`); zod en toda entrada; páginas `requireAdmin → can → zod → src/server/taller/**` con `isAllowedOrigin` en los POST. **Checkpoint:** `git add --` solo con las rutas del paso (y `drizzle` en pasos de esquema, después de la guarda de duplicados de iCloud); nunca `git add -A`.
+**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos (salvo E1-T1); **releer cada archivo antes de tocarlo** (otros cambios pueden llegar a `main`; los conteos de líneas son orientativos y el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — se usa `SITE.name` o el perfil del taller; nunca editar `drizzle/`; `db:migrate` solo en la base dev; nada se borra; dinero en pesos enteros; `branch_id` NOT NULL; `recordAudit` dentro de la transacción; correos después del commit; `db` y `now` como argumentos (nunca `new Date()` en `src/server/**`); zod en toda entrada; páginas `requireAdmin → can → zod → src/server/taller/**` con `isAllowedOrigin` en los POST. **Checkpoint:** `git add --` solo con las rutas del paso (y `drizzle` en pasos de esquema, después de la guarda de duplicados de iCloud); nunca `git add -A`.
 
 **Cobertura de tablet:** E1-T5 tiene `e2e/inventario-ajuste.spec.ts` (ajuste de stock, FASE2 §8). Proveedores y compras son de escritorio (prueba con Container API).
 
@@ -120,7 +120,7 @@ Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/database.md`, `talle
 
 **Depends on:** — · **Priority:** p0
 
-0. Precondiciones: `git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md` sale 0, y no hay archivos sin seguimiento con nombre `* 2` o `* 2.*` (copias de iCloud). Si los hay, la coordinadora confirma que son duplicados de su original y los borra antes del pase. Si la fase plataforma no está en `main`, detenerse.
+0. Precondición: no hay archivos sin seguimiento con nombre `* 2` o `* 2.*` (copias de iCloud). Si los hay, la coordinadora confirma que son duplicados de su original y los borra antes del pase.
 1. Crear `src/server/db/schema-payments.ts`: mover **tal cual** `payments` y `bikeComponents` desde `schema-orders.ts` (columnas, `$type`, defaults, índices `uq_payments_one_abono`, `idx_payments_branch_received`, `idx_bike_components_*`, CHECK `payments_*` y `bike_components_*`), con sus propias copias de `branchReference()` y `creatorReference()`; importa `workOrders`, `workOrderItems` de `./schema-orders.ts`, `bikes` de `./schema-taller.ts`, el resto de `./schema.ts`. `export const paymentTables = [payments, bikeComponents] as const;`.
 2. `schema-orders.ts`: quitar las dos tablas, sus importaciones que queden sin uso y sacarlas de `orderTables`.
 3. `scripts/db-check.ts`: importar `paymentTables` y agregarlo al recorrido de columnas.
@@ -138,7 +138,7 @@ Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/database.md`, `talle
 
 **Acceptance**
 
-1. **WHEN** la tarea 0 empieza **THE SYSTEM SHALL** tener en la rama `main` el archivo `blueprints/vector-plataforma/FASE-PLATAFORMA.md` (la fase plataforma está integrada) y ningún archivo sin seguimiento con nombre de duplicado de iCloud (`* 2` o `* 2.*`)
+1. **WHEN** la tarea 0 empieza **THE SYSTEM SHALL** tener ningún archivo sin seguimiento con nombre de duplicado de iCloud (`* 2` o `* 2.*`)
 2. **WHEN** `pnpm db:generate` corre después del cambio **THE SYSTEM SHALL** no crear ni modificar ningún archivo en `drizzle/`
 3. **WHEN** se busca la definición de `payments` y de `bikeComponents` **THE SYSTEM SHALL** encontrarlas solo en `src/server/db/schema-payments.ts`, con las tablas `payments` y `bike_components`, sus columnas, índices y CHECK sin cambios
 4. **WHEN** `pnpm db:check` corre **THE SYSTEM SHALL** revisar las columnas de `allTables`, `tallerTables`, `orderTables`, `reportTables` y `paymentTables` y salir 0
@@ -148,7 +148,6 @@ Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/database.md`, `talle
 **Verify**
 
 ```bash
-git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md   # expect: exit 0 — la fase plataforma ya está en main
 u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — ningún duplicado de iCloud sin seguimiento
 pnpm db:generate   # expect: exit 0, sin migración nueva
 s="$(git status --porcelain -- drizzle)" && test -z "$s"   # expect: exit 0 — git respondió y la tarea 0 no crea ni cambia nada en drizzle/

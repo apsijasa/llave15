@@ -27,7 +27,7 @@ Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon
 
 **Gate:** `pnpm format && pnpm gate`. Servicio: Postgres local. El sandbox de Codex corre solo `format`, `check`, `test`, `build`; el resto lo corre la sesión coordinadora, que commitea. Reversión: `git reset --hard f2-<anterior>`.
 
-**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (la fase plataforma cambió `site.ts`, las plantillas de correo y quizá páginas; los conteos son orientativos, el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name` o el perfil; nada se borra; dinero en pesos enteros; correos después del commit; `db` y `now` como argumentos; zod en toda entrada; **una orden `final` debe producir exactamente la misma salida que hoy** (las pruebas existentes no se tocan). **Checkpoint:** `git add --` solo con las rutas del paso; nunca `git add -A` (el repo está en iCloud y acumula copias `* 2.*`).
+**Reglas transversales de cada tarea:** pruebas primero, en rojo; ≤ 5 archivos; **releer cada archivo antes de tocarlo** (otros cambios pueden llegar a `main`; los conteos son orientativos, el criterio es "< 400" sobre el archivo real); **ningún texto para el usuario, correo, título ni página escribe el nombre del taller literal** — `SITE.name`; nada se borra; dinero en pesos enteros; correos después del commit; `db` y `now` como argumentos; zod en toda entrada; **una orden `final` debe producir exactamente la misma salida que hoy** (las pruebas existentes no se tocan). **Checkpoint:** `git add --` solo con las rutas del paso; nunca `git add -A` (el repo está en iCloud y acumula copias `* 2.*`).
 
 **Cobertura de tablet:** sin specs nuevos; las pantallas de orden ya tienen specs (`entrega`, `lineas-guardar-cambios`, `recepcion-*`) que deben seguir verdes sin cambios. Las órdenes de esos specs nacen `final`.
 
@@ -271,7 +271,7 @@ git tag -l f2-12 | grep -qx f2-12   # expect: exit 0
 - `src/server/email/order-templates.ts` — edit
 - `tests/unit/pricing-emails.test.ts` — new
 
-Reglas: `taller-domain.md`. Regla de código 14 (asuntos con `SITE.name`, como ya los deja la fase plataforma). No cambia: salida sin régimen o con `final`; `received-email.test.ts`, `ready-email.test.ts`.
+Reglas: `taller-domain.md`. Regla de código 14 (asuntos con `SITE.name`). No cambia: salida sin régimen o con `final`; `received-email.test.ts`, `ready-email.test.ts`.
 
 **Acceptance**
 
