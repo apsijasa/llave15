@@ -149,7 +149,7 @@ Fuente: `docs/design-preview.html`. Monocromo, reglas de 1px, radio 2px, sin som
 3. Nunca borrar reservas: se cambia `status`.
 4. Nunca commitear secretos ni `.env`; nunca registrar correos, teléfonos ni tokens sin redactar.
 5. Nunca editar a mano `drizzle/` (se regenera desde el esquema); nunca `drizzle-kit generate --custom`.
-6. No construir nada de los No-Objetivos de `blueprint.md` §1 (pago en línea, cuentas de clientes, reprogramación, E2E con navegador fuera de `/taller`, feriados 2027 inventados) ni de la cerca de FASE1 §2.4 (inventario, caja/POS, proveedores, códigos de barra, Strava/kilómetros, asistente de WhatsApp, multi-sucursal).
+6. No construir nada de los No-Objetivos de `blueprint.md` §1 (pago en línea, cuentas de clientes, reprogramación, E2E con navegador fuera de `/taller`, feriados 2027 inventados) ni de la cerca de la fase 2 (`blueprints/vector-taller-f2/FASE2.md` §2.5: pago en línea, Strava/kilómetros, asistente de WhatsApp, multi-sucursal, entre otros). Inventario, caja, proveedores, compras, gastos y ventas de mostrador se construyen desde la decisión 55.
 7. Nunca marcar una tarea como hecha con una compuerta fallando, ni editar un comando de Verify para que pase.
 8. `branch_id` NOT NULL en toda tabla de operación nueva.
 9. Nunca borrar una orden, línea, componente, aprobación ni foto de informe: se marcan con `voided_at`.

@@ -1,6 +1,6 @@
 # FASE 2 — Inventario, caja y ventas de mostrador
 
-> Borrador del 12 de noviembre de 2026, escrito por la sesión coordinadora para que el dueño lo revise y cierre. Es la **entrada** para `/the-architect:architect-brownfield`, no el blueprint. Cuando el dueño lo apruebe, se genera el bundle en `blueprints/vector-taller-f2/` (§15).
+> **Aprobado por el dueño el 13 de noviembre de 2026 (decisión 55).** Borrador del 12 de noviembre, escrito por la sesión coordinadora; el dueño aprobó §2 tal como estaba y agregó §2.4.1 (precios netos). Es la **entrada** para `/the-architect:architect-brownfield`, no el blueprint. Cuando el dueño lo apruebe, se genera el bundle en `blueprints/vector-taller-f2/` (§15).
 >
 > Fuentes: `blueprints/vector-taller-f1/FASE1.md` §2.4 (la cerca de la fase 1) y §16 (qué contiene esta fase); `blueprints/vector-taller-f1/blueprint.md` §1 (filas Inventario, Proveedores, Caja POS, Códigos de barra: "se revisa cuando la fase 1 lleve dos semanas sin papel", cumplido el 27-10-2026) y §20.4; `blueprints/roadmap/dashboard-financiero.md` (Etapa B); `blueprints/vector-taller-f1/fuentes/Especificacion sistema de gestion - 49 secciones.md` §24 a §34; `Analisis sistema de gestion - 3 oct 2026.md` §4 y §2.3.
 
@@ -22,7 +22,7 @@ Escala: una sucursal, dos personas en el mostrador, del orden de 150 productos, 
 
 ## 2. Decisiones cerradas
 
-Propuestas por la coordinadora; el dueño las confirma o cambia antes de generar el blueprint. Las que cambien se anotan aquí con su fecha.
+Aprobadas por el dueño el 13-11-2026 (decisión 55), con la confirmación expresa de: recepción vende en mostrador y abre y cierra la caja (punto 5); las bicicletas usadas entran al inventario con número de serie obligatorio (punto 8). §2.4.1 se agregó ese día.
 
 ### 2.1 Arquitectura y entorno
 
@@ -54,6 +54,15 @@ Propuestas por la coordinadora; el dueño las confirma o cambia antes de generar
 17. Una venta tiene líneas de productos (`sale_items`) con precio y costo congelados, y pagos (`payments.sale_id`).
 18. La boleta sigue saliendo del POS/SII fuera del sistema (decisión 10 de la fase 1); la venta guarda tipo y folio del documento como hoy lo hace la orden.
 
+### 2.4.1 Precios netos e IVA (dueño, 13-11-2026)
+
+19. **Los precios del catálogo y de los productos son netos.** El sistema separa neto, IVA y total en órdenes y ventas. La tasa vive en una constante (`VAT_RATE = 0.19`), no en la base.
+20. Cálculo: el IVA se calcula **una vez sobre el neto del documento** (suma de líneas vigentes), redondeado al peso con redondeo comercial; total = neto + IVA. Las líneas guardan su precio neto; no se guarda IVA por línea.
+21. **Corte sin reescritura.** Las órdenes creadas antes de la fase 2 guardan montos finales y no se tocan: `work_orders` gana una marca de régimen (por ejemplo `pricing_mode` con CHECK `final` | `neto`, default `final` para las existentes) y solo las órdenes nuevas usan `neto`. El saldo, el CHECK de saldo cero antes de `entregada` y todo pago se calculan contra el **total con IVA** en `neto` y contra el total de hoy en `final`. El blueprint define el paso exacto del corte y su prueba.
+22. Lo que el cliente ve (correo de recepción, cotización, informe, venta) muestra neto, IVA y total cuando el régimen es `neto`; con `final`, como hoy. Los pagos se registran por el monto efectivamente cobrado (con IVA).
+23. Costos de compra y gastos se registran **netos**; el IVA crédito queda fuera del sistema (lo lleva el contador). Margen e indicadores se calculan sobre netos.
+24. La boleta o factura sigue saliendo del POS/SII fuera del sistema (decisión 10 de la fase 1); el sistema no emite documentos tributarios.
+
 ### 2.5 Lo que queda afuera y por qué
 
 | Tema | Destino | Razón |
@@ -77,6 +86,7 @@ Propuestas por la coordinadora; el dueño las confirma o cambia antes de generar
 - **3.3 Proveedores y órdenes de compra:** `/taller/proveedores`, `/taller/compras` con estados `borrador → enviada → recibida | anulada`; recibir una compra genera los movimientos de entrada y actualiza el costo promedio.
 - **3.4 Repuestos de la orden ligados a producto:** en Líneas, "Agregar repuesto" elige un producto del inventario (o texto libre como hoy); `addPartItem` con `productId` descuenta stock en la misma transacción; `voidItem` revierte. El precio sugerido es `products.price_clp`; el mecánico sigue sin poder cambiarlo.
 - **3.5 Ventas de mostrador:** `/taller/ventas/nueva` (productos, cantidades, cliente opcional, pago), `/taller/ventas` (lista del día y por rango), anulación con motivo.
+- **3.5.1 Precios netos e IVA:** régimen `neto` para órdenes nuevas, desglose neto / IVA / total en pantalla, correos e informe, saldo contra el total con IVA (§2.4.1).
 - **3.6 Pagos ampliados:** `mercadopago` como medio con `external_id`, `fee_clp`, `net_clp`; pagos de ventas; cada pago en efectivo ligado a la sesión de caja.
 - **3.7 Gastos:** `/taller/gastos` con categoría cerrada (arriendo, sueldos, servicios, insumos, repuestos, otros), monto, fecha, proveedor opcional, documento, medio; los de efectivo salen de la caja.
 - **3.8 Caja diaria:** `/taller/caja` con apertura, lista de movimientos del día (pagos de órdenes, ventas, gastos, devoluciones), cierre con conteo y diferencia, historial de sesiones.
@@ -105,6 +115,7 @@ Todas con `id uuid`, `branch_id` NOT NULL, `created_at`, `updated_at`; `voided_a
 | `cash_movements` | `cash_session_id`, `kind` CHECK (`ingreso`, `egreso`), `amount_clp`, `reference_kind`, `reference_id`, `note`, `created_by` | CHECK `amount_clp > 0` |
 | `payments` (extensión) | `work_order_id` pasa a nullable; `sale_id` nullable; `external_id`, `fee_clp` default 0, `net_clp`; `cash_session_id` nullable; `method` admite `mercadopago` | CHECK "exactamente uno de `work_order_id` / `sale_id`"; el CHECK de `method` cambia (ver §11) |
 | `work_order_items` (extensión) | `product_id` nullable | — |
+| `work_orders` (extensión) | `pricing_mode` (`final` para las existentes, `neto` para las nuevas) | CHECK `pricing_mode in ('final','neto')` |
 
 ## 6. Integración con lo ya construido
 
@@ -147,7 +158,7 @@ Igual que la fase 1 y la etapa A: tokens de `global.css`, reglas de 1px, radio 2
 1. Inventario físico inicial y su CSV (sku, nombre, categoría, costo, precio, stock, mínimo, código de barras).
 2. Lista cerrada de categorías de gasto que usa el contador.
 3. Cuenta de Mercado Pago del taller, para conocer la comisión real.
-4. Decidir si los precios del catálogo y de los productos incluyen IVA (pendiente 3 de BITACORA §7).
+4. ~~Decidir si los precios incluyen IVA~~ — resuelto: son netos (§2.4.1). Pendiente operativo: revisar los precios del catálogo actual y confirmar que están cargados como netos antes del corte.
 5. Lector de códigos de barra, si se compra, y su modo (teclado USB o Bluetooth).
 
 ## 13. Lo que no se negocia al construir
@@ -179,19 +190,20 @@ Igual que la fase 1 y la etapa A: tokens de `global.css`, reglas de 1px, radio 2
 9. El mecánico no recibe `cost_clp` en ninguna respuesta de `src/server/**` ni lo ve en ninguna pantalla.
 10. `/taller/indicadores` muestra egresos, balance y mix del período.
 11. La auditoría registra quién ajustó stock, cerró caja, anuló o descontó.
-12. `pnpm gate` en verde.
-13. Un mes de operación real con stock y caja sin planilla.
+12. Una orden nueva con líneas por $10.000 netos muestra IVA $1.900 y total $11.900, y no se entrega con saldo distinto de cero contra $11.900; una orden anterior al corte sigue mostrando y cobrando su total de siempre.
+13. `pnpm gate` en verde.
+14. Un mes de operación real con stock y caja sin planilla.
 
-Los primeros doce se verifican en el blueprint, paso por paso. El trece lo verifica el taller.
+Los primeros trece se verifican en el blueprint, paso por paso. El catorce lo verifica el taller.
 
 ## 15. Cómo generar el blueprint
 
-Requisitos: este documento aprobado y commiteado; decisión 55 registrada y las reglas enmendadas; árbol limpio; respaldos de la base activos; la etapa A publicada (sus migraciones `0025` a `0027` aplicadas en producción).
+Requisitos (cumplidos el 13-11-2026 salvo el árbol y los respaldos, que se comprueban al generar): este documento aprobado y commiteado; decisión 55 registrada y las reglas enmendadas; árbol limpio; respaldos de la base activos; la etapa A publicada (sus migraciones `0025` a `0027` aplicadas en producción).
 
 Desde la raíz del repo:
 
 ```
-/the-architect:architect-brownfield Lee blueprints/vector-taller-f2/FASE2.md, el blueprint de la fase 1 en blueprints/vector-taller-f1/blueprint.md (solo lectura) y blueprints/roadmap/dashboard-financiero.md. Construye el blueprint de la fase 2 en blueprints/vector-taller-f2/. La tarea 0 es partir src/server/db/schema-orders.ts sin migración. Las decisiones de la sección 2 están cerradas: no las re-preguntes. La sección 2.5 es la cerca. La sección 14 son los criterios de aceptación. Respeta CLAUDE.md, AGENTS.md y .claude/rules/, ya enmendados por la decisión 55. Cada paso toca como máximo 5 archivos, tiene un Verify observable y, cuando toca venta, cobro o ajuste de stock, una prueba de Playwright en tablet. Agrupa los cambios de esquema en tres ventanas de publicación.
+/the-architect:architect-brownfield Lee blueprints/vector-taller-f2/FASE2.md, el blueprint de la fase 1 en blueprints/vector-taller-f1/blueprint.md (solo lectura) y blueprints/roadmap/dashboard-financiero.md. Construye el blueprint de la fase 2 en blueprints/vector-taller-f2/. La tarea 0 es partir src/server/db/schema-orders.ts sin migración. Las decisiones de la sección 2 están cerradas: no las re-preguntes. La sección 2.5 es la cerca. La sección 2.4.1 (precios netos con corte por régimen, sin reescribir órdenes existentes) es una decisión cerrada del dueño. La sección 14 son los criterios de aceptación. Respeta CLAUDE.md, AGENTS.md y .claude/rules/, ya enmendados por la decisión 55. Cada paso toca como máximo 5 archivos, tiene un Verify observable y, cuando toca venta, cobro o ajuste de stock, una prueba de Playwright en tablet. Agrupa los cambios de esquema en tres ventanas de publicación.
 ```
 
 Después, `/the-architect:architect-next` por cada paso, y un encargo por paso en `docs/encargos/F2-NN-*.md`.

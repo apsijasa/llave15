@@ -19,4 +19,4 @@ paths:
 - Errores esperables se devuelven como `{ ok: false, code }`; solo lo inesperado se lanza.
 - Tokens de aprobación e informe: `newShareToken()` y `hashShareToken()` de `share-tokens.ts`; en base solo el hash.
 - Constantes del taller (estados, etiquetas, transiciones, checklists, capacidad diaria, ancho de etiqueta) solo en `src/server/taller/rules.ts`.
-- La fase 1 no guarda costos ni márgenes: "el mecánico no ve costos" se cumple porque no existen. No agregar columnas de costo.
+- Los costos existen desde la fase 2 (decisión 55): `cost_clp`, `unit_cost_clp` y `fee_clp` solo salen de `src/server/**` para roles con `costs.view` (dueño y administración). Cada función que los devuelve tiene una prueba de omisión por rol; el mecánico nunca los recibe.
