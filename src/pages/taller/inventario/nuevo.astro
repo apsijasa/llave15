@@ -1,0 +1,117 @@
+---
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { createProduct, productFormSchema } from "../../../server/taller/products.ts";
+import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_LABELS } from "../../../server/taller/rules.ts";
+
+export const prerender = false;
+const PATH = "/taller/inventario/nuevo";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "inventory.adjust")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const fields: { key: string; label: string; max?: number; limit?: number; required: boolean }[] = [
+  { key: "sku", label: "SKU", max: 40, required: true },
+  { key: "name", label: "Nombre", max: 120, required: true },
+  { key: "unit", label: "Unidad", max: 20, required: true },
+  { key: "costClp", label: "Costo neto", limit: 10_000_000, required: true },
+  { key: "priceClp", label: "Precio neto", limit: 10_000_000, required: true },
+  { key: "stockQty", label: "Stock inicial", limit: 100_000, required: true },
+  { key: "minStock", label: "Stock mínimo", limit: 100_000, required: true },
+  { key: "barcode", label: "Código de barras", max: 64, required: false },
+  { key: "serialNumber", label: "Número de serie", max: 80, required: false },
+  { key: "supplierId", label: "Proveedor", max: 36, required: false },
+];
+let values: Record<string, string> = {
+  category: "repuesto",
+  unit: "unidad",
+  costClp: "0",
+  stockQty: "0",
+  minStock: "0",
+};
+const fieldErrors: Record<string, string> = {};
+let error = "";
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  if (!can(user.role, "inventory.adjust")) return forbiddenResponse();
+  const form = await Astro.request.formData();
+  values = Object.fromEntries([...form].map(([key, value]) => [key, String(value)]));
+  const parsed = productFormSchema.safeParse(values);
+  if (!parsed.success) {
+    Astro.response.status = 422;
+    error = "Revisa los datos del producto.";
+    for (const issue of parsed.error.issues) {
+      const key = String(issue.path[0]);
+      const label = fields.find((field) => field.key === key)?.label ?? "Categoría";
+      fieldErrors[key] = `Revisa el campo ${label.toLocaleLowerCase("es-CL")}.`;
+    }
+    if (values.category === "bicicleta_usada" && !values.serialNumber?.trim())
+      fieldErrors.serialNumber = "Escribe el número de serie de la bicicleta.";
+  } else {
+    const result = await createProduct(db, user, parsed.data, now);
+    if (result.ok)
+      return new Response(null, {
+        status: 303,
+        headers: {
+          location: `/taller/inventario/${result.productId}?hecho=create`,
+          "cache-control": "no-store",
+        },
+      });
+    if (result.code === "forbidden") return forbiddenResponse();
+    Astro.response.status = result.code === "validation_error" ? 422 : 409;
+    error =
+      result.code === "sku_exists"
+        ? "Ya existe un producto con ese SKU o código de barras."
+        : result.code === "not_found"
+          ? "Proveedor no encontrado en tu sucursal."
+          : "No se pudo crear el producto. Revisa los datos.";
+    if (result.code === "sku_exists") fieldErrors.sku = fieldErrors.barcode = error;
+    if (result.code === "not_found") fieldErrors.supplierId = error;
+  }
+}
+---
+
+<TallerLayout title={`Inventario — ${SITE.name}`} description="Crear un producto del inventario." path="/taller/inventario" user={user}>
+  <div class="stack">
+    <PageHeader title="Nuevo producto"><a slot="actions" href="/taller/inventario">Volver al inventario</a></PageHeader>
+    {error && <p role="alert">{error}</p>}
+    <Card>
+      <form method="post" action={PATH}>
+        <div class="fields">
+          <div class="field">
+            <label for="category">Categoría</label>
+            <select id="category" name="category" required aria-invalid={Boolean(fieldErrors.category)} aria-describedby={fieldErrors.category ? "category-error" : undefined}>
+              {PRODUCT_CATEGORIES.map((category) => <option value={category} selected={values.category === category}>{PRODUCT_CATEGORY_LABELS[category]}</option>)}
+            </select>
+            {fieldErrors.category && <p id="category-error">{fieldErrors.category}</p>}
+          </div>
+          {fields.map((field) => (
+            <div class="field">
+              <label for={field.key}>{field.label}</label>
+              <input id={field.key} name={field.key} type={field.limit === undefined ? "text" : "number"} required={field.required} maxlength={field.max} min={field.limit === undefined ? undefined : 0} max={field.limit} step={field.limit === undefined ? undefined : 1} value={values[field.key] ?? ""} aria-invalid={Boolean(fieldErrors[field.key])} aria-describedby={[fieldErrors[field.key] ? `${field.key}-error` : "", field.key === "supplierId" ? "supplier-help" : "", field.key === "serialNumber" ? "serial-help" : ""].filter(Boolean).join(" ") || undefined} />
+              {field.key === "supplierId" && <p id="supplier-help" class="muted">Identificador del proveedor, si corresponde.</p>}
+              {field.key === "serialNumber" && <p id="serial-help" class="muted">Obligatorio para una bicicleta usada.</p>}
+              {fieldErrors[field.key] && <p id={`${field.key}-error`}>{fieldErrors[field.key]}</p>}
+            </div>
+          ))}
+        </div>
+        <button type="submit" class="btn">Crear producto</button>
+      </form>
+    </Card>
+  </div>
+</TallerLayout>

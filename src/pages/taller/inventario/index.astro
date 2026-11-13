@@ -1,0 +1,115 @@
+---
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { formatClp } from "../../../server/email/templates.ts";
+import { listProducts } from "../../../server/taller/products.ts";
+import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_LABELS } from "../../../server/taller/rules.ts";
+
+export const prerender = false;
+const PATH = "/taller/inventario";
+const db = getDb();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "inventory.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (Astro.request.method !== "GET")
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET", "cache-control": "no-store" },
+  });
+const filterSchema = z.object({
+  q: z.string().trim().max(120).default(""),
+  category: z.enum(PRODUCT_CATEGORIES).optional(),
+  bajo: z.literal("1").optional(),
+});
+const query = Object.fromEntries(Astro.url.searchParams);
+const parsed = filterSchema.safeParse({ ...query, category: query.category || undefined });
+if (!parsed.success) Astro.response.status = 422;
+const filters = parsed.success ? parsed.data : { q: "", category: undefined, bajo: undefined };
+const products = parsed.success
+  ? await listProducts(db, user, {
+      q: filters.q,
+      category: filters.category,
+      lowOnly: filters.bajo === "1",
+    })
+  : [];
+const showCosts = can(user.role, "costs.view");
+---
+
+<TallerLayout title={`Inventario — ${SITE.name}`} description="Productos, existencias y mínimos del taller." path={PATH} user={user}>
+  <div class="stack inventory-list">
+    <PageHeader title="Inventario">
+      {can(user.role, "inventory.adjust") && <a slot="actions" class="btn" href={`${PATH}/nuevo`}>Nuevo producto</a>}
+    </PageHeader>
+    {!parsed.success && <p role="alert">Revisa los filtros de búsqueda.</p>}
+    <Card>
+      <form method="get" action={PATH}>
+        <div class="fields">
+          <div class="field">
+            <label for="q">Buscar</label>
+            <input id="q" name="q" maxlength="120" value={filters.q} placeholder="SKU, nombre o código de barras" />
+          </div>
+          <div class="field">
+            <label for="category">Categoría</label>
+            <select id="category" name="category">
+              <option value="">Todas</option>
+              {PRODUCT_CATEGORIES.map((category) => <option value={category} selected={filters.category === category}>{PRODUCT_CATEGORY_LABELS[category]}</option>)}
+            </select>
+          </div>
+          <div class="options"><label for="bajo"><input id="bajo" type="checkbox" name="bajo" value="1" checked={filters.bajo === "1"} />Solo bajo mínimo</label></div>
+        </div>
+        <button type="submit" class="btn">Filtrar</button>
+      </form>
+    </Card>
+    <Card>
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Productos (hasta 300 resultados)</caption>
+          <thead><tr><th scope="col">SKU</th><th scope="col">Nombre</th><th scope="col">Categoría</th><th scope="col">Stock</th><th scope="col">Mínimo</th><th scope="col">Precio neto</th>{showCosts && <th scope="col">Costo</th>}<th scope="col">Estado</th></tr></thead>
+          <tbody>
+            {products.map((product) => (
+              <tr>
+                <td>{product.sku}</td>
+                <td><a href={`${PATH}/${product.id}`}>{product.name}</a></td>
+                <td>{PRODUCT_CATEGORY_LABELS[product.category]}</td>
+                <td>{product.stockQty}</td><td>{product.minStock}</td>
+                <td>{formatClp(product.priceClp)}</td>
+                {showCosts && <td>{"costClp" in product && typeof product.costClp === "number" ? formatClp(product.costClp) : "Sin información"}</td>}
+                <td>{product.minStock > 0 && product.stockQty <= product.minStock
+                  ? <span class="status status--bajo">Bajo mínimo</span>
+                  : product.stockQty === 0
+                    ? <span class="status status--sin-stock">Sin stock</span>
+                    : <span class="status">OK</span>}</td>
+              </tr>
+            ))}
+            {products.length === 0 && <tr><td colspan={showCosts ? 8 : 7}>No hay productos para estos filtros.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .inventory-list td a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    min-width: 48px;
+  }
+  .taller .inventory-list .status--bajo { border-style: dashed; }
+  .taller .inventory-list .status--sin-stock { border: 3px double var(--ink); }
+</style>

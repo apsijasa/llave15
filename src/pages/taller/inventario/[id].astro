@@ -1,0 +1,236 @@
+---
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { formatClp } from "../../../server/email/templates.ts";
+import {
+  adjustStock,
+  getProduct,
+  productFormSchema,
+  updateProduct,
+} from "../../../server/taller/products.ts";
+import {
+  PRODUCT_CATEGORIES,
+  PRODUCT_CATEGORY_LABELS,
+  STOCK_MOVEMENT_LABELS,
+} from "../../../server/taller/rules.ts";
+
+export const prerender = false;
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "inventory.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (Astro.request.method === "POST") {
+  if (!can(user.role, "inventory.adjust")) return forbiddenResponse();
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+}
+const id = z.uuid().safeParse(Astro.params.id);
+const notFound = () =>
+  new Response("Producto no encontrado.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+if (!id.success) return notFound();
+const product = await getProduct(db, user, id.data);
+if (!product) return notFound();
+const PATH = `/taller/inventario/${id.data}`;
+const canEdit = can(user.role, "inventory.adjust");
+const showCosts = can(user.role, "costs.view");
+const formSchema = z.discriminatedUnion("action", [
+  productFormSchema.safeExtend({ action: z.literal("update") }),
+  z.object({
+    action: z.literal("adjust"),
+    quantity: z
+      .string()
+      .trim()
+      .regex(/^-?\d+$/)
+      .transform(Number)
+      .pipe(
+        z
+          .number()
+          .int()
+          .min(-100_000)
+          .max(100_000)
+          .refine((value) => value !== 0),
+      ),
+    reason: z.string().trim().min(3).max(200),
+  }),
+]);
+const fields: { key: string; label: string; max?: number; limit?: number; required: boolean }[] = [
+  { key: "sku", label: "SKU", max: 40, required: true },
+  { key: "name", label: "Nombre", max: 120, required: true },
+  { key: "unit", label: "Unidad", max: 20, required: true },
+  ...(showCosts
+    ? [{ key: "costClp", label: "Costo neto", limit: 10_000_000, required: true }]
+    : []),
+  { key: "priceClp", label: "Precio neto", limit: 10_000_000, required: true },
+  { key: "minStock", label: "Stock mínimo", limit: 100_000, required: true },
+  { key: "barcode", label: "Código de barras", max: 64, required: false },
+  { key: "serialNumber", label: "Número de serie", max: 80, required: false },
+  { key: "supplierId", label: "Proveedor", max: 36, required: false },
+];
+let values: Record<string, string> = Object.fromEntries(
+  Object.entries(product).map(([key, value]) => [key, String(value ?? "")]),
+);
+let isActive = product.isActive;
+let adjustment: Record<string, string> = {};
+const fieldErrors: Record<string, string> = {};
+let error = "";
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const raw = Object.fromEntries([...form].map(([key, value]) => [key, String(value)]));
+  if (raw.action === "update") {
+    values = raw;
+    isActive = raw.isActive === "1";
+  } else adjustment = raw;
+  const parsed = formSchema.safeParse({ ...raw, isActive, stockQty: product.stockQty });
+  if (!parsed.success) {
+    Astro.response.status = 422;
+    error = "Revisa los datos del formulario.";
+    for (const issue of parsed.error.issues) {
+      const key = String(issue.path[0]);
+      fieldErrors[key] =
+        key === "quantity"
+          ? "Ingresa una cantidad entera distinta de cero, entre -100000 y 100000."
+          : key === "reason"
+            ? "Escribe un motivo de 3 a 200 caracteres."
+            : "Revisa este dato.";
+    }
+    if (values.category === "bicicleta_usada" && !values.serialNumber?.trim())
+      fieldErrors.serialNumber = "Escribe el número de serie de la bicicleta.";
+  } else {
+    const result =
+      parsed.data.action === "adjust"
+        ? await adjustStock(db, user, id.data, parsed.data, now)
+        : await updateProduct(db, user, id.data, parsed.data, now);
+    if (result.ok)
+      return new Response(null, {
+        status: 303,
+        headers: { location: `${PATH}?hecho=${parsed.data.action}`, "cache-control": "no-store" },
+      });
+    if (result.code === "forbidden") return forbiddenResponse();
+    Astro.response.status =
+      result.code === "not_found" ? 404 : result.code === "validation_error" ? 422 : 409;
+    error =
+      result.code === "out_of_stock"
+        ? "El ajuste dejaría el stock negativo. Revisa la cantidad."
+        : result.code === "sku_exists"
+          ? "Ya existe un producto con ese SKU o código de barras."
+          : result.code === "not_found"
+            ? "Producto o proveedor no encontrado en tu sucursal."
+            : "Revisa los datos del formulario.";
+    if (result.code === "out_of_stock") fieldErrors.quantity = error;
+    if (result.code === "sku_exists") fieldErrors.sku = fieldErrors.barcode = error;
+    if (result.code === "not_found" && parsed.data.action === "update")
+      fieldErrors.supplierId = error;
+  }
+}
+const notices: Record<string, string> = {
+  create: "Producto creado.",
+  adjust: "Stock ajustado.",
+  update: "Producto actualizado.",
+};
+const notice = notices[Astro.url.searchParams.get("hecho") ?? ""];
+---
+
+<TallerLayout title={`Inventario — ${SITE.name}`} description="Ficha del producto y movimientos de stock." path="/taller/inventario" user={user}>
+  <div class="stack inventory-detail">
+    <PageHeader title={product.name} subtitle={product.sku}><a slot="actions" href="/taller/inventario">Volver al inventario</a></PageHeader>
+    {notice && <p role="status">{notice}</p>}
+    {error && <p role="alert">{error}</p>}
+    <Card>
+      <dl class="data">
+        <dt>Stock</dt><dd>{product.stockQty}</dd>
+        <dt>Mínimo</dt><dd>{product.minStock}</dd>
+        <dt>Precio neto</dt><dd>{formatClp(product.priceClp)}</dd>
+        {showCosts && "costClp" in product && typeof product.costClp === "number" && <><dt>Costo neto</dt><dd>{formatClp(product.costClp)}</dd></>}
+        <dt>Categoría</dt><dd>{PRODUCT_CATEGORY_LABELS[product.category]}</dd>
+        <dt>Unidad</dt><dd>{product.unit}</dd>
+        <dt>Estado</dt><dd>{product.isActive ? "Activo" : "Inactivo"}</dd>
+      </dl>
+    </Card>
+    {canEdit && <>
+      <Card title="Ajustar stock">
+        <form method="post" action={PATH}>
+          <input type="hidden" name="action" value="adjust" />
+          <div class="fields">
+            <div class="field">
+              <label for="quantity">Cantidad</label>
+              <input id="quantity" name="quantity" type="number" min="-100000" max="100000" step="1" required value={adjustment.quantity ?? ""} aria-invalid={Boolean(fieldErrors.quantity)} aria-describedby={`quantity-help${fieldErrors.quantity ? " quantity-error" : ""}`} />
+              <p id="quantity-help" class="muted">Cantidad negativa para descontar.</p>
+              {fieldErrors.quantity && <p id="quantity-error">{fieldErrors.quantity}</p>}
+            </div>
+            <div class="field">
+              <label for="reason">Motivo</label>
+              <input id="reason" name="reason" required minlength="3" maxlength="200" value={adjustment.reason ?? ""} aria-invalid={Boolean(fieldErrors.reason)} aria-describedby={fieldErrors.reason ? "reason-error" : undefined} />
+              {fieldErrors.reason && <p id="reason-error">{fieldErrors.reason}</p>}
+            </div>
+          </div>
+          <button type="submit" class="btn">Registrar ajuste</button>
+        </form>
+      </Card>
+      <Card title="Editar producto">
+        <form method="post" action={PATH}>
+          <input type="hidden" name="action" value="update" />
+          <div class="fields">
+            <div class="field">
+              <label for="category">Categoría</label>
+              <select id="category" name="category" required aria-invalid={Boolean(fieldErrors.category)} aria-describedby={fieldErrors.category ? "category-error" : undefined}>
+                {PRODUCT_CATEGORIES.map((category) => <option value={category} selected={values.category === category}>{PRODUCT_CATEGORY_LABELS[category]}</option>)}
+              </select>
+              {fieldErrors.category && <p id="category-error">{fieldErrors.category}</p>}
+            </div>
+            {fields.map((field) => (
+              <div class="field">
+                <label for={field.key}>{field.label}</label>
+                <input id={field.key} name={field.key} type={field.limit === undefined ? "text" : "number"} required={field.required} maxlength={field.max} min={field.limit === undefined ? undefined : 0} max={field.limit} step={field.limit === undefined ? undefined : 1} value={values[field.key] ?? ""} aria-invalid={Boolean(fieldErrors[field.key])} aria-describedby={[fieldErrors[field.key] ? `${field.key}-error` : "", field.key === "supplierId" ? "supplier-help" : "", field.key === "serialNumber" ? "serial-help" : ""].filter(Boolean).join(" ") || undefined} />
+                {field.key === "supplierId" && <p id="supplier-help" class="muted">Identificador del proveedor, si corresponde.</p>}
+                {field.key === "serialNumber" && <p id="serial-help" class="muted">Obligatorio para una bicicleta usada.</p>}
+                {fieldErrors[field.key] && <p id={`${field.key}-error`}>{fieldErrors[field.key]}</p>}
+              </div>
+            ))}
+            <fieldset><legend>Estado del producto</legend><div class="options"><label for="isActive"><input id="isActive" name="isActive" type="checkbox" value="1" checked={isActive} />Producto activo</label></div></fieldset>
+          </div>
+          <button type="submit" class="btn">Guardar producto</button>
+        </form>
+      </Card>
+    </>}
+    <Card title="Movimientos">
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Últimos 50 movimientos</caption>
+          <thead><tr><th scope="col">Fecha</th><th scope="col">Tipo</th><th scope="col">Cantidad</th><th scope="col">Referencia</th><th scope="col">Nota</th><th scope="col">Usuario</th></tr></thead>
+          <tbody>
+            {product.movements.map((movement) => <tr>
+              <td>{movement.createdAt.toLocaleString("es-CL", { timeZone: "America/Santiago" })}</td>
+              <td>{STOCK_MOVEMENT_LABELS[movement.kind]}</td>
+              <td>{movement.quantity > 0 ? `+${movement.quantity}` : movement.quantity}</td>
+              <td>{movement.referenceId ?? "Sin referencia"}</td>
+              <td>{movement.note ?? "Sin nota"}</td><td>{movement.actorName}</td>
+            </tr>)}
+            {product.movements.length === 0 && <tr><td colspan="6">No hay movimientos registrados.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .inventory-detail .data { font-variant-numeric: tabular-nums; }
+</style>

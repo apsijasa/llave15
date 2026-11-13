@@ -2,6 +2,7 @@
 import Base from "./Base.astro";
 import "../styles/taller-layout.css";
 import "../styles/taller-components.css";
+import { SITE } from "../lib/site.ts";
 import { can, ROLE_LABELS } from "../server/auth/permissions.ts";
 import type { Action, Role } from "../server/auth/permissions.ts";
 
@@ -36,6 +37,10 @@ const groups: { label: string; links: Link[] }[] = [
       { label: "Bloqueos", href: "/admin/bloqueos", action: "admin.panel" },
     ],
   },
+  {
+    label: "Inventario y caja",
+    links: [{ label: "Inventario", href: "/taller/inventario", action: "inventory.view" }],
+  },
 ];
 // El menú se arma en el servidor: un grupo sin enlaces permitidos no se muestra.
 const menu = groups
@@ -47,7 +52,7 @@ const menu = groups
   <div class="taller">
     <aside class="taller-aside">
       <div class="taller-id">
-        <p class="taller-brand">Vector Bikes · Taller</p>
+        <p class="taller-brand">{SITE.name} · Taller</p>
         <p class="taller-user">{user.name} · <span class="role">{ROLE_LABELS[user.role]}</span></p>
         <button type="button" class="taller-toggle" popovertarget="taller-menu">Menú</button>
       </div>
