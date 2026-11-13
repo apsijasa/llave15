@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { products } from "./schema-inventory.ts";
 import { bikes, customers, services } from "./schema-taller.ts";
 import { bookings, branches, createdAt, instant, updatedAt, users } from "./schema.ts";
 
@@ -50,6 +51,9 @@ export const workOrders = pgTable(
     deliveryDateConfirmedAt: instant("delivery_date_confirmed_at"),
     estimatedMinutes: integer("estimated_minutes").notNull().default(0),
     totalClp: integer("total_clp").notNull().default(0),
+    pricingMode: text("pricing_mode").notNull().default("final"),
+    subtotalClp: integer("subtotal_clp").notNull().default(0),
+    vatClp: integer("vat_clp").notNull().default(0),
     paidClp: integer("paid_clp").notNull().default(0),
     qcApprovedAt: instant("qc_approved_at"),
     qcApprovedBy: uuid("qc_approved_by").references(() => users.id, { onDelete: "restrict" }),
@@ -78,6 +82,12 @@ export const workOrders = pgTable(
     index("idx_work_orders_customer").on(t.customerId),
     index("idx_work_orders_branch_delivery_date").on(t.branchId, t.estimatedDeliveryDate),
     check("work_orders_number_check", sql`number >= 1`),
+    check("work_orders_pricing_mode_check", sql`pricing_mode in ('final', 'neto')`),
+    check("work_orders_pricing_amounts_check", sql`subtotal_clp >= 0 and vat_clp >= 0`),
+    check(
+      "work_orders_pricing_total_check",
+      sql`pricing_mode = 'final' or total_clp = subtotal_clp + vat_clp`,
+    ),
     check("work_orders_booking_position_check", sql`booking_position between 1 and 3`),
     check(
       "work_orders_status_check",
@@ -167,6 +177,8 @@ export const workOrderItems = pgTable(
     kind: text("kind").$type<"servicio" | "repuesto">().notNull(),
     origin: text("origin").$type<"inicial" | "adicional">().notNull(),
     serviceId: uuid("service_id").references(() => services.id, { onDelete: "restrict" }),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "restrict" }),
+    unitCostClp: integer("unit_cost_clp"),
     approvalId: uuid("approval_id").references(() => workOrderApprovals.id, {
       onDelete: "restrict",
     }),
@@ -185,6 +197,11 @@ export const workOrderItems = pgTable(
     check("work_order_items_kind_check", sql`kind in ('servicio', 'repuesto')`),
     check("work_order_items_origin_check", sql`origin in ('inicial', 'adicional')`),
     check("work_order_items_quantity_check", sql`quantity > 0`),
+    check("work_order_items_unit_cost_check", sql`unit_cost_clp is null or unit_cost_clp >= 0`),
+    check(
+      "work_order_items_product_check",
+      sql`product_id is null or (kind = 'repuesto' and unit_cost_clp is not null)`,
+    ),
     check(
       "work_order_items_non_negative_check",
       sql`unit_price_clp >= 0 and estimated_minutes >= 0`,

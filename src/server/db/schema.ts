@@ -166,12 +166,19 @@ export const branches = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     nextOrderNumber: integer("next_order_number").notNull().default(1),
+    nextPurchaseNumber: integer("next_purchase_number").notNull().default(1),
+    newOrderPricingMode: text("new_order_pricing_mode").notNull().default("final"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     uniqueIndex("uq_branches_name").on(t.name),
     check("branches_next_order_number_check", sql`next_order_number >= 1`),
+    check("branches_next_purchase_number_check", sql`next_purchase_number >= 1`),
+    check(
+      "branches_new_order_pricing_mode_check",
+      sql`new_order_pricing_mode in ('final', 'neto')`,
+    ),
   ],
 );
 

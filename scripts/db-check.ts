@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { getTableColumns, getTableName } from "drizzle-orm";
 import postgres from "postgres";
 import { getDbEnv } from "../src/lib/env.ts";
+import { inventoryTables } from "../src/server/db/schema-inventory.ts";
 import { orderTables } from "../src/server/db/schema-orders.ts";
 import { paymentTables } from "../src/server/db/schema-payments.ts";
 import { reportTables } from "../src/server/db/schema-reports.ts";
@@ -61,6 +62,7 @@ try {
   const missingColumns = [
     ...allTables,
     ...tallerTables,
+    ...inventoryTables,
     ...orderTables,
     ...reportTables,
     ...paymentTables,
