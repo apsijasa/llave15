@@ -40,7 +40,28 @@ export type AuditAction =
   | "component.installed"
   | "component.voided"
   | "report.generated"
-  | "report.maintenance_planned";
+  | "report.maintenance_planned"
+  | "product.created"
+  | "product.updated"
+  | "stock.adjusted"
+  | "inventory.imported"
+  | "supplier.created"
+  | "supplier.updated"
+  | "purchase.created"
+  | "purchase.item_added"
+  | "purchase.sent"
+  | "purchase.received"
+  | "purchase.voided"
+  | "pricing.mode_changed"
+  | "sale.created"
+  | "sale.discounted"
+  | "sale.voided"
+  | "cash.control_changed"
+  | "cash.opened"
+  | "cash.closed"
+  | "cash.refund"
+  | "expense.recorded"
+  | "expense.voided";
 
 const sensitiveKey = /email|correo|phone|telefono|rut|token|password|clave/i;
 const uuidPattern = /\b[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}\b/i;

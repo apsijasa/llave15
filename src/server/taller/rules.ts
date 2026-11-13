@@ -176,3 +176,27 @@ export const QC_REQUIRE_SECOND_PERSON = false;
 export const MAINTENANCE_INTERVAL_MONTHS = 6;
 export const MAINTENANCE_REMINDER_DAYS_BEFORE = 7;
 export const MAINTENANCE_REMINDER_GRACE_DAYS = 30;
+
+export const PRODUCT_CATEGORIES = ["repuesto", "accesorio", "insumo", "bicicleta_usada"] as const;
+export const PRODUCT_CATEGORY_LABELS: Record<(typeof PRODUCT_CATEGORIES)[number], string> = {
+  repuesto: "Repuesto",
+  accesorio: "Accesorio",
+  insumo: "Insumo",
+  bicicleta_usada: "Bicicleta usada",
+};
+export const STOCK_MOVEMENT_KINDS = [
+  "compra",
+  "venta",
+  "consumo_orden",
+  "ajuste",
+  "devolucion",
+  "anulacion",
+] as const;
+export const STOCK_MOVEMENT_LABELS: Record<(typeof STOCK_MOVEMENT_KINDS)[number], string> = {
+  compra: "Compra",
+  venta: "Venta",
+  consumo_orden: "Consumo en orden",
+  ajuste: "Ajuste",
+  devolucion: "Devolución",
+  anulacion: "Anulación",
+};
