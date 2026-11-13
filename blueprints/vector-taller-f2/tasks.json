@@ -44,7 +44,7 @@
       "tests/integration/indicadores-page.test.ts",
       "tests/integration/components.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E1-T2",
