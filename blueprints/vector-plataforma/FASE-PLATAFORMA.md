@@ -34,9 +34,9 @@ Tomadas por el dueño el 13-11-2026 al pedir este plan.
 
 ### 2.2 Perfil del taller
 
-6. **El perfil vive en archivos del repositorio:** `shops/<slug>/shop.json` y `shops/<slug>/brand/`. Se elige con la variable `SHOP_SLUG`, por defecto `vector-bikes`, leída solo por un accesor nuevo en `src/lib/env.ts`.
+6. **El perfil vive en archivos del repositorio:** `shops/<slug>/shop.json` y `shops/<slug>/public/`. Se elige con la variable `SHOP_SLUG`, por defecto `vector-bikes`, leída solo por un accesor nuevo en `src/lib/env.ts`.
 7. `shop.json` contiene: nombre, razón social y RUT (para la política de privacidad), dominio, correo, teléfono, Instagram, dirección (calle, comuna, región), enlace a Maps, nombre de la sucursal, prefijo del código de reserva (`VB`), comunas de retiro, tarifa de retiro, horarios de recepción y de retiro por día, capacidad diaria, minutos por bloque, anticipación mínima, horizonte, máximo de bicis por reserva, FAQ, frases de la portada y certificaciones.
-8. `shops/<slug>/brand/` contiene: logo, wordmark ya recortado (el sprite de hoy está calibrado para un solo PNG), favicon y apple-touch-icon. Un script los copia a `public/brand/` antes de `astro build`.
+8. `shops/<slug>/public/` es la carpeta pública de Astro de ese taller (`publicDir` en `astro.config.mjs`, elegida por `SHOP_SLUG`): `brand/` con logo, wordmark y favicons, `favicon.svg` y `robots.txt` con el sitemap de su dominio. El `public/` de hoy se mueve tal cual a `shops/vector-bikes/public/`, así que rutas y bytes no cambian. Nada se genera ni se copia en el build. Cada instalación hace su propio build con su `SHOP_SLUG`, como ya pasa con las variables `PUBLIC_*`, porque la portada, la privacidad y la 404 se prerenderizan. *Refinado el 13-11-2026 al preparar el blueprint: reemplaza el script de copia del borrador.*
 9. El perfil se valida con zod al cargar. Un perfil inválido o ausente detiene el arranque con un `EnvError` que nombra el campo.
 10. **Las constantes existentes se conservan con el mismo nombre y tipo**, ahora derivadas del perfil: `SITE` en `src/lib/site.ts`; `DAILY_CAPACITY`, `BLOCK_MINUTES`, `MIN_NOTICE_MINUTES`, `HORIZON_DAYS`, `PICKUP_FEE_CLP`, `PICKUP_COMUNAS`, `RECEPTION_HOURS`, `PICKUP_HOURS`, `MAX_BIKES_PER_BOOKING` en `src/server/booking/rules.ts`. `TIMEZONE` sigue fijo.
 11. Editar el perfil es un cambio revisado en git (un PR por taller). Una pantalla para que el dueño de otro taller edite su perfil queda fuera (§2.4).
@@ -73,8 +73,8 @@ Tomadas por el dueño el 13-11-2026 al pedir este plan.
 - **3.5 Portada, layout y SEO:** JSON-LD y horarios de `Base.astro` desde las reglas; `og:site_name`, `aria-label` del wordmark, pie; prosa y tabla de horarios de `Landing.astro`; `faq.ts` desde el perfil; política de privacidad con razón social y RUT.
 - **3.6 Títulos y textos de páginas:** el sufijo "— Vector Bikes" de unos 44 `title` y la cabecera de `TallerLayout` pasan a `SITE.name`.
 - **3.7 Correos, ICS, WhatsApp y etiqueta:** recordatorio, resumen de mantenciones, nombre e `uid` del ICS, `productId`, los tres mensajes prellenados de la orden, el `title` de la etiqueta.
-- **3.8 Activos y archivos estáticos:** copia de `shops/<slug>/brand/` a `public/brand/`; `robots.txt` como endpoint con el sitemap desde `PUBLIC_SITE_URL`; `favicon.svg` sin nombre; fallback de `astro.config.mjs`.
-- **3.9 Guardia:** una prueba que recorre `src/` y falla si encuentra datos de Vector Bikes; build y smoke con `SHOP_SLUG=demo` dentro de `pnpm gate`.
+- **3.8 Activos y archivos estáticos:** `public/` pasa a `shops/vector-bikes/public/` sin cambios; `publicDir` por perfil en `astro.config.mjs`; `robots.txt` y `favicon.svg` por taller; el perfil `demo` con sus propios activos; sin fallback a `vectorbikes.cl` en `astro.config.mjs`.
+- **3.9 Guardia:** una prueba que recorre `src/` y falla si encuentra datos de Vector Bikes; build del perfil `demo` en una carpeta aparte y smoke sobre ella, dentro de `pnpm gate`, sin pisar el `dist/` de Vector Bikes.
 - **3.10 Puesta en marcha:** `pnpm shop:check` (perfil, activos y variables completos), `docs/nuevo-taller.md` (paso a paso de una instalación), `.env.example` con `SHOP_SLUG`, `README.md` y la tabla "Dónde vive cada cosa" de `CLAUDE.md`.
 - **3.11 Piloto:** una instalación `demo` en un segundo Replit, operada de punta a punta.
 
@@ -111,7 +111,7 @@ Acoplamiento encontrado el 13-11-2026 y dónde termina:
 | Mensajes de WhatsApp prellenados | `ordenes/[id]/index.astro:216`, `adicional.astro:104`, `informe.astro:111` | `SITE.name` |
 | Consentimiento con el nombre | `BookingFields.tsx:185,205` | Prop desde `Landing.astro` |
 | Logo como sprite | `global.css:131,279`, `Base.astro:23` | Wordmark recortado del perfil, `--wordmark-url` |
-| Archivos estáticos | `public/robots.txt`, `public/favicon.svg`, `astro.config.mjs` | Endpoint, SVG neutro, `PUBLIC_SITE_URL` |
+| Archivos estáticos | `public/robots.txt`, `public/favicon.svg`, `public/brand/*`, `astro.config.mjs` | `shops/<slug>/public/` vía `publicDir`; sin fallback de dominio |
 
 Lo que no cambia y se reutiliza: `whatsappHref` y `PUBLIC_WHATSAPP_NUMBER` (ya por entorno); `formatClp`; `normalizePhone`; `src/lib/rut.ts`; `src/server/booking/holidays.ts` y el skill `add-holidays`; `requireAdmin` y `actor.branchId`; `EnvError` y `parseSource` de `src/lib/env.ts`; el patrón `vi.mock` de `SITE` en `tests/unit/email-brand.test.ts`.
 
@@ -167,7 +167,7 @@ Sin hex nuevos ni reglas nuevas en `global.css` salvo la propiedad del wordmark 
 ## 14. Criterios de aceptación de la fase
 
 1. Con `SHOP_SLUG=vector-bikes`, `pnpm gate` en verde sin cambiar ningún valor esperado en `tests/` ni `e2e/`.
-2. Con `SHOP_SLUG=demo`, `pnpm build` y el smoke pasan, y la portada muestra el nombre, la dirección, los horarios, las comunas, la tarifa y el logo del perfil demo.
+2. Con `SHOP_SLUG=demo`, el build en una carpeta aparte (`--outDir`) y el smoke sobre ella pasan, y la portada muestra el nombre, la dirección, los horarios, las comunas, la tarifa y el logo del perfil demo.
 3. Una reserva de retiro con el perfil `demo` acepta una comuna de su lista y rechaza "Vitacura" con un mensaje que nombra sus comunas.
 4. Con el perfil `demo`, el correo de confirmación, el ICS y el recordatorio llevan el nombre, el dominio y la dirección del demo.
 5. El primer `pnpm admin:set-password` con el perfil `demo` crea la sucursal con el nombre del perfil.
