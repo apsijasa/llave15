@@ -1,0 +1,219 @@
+---
+import { DateTime } from "luxon";
+import Card from "../../components/taller/Card.astro";
+import PageHeader from "../../components/taller/PageHeader.astro";
+import TallerLayout from "../../layouts/TallerLayout.astro";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
+import { TIMEZONE } from "../../server/booking/rules.ts";
+import { getDb } from "../../server/db/client.ts";
+import { formatClp } from "../../server/email/templates.ts";
+import {
+  defaultRange,
+  indicatorsRangeSchema,
+  workshopIndicators,
+} from "../../server/taller/indicators.ts";
+import type { Indicators } from "../../server/taller/indicators.ts";
+import { PAYMENT_METHOD_LABELS } from "../../server/taller/rules.ts";
+
+export const prerender = false;
+
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user) {
+  const response = Astro.redirect(loginRedirect(Astro.url.pathname + Astro.url.search), 303);
+  response.headers.set("cache-control", "no-store");
+  return response;
+}
+if (!can(user.role, "dashboard.finance")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (Astro.request.method !== "GET") {
+  return new Response(null, {
+    status: 405,
+    headers: { allow: "GET", "cache-control": "no-store" },
+  });
+}
+
+const defaults = defaultRange(now);
+const parsed = indicatorsRangeSchema.safeParse({
+  from: Astro.url.searchParams.get("desde") ?? defaults.from,
+  to: Astro.url.searchParams.get("hasta") ?? defaults.to,
+});
+if (!parsed.success) Astro.response.status = 422;
+const range = parsed.success ? parsed.data : defaults;
+const indicators = await workshopIndicators(db, user, range, now);
+if (!indicators) return forbiddenResponse();
+
+const today = DateTime.fromJSDate(now, { zone: TIMEZONE });
+const previousMonth = today.minus({ months: 1 });
+const shortcuts = [
+  { label: "Hoy", from: today, to: today },
+  { label: "Esta semana", from: today.startOf("week"), to: today },
+  { label: "Este mes", from: today.startOf("month"), to: today },
+  { label: "Mes anterior", from: previousMonth.startOf("month"), to: previousMonth.endOf("month") },
+].map(({ label, from, to }) => {
+  const desde = from.toFormat("yyyy-MM-dd");
+  const hasta = to.toFormat("yyyy-MM-dd");
+  return {
+    label,
+    href: `?${new URLSearchParams({ desde, hasta })}`,
+    active: range.from === desde && range.to === hasta,
+  };
+});
+const kpis = [
+  { label: "Ingresos", value: formatClp(indicators.income.totalClp) },
+  { label: "Pagos", value: indicators.income.count },
+  {
+    label: "Entregas",
+    value: indicators.delivered.count,
+    detail: `Total entregado: ${formatClp(indicators.delivered.totalClp)}`,
+  },
+  { label: "Ticket promedio", value: formatClp(indicators.delivered.averageTicketClp) },
+  { label: "Órdenes creadas", value: indicators.ordersCreated.count },
+  {
+    label: "Clientes atendidos",
+    value: indicators.customers.served,
+    detail: `${indicators.customers.newCount} nuevos / ${indicators.customers.returningCount} recurrentes`,
+  },
+  { label: "Conversión de reservas", value: `${indicators.bookings.conversionPct}%` },
+];
+const statusTables = [
+  {
+    id: "created",
+    title: "Órdenes por estado",
+    caption: "Órdenes por estado (creadas en el período)",
+    rows: indicators.ordersCreated.byStatus,
+  },
+  { id: "open", title: "Abiertas hoy", caption: "Órdenes abiertas hoy", rows: indicators.openNow },
+];
+const serviceTables: { caption: string; rows: Indicators["topServices"]["byQuantity"] }[] = [
+  { caption: "Servicios más pedidos por cantidad", rows: indicators.topServices.byQuantity },
+  { caption: "Servicios más pedidos por monto", rows: indicators.topServices.byAmount },
+];
+const summaryTables = [
+  {
+    id: "bookings",
+    title: "Reservas",
+    rows: [
+      ["Recibidas", indicators.bookings.received],
+      ["Canceladas", indicators.bookings.cancelled],
+      ["No asistió", indicators.bookings.noShow],
+      ["Convertidas", indicators.bookings.converted],
+    ],
+  },
+  {
+    id: "coverage",
+    title: "Cobertura",
+    rows: [
+      ["Órdenes recibidas", indicators.coverage.receivedCount],
+      ["Checklist completo", `${indicators.coverage.checklistCompletePct}%`],
+      ["Control de calidad aprobado", `${indicators.coverage.qcApprovedPct}%`],
+      ["Informes", `${indicators.coverage.reportsPct}%`],
+    ],
+  },
+];
+const dateFormat = new Intl.DateTimeFormat("es-CL", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: TIMEZONE,
+});
+---
+
+<TallerLayout title="Indicadores — Vector Bikes" description="Indicadores financieros y operativos del taller." path="/taller/indicadores" user={user}>
+  <div class="stack indicators-page">
+    <PageHeader title="Indicadores" subtitle="Ingresos y operación del taller para el período seleccionado." />
+    <Card title="Rango de fechas" id="range-title">
+      {!parsed.success && <p role="alert" id="range-error">El rango no es válido: usa fechas yyyy-mm-dd, Desde anterior o igual a Hasta y hasta un año.</p>}
+      <form method="get" class="indicators-range">
+        <div class="field"><label for="desde">Desde</label><input type="date" id="desde" name="desde" value={range.from} required aria-invalid={!parsed.success} aria-describedby={!parsed.success ? "range-error" : undefined} /></div>
+        <div class="field"><label for="hasta">Hasta</label><input type="date" id="hasta" name="hasta" value={range.to} required aria-invalid={!parsed.success} aria-describedby={!parsed.success ? "range-error" : undefined} /></div>
+        <button type="submit" class="btn">Aplicar</button>
+      </form>
+      <nav class="indicators-shortcuts" aria-label="Atajos de fechas">
+        {shortcuts.map((shortcut) => <a href={shortcut.href} aria-current={shortcut.active ? "page" : undefined}>{shortcut.label}</a>)}
+      </nav>
+    </Card>
+    <div class="kpis">
+      {kpis.map((kpi) => <Card label={kpi.label}><p class="label">{kpi.label}</p><p class="kpi-value">{kpi.value}</p>{kpi.detail && <p class="muted">{kpi.detail}</p>}</Card>)}
+    </div>
+    <Card title="Por medio de pago" id="income-title">
+      <div class="scroll-x"><table class="dense">
+        <caption>Ingresos por medio de pago</caption>
+        <thead><tr><th scope="col">Medio de pago</th><th scope="col">Pagos</th><th scope="col">Monto</th></tr></thead>
+        <tbody>{indicators.income.byMethod.map((row) => <tr><th scope="row">{row.label}</th><td>{row.count}</td><td>{formatClp(row.amountClp)}</td></tr>)}</tbody>
+      </table></div>
+    </Card>
+    <Card title="Pagos del período" id="payments-title">
+      <p class="muted">Hasta 200 pagos, del más reciente al más antiguo.</p>
+      <div class="scroll-x"><table class="dense">
+        <caption>Pagos del período</caption>
+        <thead><tr><th scope="col">Fecha</th><th scope="col">Orden</th><th scope="col">Tipo</th><th scope="col">Medio</th><th scope="col">Monto</th><th scope="col">Recibido por</th></tr></thead>
+        <tbody>
+          {indicators.payments.map((row) => <tr><td><time datetime={row.receivedAt.toISOString()}>{dateFormat.format(row.receivedAt)}</time></td><td>{row.orderNumber}</td><td>{row.kind === "abono" ? "Abono" : "Pago final"}</td><td>{PAYMENT_METHOD_LABELS[row.method]}</td><td>{formatClp(row.amountClp)}</td><td>{row.receivedByName}</td></tr>)}
+          {indicators.payments.length === 0 && <tr><td colspan="6">No hay pagos en este período.</td></tr>}
+        </tbody>
+      </table></div>
+    </Card>
+    {statusTables.map((table) => <Card title={table.title} id={`${table.id}-title`}>
+      <div class="scroll-x"><table class="dense">
+        <caption>{table.caption}</caption>
+        <thead><tr><th scope="col">Estado</th><th scope="col">Órdenes</th></tr></thead>
+        <tbody>
+          {table.rows.map((row) => <tr><th scope="row"><span class={`status status--${row.status}`}>{row.label}</span></th><td>{row.count}</td></tr>)}
+          {table.rows.length === 0 && <tr><td colspan="2">No hay órdenes.</td></tr>}
+        </tbody>
+      </table></div>
+    </Card>)}
+    <Card title="Servicios más pedidos" id="services-title">
+      {serviceTables.map((table) => <div class="scroll-x"><table class="dense">
+        <caption>{table.caption}</caption>
+        <thead><tr><th scope="col">Servicio</th><th scope="col">Cantidad</th><th scope="col">Monto</th></tr></thead>
+        <tbody>
+          {table.rows.map((row) => <tr><th scope="row">{row.description}</th><td>{row.quantity}</td><td>{formatClp(row.amountClp)}</td></tr>)}
+          {table.rows.length === 0 && <tr><td colspan="3">No hay servicios en este período.</td></tr>}
+        </tbody>
+      </table></div>)}
+    </Card>
+    {summaryTables.map((table) => <Card title={table.title} id={`${table.id}-title`}>
+      <div class="scroll-x"><table class="dense">
+        <caption>{table.title}</caption>
+        <thead><tr><th scope="col">Indicador</th><th scope="col">Valor</th></tr></thead>
+        <tbody>{table.rows.map(([label, value]) => <tr><th scope="row">{label}</th><td>{value}</td></tr>)}</tbody>
+      </table></div>
+    </Card>)}
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .indicators-page .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .taller .indicators-page .kpi-value {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+  }
+  .taller .indicators-range,
+  .taller .indicators-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: end;
+  }
+  .taller .indicators-shortcuts a {
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+  }
+  .taller .indicators-shortcuts a[aria-current="page"] {
+    background: var(--ink);
+    color: var(--on-ink);
+  }
+  .taller .indicators-page caption {
+    text-align: left;
+    padding-block-end: 8px;
+    color: var(--ink-2);
+  }
+</style>
