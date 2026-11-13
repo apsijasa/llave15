@@ -38,6 +38,13 @@ export const ACTIONS = [
   "photos.upload",
   "components.manage",
   "dashboard.mechanic",
+  "inventory.view",
+  "inventory.adjust",
+  "purchases.manage",
+  "sales.record",
+  "expenses.record",
+  "cash.open_close",
+  "costs.view",
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -73,6 +80,13 @@ const permissions: Record<Action, readonly Role[]> = {
   "photos.upload": ROLES,
   "components.manage": ROLES,
   "dashboard.mechanic": ["mechanic"],
+  "inventory.view": ROLES,
+  "inventory.adjust": administrators,
+  "purchases.manage": administrators,
+  "sales.record": staff,
+  "expenses.record": administrators,
+  "cash.open_close": staff,
+  "costs.view": administrators,
 };
 
 export function isRole(value: unknown): value is Role {

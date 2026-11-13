@@ -37,6 +37,13 @@ const expected: Record<Role, readonly Action[]> = {
     "items.add_catalog",
     "photos.upload",
     "components.manage",
+    "inventory.view",
+    "inventory.adjust",
+    "purchases.manage",
+    "sales.record",
+    "expenses.record",
+    "cash.open_close",
+    "costs.view",
   ],
   reception: [
     "admin.panel",
@@ -59,6 +66,9 @@ const expected: Record<Role, readonly Action[]> = {
     "items.add_catalog",
     "photos.upload",
     "components.manage",
+    "inventory.view",
+    "sales.record",
+    "cash.open_close",
   ],
   mechanic: [
     "reception.perform",
@@ -68,13 +78,14 @@ const expected: Record<Role, readonly Action[]> = {
     "photos.upload",
     "components.manage",
     "dashboard.mechanic",
+    "inventory.view",
   ],
 };
 
 describe("permisos del taller", () => {
-  it("expone las 29 acciones sin duplicados", () => {
-    expect(ACTIONS).toHaveLength(29);
-    expect(new Set(ACTIONS).size).toBe(29);
+  it("expone las 36 acciones sin duplicados", () => {
+    expect(ACTIONS).toHaveLength(36);
+    expect(new Set(ACTIONS).size).toBe(36);
     expect(new Set(Object.values(expected).flat())).toEqual(new Set(ACTIONS));
   });
 
