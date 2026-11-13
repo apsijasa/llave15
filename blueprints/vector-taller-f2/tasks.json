@@ -126,7 +126,7 @@
       "src/server/taller/audit.ts",
       "tests/integration/products.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E1-T5",
