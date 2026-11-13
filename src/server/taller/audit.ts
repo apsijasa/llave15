@@ -32,6 +32,7 @@ export type AuditAction =
   | "qc.approved"
   | "qc.rejected"
   | "notify.ready_for_pickup"
+  | "notify.ready_whatsapp"
   | "notify.received"
   | "notify.quote_sent"
   | "payment.recorded"

@@ -3,6 +3,7 @@ import { type EmailEnv, getEmailEnv, getSiteEnv } from "../../lib/env.ts";
 import { errorMessage, log } from "../../lib/log.ts";
 import { SITE } from "../../lib/site.ts";
 import type { Booking } from "../db/schema.ts";
+import type { OrderNoticeSender } from "../whatsapp/order-notices.ts";
 import type { BookingBikeLine } from "./templates.ts";
 import {
   type RenderedEmail,
@@ -19,6 +20,7 @@ export type NotifyDeps = {
   env?: EmailEnv;
   transport?: EmailTransport;
   siteUrl?: string;
+  whatsappSender?: OrderNoticeSender;
 };
 
 export const ICS_FILENAME = "reserva-vector-bikes.ics";

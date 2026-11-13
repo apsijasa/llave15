@@ -1,4 +1,15 @@
-import { date, index, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  date,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { workOrders } from "./schema-orders.ts";
 import { branches, createdAt, instant, updatedAt, users } from "./schema.ts";
 
@@ -51,4 +62,34 @@ export const orderTrackingTokens = pgTable(
   ],
 );
 
-export const reportTables = [serviceReports, orderTrackingTokens] as const;
+export const orderWhatsappNotices = pgTable(
+  "order_whatsapp_notices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id, { onDelete: "restrict" }),
+    workOrderId: uuid("work_order_id")
+      .notNull()
+      .references(() => workOrders.id, { onDelete: "restrict" }),
+    type: text("type").notNull(),
+    status: text("status").notNull().default("pending"),
+    metaMessageId: text("meta_message_id"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    claimedAt: instant("claimed_at"),
+    sentAt: instant("sent_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("uq_order_whatsapp_notices_order_type").on(t.workOrderId, t.type),
+    check("order_whatsapp_notices_type_check", sql`type in ('ready')`),
+    check(
+      "order_whatsapp_notices_status_check",
+      sql`status in ('pending','sending','sent','failed','unknown')`,
+    ),
+  ],
+);
+
+export const reportTables = [serviceReports, orderTrackingTokens, orderWhatsappNotices] as const;

@@ -36,6 +36,16 @@ export async function sendTemplate(booking: Booking, kind: Kind): Promise<string
       : [booking.customerName, booking.bike, booking.code];
   const template =
     kind === "reminder" ? env.WHATSAPP_REMINDER_TEMPLATE : env.WHATSAPP_READY_TEMPLATE;
+  return postTemplate(booking.phoneE164.replace(/^\+/, ""), template ?? "", variables);
+}
+
+export async function postTemplate(
+  to: string,
+  template: string,
+  variables: string[],
+): Promise<string> {
+  const env = getWhatsAppEnv();
+  if (env.WHATSAPP_ENABLED !== "true") throw new Error("WhatsApp no está habilitado");
   const url = `https://graph.facebook.com/${env.WHATSAPP_GRAPH_VERSION}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
   const response = await fetch(url, {
     method: "POST",
@@ -45,7 +55,7 @@ export async function sendTemplate(booking: Booking, kind: Kind): Promise<string
     },
     body: JSON.stringify({
       messaging_product: "whatsapp",
-      to: booking.phoneE164.replace(/^\+/, ""),
+      to,
       type: "template",
       template: {
         name: template,

@@ -11,6 +11,7 @@ import type { NotifyDeps } from "../email/notifications.ts";
 import { readyForPickupEmail } from "../email/templates.ts";
 import { sendShopCopy } from "../email/notifications.ts";
 import { createTransport } from "../email/transport.ts";
+import { notifyOrderReadyByWhatsApp } from "../whatsapp/order-notices.ts";
 import { recordAudit } from "./audit.ts";
 import { formatOrderNumber, recordStatusChange } from "./orders.ts";
 import { QC_CHECK_KEYS, QC_REQUIRE_SECOND_PERSON, QC_RESULTS } from "./rules.ts";
@@ -160,18 +161,14 @@ async function notifyReadyForPickup(
   }
 }
 
-export async function submitQc(
+async function saveQc(
   db: AppDb,
   actor: SessionUser,
   orderId: string,
-  input: unknown,
+  input: z.infer<typeof qcFormSchema>,
   now: Date,
-  deps: NotifyDeps = {},
 ) {
-  if (!can(actor.role, "qc.approve")) return { ok: false, code: "forbidden" } as const;
-  const parsed = qcFormSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, code: "validation_error" } as const;
-  const result = await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const [order] = await tx
       .select()
       .from(workOrders)
@@ -186,19 +183,38 @@ export async function submitQc(
         branchId: actor.branchId,
         workOrderId: orderId,
         itemKey,
-        result: parsed.data.checks[itemKey].result,
-        note: parsed.data.checks[itemKey].note || null,
+        result: input.checks[itemKey].result,
+        note: input.checks[itemKey].note || null,
         actorUserId: actor.id,
         selfCheck,
         createdAt: now,
         updatedAt: now,
       })),
     );
-    const failedItems = QC_CHECK_KEYS.filter((key) => parsed.data.checks[key].result === "falla");
+    const failedItems = QC_CHECK_KEYS.filter((key) => input.checks[key].result === "falla");
     return recordQcOutcome(tx, actor, orderId, selfCheck, failedItems, now);
   });
+}
+
+export async function submitQc(
+  db: AppDb,
+  actor: SessionUser,
+  orderId: string,
+  input: unknown,
+  now: Date,
+  deps: NotifyDeps = {},
+) {
+  if (!can(actor.role, "qc.approve")) return { ok: false, code: "forbidden" } as const;
+  const parsed = qcFormSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, code: "validation_error" } as const;
+  const result = await saveQc(db, actor, orderId, parsed.data, now);
   if (result.ok && result.status === "lista_para_retirar") {
     await notifyReadyForPickup(db, actor, orderId, now, deps);
+    try {
+      await notifyOrderReadyByWhatsApp(db, actor, orderId, now, deps.whatsappSender);
+    } catch {
+      log.error("whatsapp.failed", { kind: "order_ready", orderId });
+    }
   }
   return result;
 }
