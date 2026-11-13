@@ -44,14 +44,15 @@ Reparto (`docs/BITACORA.md` §2): Claude escribe el encargo y revisa lo que vuel
 
 ## Etapa A (noviembre 2026)
 
-| Id | Encargo | Decisión | Esquema |
-|---|---|---|---|
-| A-01 | Enlace público de seguimiento `/seguimiento/[token]` | 49 | `order_tracking_tokens` |
-| A-02 | Enlace de seguimiento en los correos de la orden | 49 | — |
-| A-03 | Cotización por correo desde la orden | 50 | — |
-| A-04 | Logo e identidad en correos e informe; certificaciones | 51 | — |
-| A-05a | Próxima mantención planificada en el informe | 52 | columnas en `service_reports` |
-| A-05b | Tarea diaria `/api/tareas/mantenciones` | 52 | — |
-| A-07 | Indicadores: consultas del servidor | 54 | — |
-| A-08 | Pantalla `/taller/indicadores` | 54 | — |
-| A-06 | WhatsApp "lista para retirar" para órdenes | 53 | `order_whatsapp_notices` |
+| Id | Encargo | Decisión | Esquema | Tag |
+|---|---|---|---|---|
+| A-01 | Enlace público de seguimiento `/seguimiento/[token]` | 49 | `order_tracking_tokens` | `a-01` |
+| A-02 | Enlace de seguimiento en los correos de la orden | 49 | — | `a-02` |
+| A-03 | Cotización por correo desde la orden | 50 | — | `a-03` |
+| A-04 | Logo e identidad en correos e informe; certificaciones | 51 | — | `a-04` |
+| A-05a | Próxima mantención planificada en el informe | 52 | columnas en `service_reports` | `a-05a` |
+| A-05b | Tarea diaria `/api/tareas/mantenciones` | 52 | — | `a-05b` |
+| A-07 | Indicadores: consultas del servidor | 54 | — | `a-07` |
+| A-08 | Pantalla `/taller/indicadores` | 54 | — | `a-08` |
+| A-06 | WhatsApp "lista para retirar" para órdenes | 53 | `order_whatsapp_notices` | `a-06` |
+| A-09 | Cierre documental (Claude, sin Codex) | — | — | `a-09` |

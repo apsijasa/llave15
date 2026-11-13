@@ -1,6 +1,6 @@
 # Vector Bikes · Bitácora del proyecto
 
-Registro de todo lo trabajado en el sitio y el sistema del taller, del 15 de septiembre al 23 de octubre de 2026: qué se construyó, qué se decidió, qué se publicó y qué queda pendiente.
+Registro de todo lo trabajado en el sitio y el sistema del taller, del 15 de septiembre al 13 de noviembre de 2026: qué se construyó, qué se decidió, qué se publicó y qué queda pendiente.
 
 Es un repositorio público, así que esta bitácora **no incluye datos de clientes, credenciales ni identificadores de infraestructura**. Los clientes se nombran por su rol ("una clienta", "la orden de prueba").
 
@@ -9,21 +9,24 @@ Documentos relacionados:
 - `blueprints/vector-bikes/blueprint.md`: diseño del sitio y del motor de reservas.
 - `blueprints/vector-taller-f1/blueprint.md`: diseño de la fase 1 del taller. Las decisiones están en §20.3.
 - `blueprints/roadmap/`: hoja de ruta del dashboard financiero.
+- `blueprints/vector-taller-f2/FASE2.md`: borrador de la fase 2 (inventario, caja y ventas de mostrador), pendiente de aprobación.
+- `docs/encargos/`: los encargos a Codex de la Etapa A y la guía para escribirlos.
 - `docs/RESUMEN-SESION.md`: revisión del 20 de octubre.
 - `README.md`: operación diaria y configuración.
 
 ---
 
-## 1. Estado al 23 de octubre de 2026
+## 1. Estado al 13 de noviembre de 2026
 
 | | |
 |---|---|
 | Producción | [vectorbikes.cl](https://vectorbikes.cl), Replit Autoscale |
-| `main` | `30b583d`, publicado |
-| Pruebas | 946 de integración y unitarias, 37 sobre el build, 17 de tablet (Playwright), smoke ok |
-| Decisiones registradas | 1 a 44 (blueprint fase 1, §20.3) |
-| Migraciones | `0000` a `0024` |
-| Tareas diarias | Escenario de Make.com activo a las 10:00 (hora de Chile): recordatorios, alertas y retención |
+| `main` | `a8ddd3f` (decisiones 45 a 48) |
+| Rama `feat/etapa-a` | Etapa A completa sobre `main` (fast-forward), **sin push ni publicación** |
+| Pruebas en `feat/etapa-a` | 1176 de integración y unitarias, 37 sobre el build, 23 de tablet (Playwright), smoke ok |
+| Decisiones registradas | 1 a 54 (blueprint fase 1, §20.3) |
+| Migraciones | `0000` a `0024` en producción; `0025` a `0027` solo en la rama |
+| Tareas diarias | Escenario de Make.com activo a las 10:00 (hora de Chile): recordatorios, alertas y retención. La Etapa A agrega una cuarta: mantenciones |
 
 **En uso real desde el 13 de octubre:** reservas en línea y manuales, recepción en la tablet con checklist, fotos y firma, órdenes con estados, control de calidad, pagos, entrega, informe final y los correos automáticos al cliente y al taller.
 
@@ -212,6 +215,23 @@ Se diseña el escenario de Make.com: tres llamadas `POST` con `Authorization: Be
 - Se recomienda una impresora térmica de etiquetas con AirPrint y rollo continuo de 62 mm, por ejemplo la Brother QL-820NWB o la QL-810W. El rollo de film resistente al agua (DK-22212) es mejor que el de papel para usar en el taller.
 - El QR abre la **orden interna** y requiere sesión, a propósito: la etiqueta cuelga en la bici y no debe exponer datos del cliente. En un teléfono, se inicia sesión una vez y la sesión dura 7 días.
 
+### 23 al 26 de octubre · Recepción, fotos en lote y Líneas
+- La recepción ya no pierde el checklist y cierra con una confirmación (decisión 45).
+- Las fotos se ponen en cola y se suben juntas; la cámara se abre dentro de la página (decisión 46).
+- Líneas guarda todos los precios con un solo "Guardar cambios" (decisión 47).
+- Los cuatro arreglos chicos pendientes (aviso repetido, mover una reserva dentro de un día lleno, auditoría de reservas, división de `taller.css`) quedaron en la decisión 48. `main` quedó en `a8ddd3f`.
+
+### 12 y 13 de noviembre · Etapa A: lo que ve el cliente e indicadores
+El dueño comparó el sistema con la lista de funciones de un software comercial de talleres. Casi todo ya existía; la Etapa A cierra lo que faltaba sin tocar la fase 2. Se trabajó con un encargo escrito por tema (`docs/encargos/A-NN-*.md`): Codex implementa, Claude revisa, aplica las migraciones en la base dev, corre la compuerta y commitea. Rama `feat/etapa-a`, un tag `a-NN` por encargo.
+- **Enlace de seguimiento** (A-01, A-02, decisión 49): `/seguimiento/<token>` muestra estado, historial y fecha estimada, con solo el primer nombre. Va en "Recibimos tu bicicleta" y "Lista para retirar", y se puede mandar por WhatsApp desde la orden.
+- **Cotización por correo** (A-03, decisión 50): botón en la orden que manda las líneas, el total y la fecha estimada.
+- **Identidad del taller** (A-04, decisión 51): logo y contacto en el informe público; lista de certificaciones, vacía hasta que el dueño la llene. El logo en los correos espera autorización para cambiar tres pruebas existentes.
+- **Próxima mantención** (A-05a, A-05b, decisión 52): fecha sugerida a 6 meses en el informe, visible para el cliente, y un recordatorio por correo 7 días antes desde `/api/tareas/mantenciones`.
+- **Indicadores** (A-07, A-08, decisión 54): `/taller/indicadores`, solo para el dueño y el administrador: ingresos por medio de pago, entregas y ticket promedio, órdenes por estado, servicios más vendidos, clientes nuevos y recurrentes, conversión de reservas y cobertura de checklist, control e informes.
+- **WhatsApp "lista para retirar" para órdenes** (A-06, decisión 53): sale después del correo si WhatsApp está habilitado y el cliente lo aceptó al reservar. Entra apagado (`WHATSAPP_ENABLED=false`).
+- **Fotos por orden sin tope**, por decisión del dueño: no se copió el límite de 12 del software comparado.
+- Borrador de la fase 2 en `blueprints/vector-taller-f2/FASE2.md`.
+
 ---
 
 ## 4. Decisiones de esta etapa (blueprint fase 1, §20.3)
@@ -227,6 +247,16 @@ Se diseña el escenario de Make.com: tres llamadas `POST` con `Authorization: Be
 | 42 | Retiro a domicilio de lunes a viernes desde las 09:00 (horario por modalidad) |
 | 43 | Una reserva puede traer hasta tres bicicletas |
 | 44 | Copia al taller de los dos correos de la orden. Incluye la autorización del dueño para ajustar 7 aserciones del buzón de pruebas |
+| 45 | La recepción no pierde el checklist y cierra con una confirmación |
+| 46 | Fotos en cola y cámara dentro de la página |
+| 47 | Líneas guarda todos los precios con un solo "Guardar cambios" |
+| 48 | Los cuatro arreglos chicos pendientes de la decisión 45 |
+| 49 | Enlace público de seguimiento, también en los dos correos de la orden. Levanta la cláusula "sin enlaces" de la decisión 40 solo para este enlace |
+| 50 | Cotización por correo desde la orden, sin esquema nuevo |
+| 51 | Logo y contacto en el informe público; certificaciones. El logo en los correos queda pendiente de autorización |
+| 52 | Próxima mantención en el informe y recordatorio diario por correo |
+| 53 | Aviso de WhatsApp "lista para retirar" para órdenes. Excepción parcial a la constante "módulo WhatsApp" |
+| 54 | Indicadores del taller, Etapa A del dashboard financiero |
 
 ---
 
@@ -249,6 +279,7 @@ Solo los nombres; los valores viven en los secretos de Replit:
 - **Reprogramar:** Taller → Reservas → "Reprogramar", o desde el detalle en la Agenda. Solo funciona con reservas confirmadas sin ninguna bici recibida.
 - **Varias bicis en una reserva:** Nueva reserva → "Cantidad de bicicletas". Al llegar, "Recibir (1 de 3)", "(2 de 3)" y "(3 de 3)": cada bici es su propia orden, con su checklist, fotos y firma. Una reserva antigua de una bici no cambia de cantidad, así que las bicis adicionales se reciben por "Recepción" como cliente sin reserva.
 - **Entrega:** orden → pestaña "Entrega" → "Registrar pago" → nombre de quien retira, firma y "Entregar bicicleta". Después, pestaña "Informe" → enviar el enlace al cliente.
+- **Seguimiento, cotización e indicadores (Etapa A, cuando se publique):** en la orden, el bloque "Seguimiento" copia el enlace o lo manda por WhatsApp, y "Enviar cotización" manda las líneas por correo. La fecha de la próxima mantención se elige al generar el informe. Los indicadores están en Gestión → "Indicadores".
 - **Correos automáticos:**
   - Al cliente: confirmación de la reserva, recordatorio la víspera, cambio de reserva, "Recibimos tu bicicleta" y "Lista para retirar".
   - Al taller: el aviso de cada reserva nueva, cancelada o reprogramada, y la copia de los dos correos de la orden.
@@ -281,14 +312,17 @@ Solo los nombres; los valores viven en los secretos de Replit:
 
 **Desarrollo**
 
-12. Encargo chico de mejoras:
-    - El aviso de error repetido en Nueva reserva y en Reprogramar.
-    - Mover una reserva dentro de un día lleno.
-    - Auditar la creación y la cancelación de reservas.
-    - Dividir `taller.css`, que está en 398 de 400 líneas.
-13. Varias bicis también en la reserva pública (segunda etapa de la decisión 43).
-14. Opcional: un enlace para que el cliente vea el estado de su bici.
-15. Después de dos semanas operando sin papel: la fase 2 (inventario y caja) y el dashboard financiero.
+12. Varias bicis también en la reserva pública (segunda etapa de la decisión 43).
+13. Fase 2 (inventario, caja y ventas de mostrador): el dueño revisa `blueprints/vector-taller-f2/FASE2.md` y la decisión 55 antes de generar su blueprint. La condición de entrada (dos semanas sin papel) está cumplida.
+
+**Publicar la Etapa A**
+
+14. Integrar `feat/etapa-a` en `main` (fast-forward) y publicar con el taller cerrado y un respaldo: trae las migraciones `0025` a `0027`.
+15. Make.com: agregar un cuarto POST diario a `/api/tareas/mantenciones`, con la misma cabecera que los otros tres.
+16. Escribir las certificaciones del taller en `certifications` de `src/lib/site.ts`, si las hay.
+17. Decidir si se autoriza cambiar tres pruebas existentes para poner el logo en los correos (decisión 51). Conviene una versión del logo de 40 KB o menos.
+18. Antes de habilitar WhatsApp: revisar en Meta que el texto de la plantilla de "bicicleta lista" sirva también con un número de orden.
+19. La rama remota `codex/vectorbikes-replit-review` no está integrada.
 
 ---
 
@@ -300,3 +334,7 @@ Solo los nombres; los valores viven en los secretos de Replit:
 - **PGlite usa una sola conexión.** Las pruebas de concurrencia con `FOR UPDATE` se traban ahí; la garantía se prueba con índices únicos de forma determinista.
 - **Pruebas de páginas con fecha fija:** las páginas `.astro` toman la hora con `new Date()`, así que necesitan `vi.useFakeTimers({ toFake: ["Date"] })`.
 - **Revisar los joins cuando cambia una cardinalidad.** El `leftJoin` de la lista de reservas habría repetido una reserva de tres bicis tres veces.
+- **El sandbox de Codex no tiene red, ni siquiera a Postgres local.** Codex corre `format`, `check`, `test` y `build`; las migraciones en la base dev, `db:check`, la compuerta completa y los commits los hace Claude.
+- **Cada pase a Codex es una sesión nueva con permiso de escritura.** Reanudar la última sesión puede caer en una de solo lectura y no escribir nada.
+- **Validar antes de regenerar.** Guardar la mantención después de regenerar el informe habría invalidado el enlace del cliente cuando la fecha venía mal; ahora se valida primero y hay una prueba de regresión.
+- **La compuerta espera a que el Mac esté tranquilo.** Con la sincronización de iCloud la carga sube a 70–200 y las pruebas de tablet vencen por tiempo; la compuerta se lanza cuando la carga baja de 10.
