@@ -1,0 +1,1008 @@
+[
+  {
+    "id": "E1-T1",
+    "title": "F2-00 Split payments and components out of schema-orders",
+    "epic": "01-base-inventario",
+    "dependencies": [],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN la tarea 0 empieza THE SYSTEM SHALL tener en la rama `main` el archivo `blueprints/vector-plataforma/FASE-PLATAFORMA.md` (la fase plataforma está integrada) y ningún archivo sin seguimiento con nombre de duplicado de iCloud (`* 2` o `* 2.*`)",
+      "WHEN `pnpm db:generate` corre después del cambio THE SYSTEM SHALL no crear ni modificar ningún archivo en `drizzle/`",
+      "WHEN se busca la definición de `payments` y de `bikeComponents` THE SYSTEM SHALL encontrarlas solo en `src/server/db/schema-payments.ts`, con las tablas `payments` y `bike_components`, sus columnas, índices y CHECK sin cambios",
+      "WHEN `pnpm db:check` corre THE SYSTEM SHALL revisar las columnas de `allTables`, `tallerTables`, `orderTables`, `reportTables` y `paymentTables` y salir 0",
+      "WHEN se compara `tests/` con el commit anterior THE SYSTEM SHALL mostrar cambios exactamente en `payments.test.ts`, `dashboard.test.ts`, `dashboard-finance.test.ts`, `indicators.test.ts`, `indicadores-page.test.ts` y `components.test.ts`, y solo en sus líneas de import",
+      "WHEN corre `pnpm test` THE SYSTEM SHALL pasar con 0 fallas y `src/server/db/schema-orders.ts` SHALL tener menos de 400 líneas"
+    ],
+    "verify": [
+      "git cat-file -e main:blueprints/vector-plataforma/FASE-PLATAFORMA.md   # expect: exit 0 — la fase plataforma ya está en main",
+      "u=\"$(git ls-files --others --exclude-standard)\" && test -z \"$(printf '%s\\n' \"$u\" | grep -E ' 2(\\.[^/]*)?$')\"   # expect: exit 0 — ningún duplicado de iCloud sin seguimiento",
+      "pnpm db:generate   # expect: exit 0, sin migración nueva",
+      "s=\"$(git status --porcelain -- drizzle)\" && test -z \"$s\"   # expect: exit 0 — git respondió y la tarea 0 no crea ni cambia nada en drizzle/",
+      "grep -q 'export const payments = pgTable' src/server/db/schema-payments.ts && grep -q 'export const bikeComponents = pgTable' src/server/db/schema-payments.ts   # expect: exit 0",
+      "grep -Eq 'export const (payments|bikeComponents) = pgTable' src/server/db/schema-orders.ts; test $? -eq 1   # expect: 1 = ya no están en schema-orders.ts → la línea sale 0",
+      "test \"$(wc -l < src/server/db/schema-orders.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "d=\"$(git diff HEAD --name-only -- tests)\" && test \"$(printf '%s\\n' \"$d\" | LC_ALL=C sort)\" = \"$(printf '%s\\n' tests/integration/payments.test.ts tests/integration/dashboard.test.ts tests/integration/dashboard-finance.test.ts tests/integration/indicators.test.ts tests/integration/indicadores-page.test.ts tests/integration/components.test.ts | LC_ALL=C sort)\"   # expect: exit 0 — git respondió y cambiaron exactamente los seis archivos autorizados",
+      "p=\"$(git diff HEAD -U0 -- tests)\" && test -z \"$(printf '%s\\n' \"$p\" | grep -E '^[+-][^+-]' | grep -Ev '^[+-](import |\\} from |  [A-Za-z]+,$)')\"   # expect: exit 0 — en esos archivos solo cambian líneas de import",
+      "pnpm test tests/integration/payments.test.ts tests/integration/components.test.ts tests/integration/dashboard.test.ts tests/integration/dashboard-finance.test.ts tests/integration/indicators.test.ts tests/integration/indicadores-page.test.ts   # expect: exit 0, 0 failed",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-00",
+    "files": [
+      "src/server/db/schema-orders.ts",
+      "src/server/db/schema-payments.ts",
+      "scripts/db-check.ts",
+      "src/server/taller/payments.ts",
+      "src/server/taller/history.ts",
+      "src/server/taller/components.ts",
+      "src/server/taller/reports.ts",
+      "src/server/taller/dashboard.ts",
+      "src/server/taller/indicators.ts",
+      "tests/integration/payments.test.ts",
+      "tests/integration/dashboard.test.ts",
+      "tests/integration/dashboard-finance.test.ts",
+      "tests/integration/indicators.test.ts",
+      "tests/integration/indicadores-page.test.ts",
+      "tests/integration/components.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T2",
+    "title": "F2-01 Add the seven phase-2 permissions",
+    "epic": "01-base-inventario",
+    "dependencies": ["E1-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se lee `ACTIONS` THE SYSTEM SHALL exponer 36 acciones sin duplicados: las 29 de la fase 1 más `inventory.view`, `inventory.adjust`, `purchases.manage`, `sales.record`, `expenses.record`, `cash.open_close` y `costs.view`",
+      "WHEN se evalúa `can(role, \"inventory.view\")` THE SYSTEM SHALL devolver `true` para `owner`, `admin`, `reception` y `mechanic`",
+      "WHEN se evalúan `sales.record` y `cash.open_close` THE SYSTEM SHALL devolver `true` para `owner`, `admin` y `reception`, y `false` para `mechanic`",
+      "WHEN se evalúan `inventory.adjust`, `purchases.manage`, `expenses.record` y `costs.view` THE SYSTEM SHALL devolver `true` solo para `owner` y `admin`",
+      "WHEN se evalúa cualquiera de las 29 acciones de la fase 1 THE SYSTEM SHALL devolver lo mismo que antes del cambio"
+    ],
+    "verify": [
+      "pnpm test tests/unit/permissions.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-01",
+    "files": ["src/server/auth/permissions.ts", "tests/unit/permissions.test.ts"],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T3",
+    "title": "F2-02 Add inventory tables and pricing columns",
+    "epic": "01-base-inventario",
+    "dependencies": ["E1-T2"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL crear `products`, `stock_movements`, `suppliers`, `purchase_orders` y `purchase_order_items` y agregar `branches.next_purchase_number`, `branches.new_order_pricing_mode`, `work_orders.pricing_mode`, `work_orders.subtotal_clp`, `work_orders.vat_clp`, `work_order_items.product_id` y `work_order_items.unit_cost_clp`, sin borrar ni renombrar nada",
+      "WHEN se inserta una sucursal o una orden sin las columnas nuevas THE SYSTEM SHALL guardar `new_order_pricing_mode = 'final'`, `pricing_mode = 'final'`, `subtotal_clp = 0` y `vat_clp = 0`",
+      "WHEN se guarda una orden `neto` con `total_clp` distinto de `subtotal_clp + vat_clp` THE SYSTEM SHALL rechazarla con código `23514`, y una orden `final` con cualquier total SHALL aceptarse",
+      "WHEN se guarda un producto con `stock_qty` negativo, con `category` fuera de `repuesto`, `accesorio`, `insumo` y `bicicleta_usada`, o una `bicicleta_usada` sin `serial_number` THE SYSTEM SHALL rechazarlo con código `23514`",
+      "WHEN se insertan dos productos con el mismo `sku`, o con el mismo `barcode` no nulo, en una sucursal THE SYSTEM SHALL rechazar el segundo con código `23505`, y SHALL aceptar dos productos con `barcode` nulo",
+      "WHEN `pnpm db:check` corre THE SYSTEM SHALL revisar también las columnas de `inventoryTables` y salir 0"
+    ],
+    "verify": [
+      "pnpm test tests/integration/inventory-schema.test.ts tests/integration/foundation.test.ts   # expect: exit 0, 0 failed",
+      "f=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1   # expect: 1 = la migración nueva no borra ni renombra → la línea sale 0",
+      "pnpm db:migrate   # expect: exit 0",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "test \"$(wc -l < src/server/db/schema-orders.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-02",
+    "files": [
+      "src/server/db/schema-inventory.ts",
+      "src/server/db/schema.ts",
+      "src/server/db/schema-orders.ts",
+      "scripts/db-check.ts",
+      "tests/integration/inventory-schema.test.ts",
+      "drizzle/**"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T4",
+    "title": "F2-03 Add stock movements and product server",
+    "epic": "01-base-inventario",
+    "dependencies": ["E1-T3"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `adjustStock` registra +5 con motivo sobre un producto con stock 0 THE SYSTEM SHALL dejar `stock_qty = 5`, un `stock_movements` `ajuste` con `quantity = 5` y el motivo, y una fila `stock.adjusted` en `audit_log` con el usuario",
+      "WHEN dos consumos de 1 unidad se aplican en secuencia sobre un producto con `stock_qty = 1` THE SYSTEM SHALL aceptar el primero y devolver `ok: false` con código `out_of_stock` en el segundo, dejando `stock_qty = 0` y un solo movimiento de consumo",
+      "WHEN un `update` directo intenta dejar `stock_qty = -1` THE SYSTEM SHALL fallar con código `23514`",
+      "WHEN `applyStockMovement` aplica una `compra` de 5 unidades a 1.300 sobre 5 unidades a costo 1.000 THE SYSTEM SHALL dejar `stock_qty = 10` y `cost_clp = 1150`",
+      "WHEN `listProducts` o `getProduct` corren para `mechanic` o `reception` THE SYSTEM SHALL devolver filas sin las claves `costClp` ni `unitCostClp`, y con ellas para `owner` y `admin`",
+      "WHEN `reception` o `mechanic` llaman `createProduct`, `updateProduct` o `adjustStock` THE SYSTEM SHALL devolver `ok: false` con código `forbidden` sin escribir filas"
+    ],
+    "verify": [
+      "pnpm test tests/integration/products.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-03",
+    "files": [
+      "src/server/taller/stock.ts",
+      "src/server/taller/products.ts",
+      "src/server/taller/rules.ts",
+      "src/server/taller/audit.ts",
+      "tests/integration/products.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T5",
+    "title": "F2-04 Add inventory pages and tablet stock adjustment",
+    "epic": "01-base-inventario",
+    "dependencies": ["E1-T4"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN el spec `e2e/inventario-ajuste.spec.ts` corre en el viewport de tablet THE SYSTEM SHALL crear un producto desde `/taller/inventario/nuevo`, mostrarlo con el texto `Bajo mínimo` en `/taller/inventario?bajo=1`, registrar un ajuste de +5 con motivo y mostrar `Stock ajustado.` y stock `5` en su ficha",
+      "WHEN el mecánico abre `/taller/inventario` en ese spec THE SYSTEM SHALL mostrar la lista sin la columna `Costo` y sin el enlace `Nuevo producto`",
+      "WHEN se lee `src/layouts/TallerLayout.astro` THE SYSTEM SHALL contener el enlace `/taller/inventario` con la acción `inventory.view`"
+    ],
+    "verify": [
+      "pnpm build && pnpm test:tablet e2e/inventario-ajuste.spec.ts   # expect: exit 0, 0 failed",
+      "grep -q '\"/taller/inventario\"' src/layouts/TallerLayout.astro && grep -q '\"inventory.view\"' src/layouts/TallerLayout.astro   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-04",
+    "files": [
+      "src/pages/taller/inventario/index.astro",
+      "src/pages/taller/inventario/nuevo.astro",
+      "src/pages/taller/inventario/[id].astro",
+      "src/layouts/TallerLayout.astro",
+      "e2e/inventario-ajuste.spec.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T6",
+    "title": "F2-05 Alert low stock on /taller and daily digest",
+    "epic": "01-base-inventario",
+    "dependencies": ["E1-T5"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN `/api/tareas/alertas` corre sin órdenes atrasadas ni productos bajo mínimo THE SYSTEM SHALL responder 200 con `ok: true`, `overdue: 0`, `sent: false` y sin la clave `lowStock`",
+      "WHEN hay 2 productos activos con `min_stock > 0` y `stock_qty <= min_stock` y ninguna orden atrasada THE SYSTEM SHALL enviar a `SHOP_NOTIFY_EMAIL` un correo con asunto `Stock bajo mínimo: 2 · ` seguido de `SITE.name`, y responder `ok: true`, `overdue: 0`, `sent: true`, `lowStock: 2`",
+      "WHEN hay órdenes atrasadas y productos bajo mínimo THE SYSTEM SHALL conservar el asunto de órdenes atrasadas que arma hoy `sendOverdueDigest` y agregar al cuerpo la línea `Stock bajo mínimo:` y una línea por producto con SKU, nombre, stock y mínimo",
+      "WHEN un producto está inactivo o tiene `min_stock = 0` THE SYSTEM SHALL excluirlo de la alerta",
+      "WHEN `branchLowStock` corre para `owner` o `admin` THE SYSTEM SHALL devolver los productos bajo mínimo de su sucursal, y `null` para `reception` y `mechanic`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/low-stock.test.ts tests/integration/tasks-maintenance.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-05",
+    "files": [
+      "src/server/taller/low-stock.ts",
+      "src/server/taller/maintenance.ts",
+      "src/components/taller/LowStockNotice.astro",
+      "src/pages/taller/index.astro",
+      "tests/integration/low-stock.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T7",
+    "title": "F2-06 Import the initial inventory from CSV",
+    "epic": "01-base-inventario",
+    "dependencies": ["E1-T6"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN `importInventory` recibe un CSV válido de 3 filas con encabezado `sku,nombre,categoria,costo,precio,stock,minimo,codigo_barras,serie` THE SYSTEM SHALL crear 3 productos y, por cada `stock` mayor que 0, un `stock_movements` `ajuste` con nota `Inventario inicial`, en una sola transacción",
+      "WHEN alguna fila es inválida o repite un `sku` existente THE SYSTEM SHALL devolver cada número de línea con su error y no escribir ninguna fila",
+      "WHEN el encabezado usa `;` como separador THE SYSTEM SHALL leer el archivo igual que con `,`",
+      "WHEN el correo indicado no es de un usuario activo `owner` o `admin` THE SYSTEM SHALL devolver `ok: false` con código `forbidden` sin escribir",
+      "WHEN `node scripts/inventory-import.ts` corre sin argumentos THE SYSTEM SHALL salir con código 2 y un mensaje de uso, sin conectarse a la base",
+      "WHEN se lee `package.json` THE SYSTEM SHALL tener el script `inventory:import` igual a `node --env-file-if-exists=.env scripts/inventory-import.ts`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/inventory-import.test.ts   # expect: exit 0, 0 failed",
+      "node scripts/inventory-import.ts; test $? -eq 2   # expect: código 2 (uso) → la línea sale 0",
+      "test \"$(node -p \"require('./package.json').scripts['inventory:import']\")\" = \"node --env-file-if-exists=.env scripts/inventory-import.ts\"   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-06",
+    "files": [
+      "src/server/taller/inventory-import.ts",
+      "scripts/inventory-import.ts",
+      "package.json",
+      "tests/integration/inventory-import.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T8",
+    "title": "F2-07 Add suppliers and purchase orders server",
+    "epic": "01-base-inventario",
+    "dependencies": ["E1-T7"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se recibe una compra `enviada` de 5 unidades de un producto nuevo a 1.000 THE SYSTEM SHALL dejar el producto con `stock_qty = 5` y `cost_clp = 1000`, un movimiento `compra` de +5 con `reference_kind = 'purchase_order'`, y la compra `recibida` con `received_at` y `received_by`",
+      "WHEN una segunda compra de 5 unidades a 1.300 se recibe THE SYSTEM SHALL dejar `stock_qty = 10` y `cost_clp = 1150`",
+      "WHEN se agrega una línea a una compra que no está en `borrador`, o se recibe o anula una compra `recibida` THE SYSTEM SHALL devolver `ok: false` con código `invalid_status` sin cambiar filas",
+      "WHEN se crean dos compras en una sucursal THE SYSTEM SHALL numerarlas desde `branches.next_purchase_number` y mostrarlas como `OC-00001` y `OC-00002`",
+      "WHEN `reception` o `mechanic` llaman una función que escribe proveedores o compras THE SYSTEM SHALL devolver `ok: false` con código `forbidden`",
+      "WHEN se crea un proveedor con un RUT inválido, o con un RUT que ya existe en la sucursal THE SYSTEM SHALL devolver el código `validation_error` o `rut_exists`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/purchases.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-07",
+    "files": [
+      "src/server/taller/suppliers.ts",
+      "src/server/taller/purchases.ts",
+      "src/server/taller/rules.ts",
+      "tests/integration/purchases.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T9",
+    "title": "F2-08 Add supplier and purchase pages",
+    "epic": "01-base-inventario",
+    "dependencies": ["E1-T8"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN el dueño hace POST en `/taller/compras` con un proveedor THE SYSTEM SHALL crear la compra en `borrador` y responder 303 a `/taller/compras/<id>`",
+      "WHEN el dueño agrega una línea y luego recibe la compra con tipo y folio en `/taller/compras/<id>` THE SYSTEM SHALL responder 303 a `?hecho=receive` y la página SHALL mostrar `Recibida` y el stock nuevo del producto",
+      "WHEN `reception` o `mechanic` piden `/taller/compras`, `/taller/compras/<id>` o `/taller/proveedores` THE SYSTEM SHALL responder 403",
+      "WHEN un POST llega a esas páginas con un `Origin` ajeno THE SYSTEM SHALL responder 403 sin escribir filas",
+      "WHEN se lee `src/layouts/TallerLayout.astro` THE SYSTEM SHALL contener los enlaces `/taller/proveedores` y `/taller/compras` con la acción `purchases.manage`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/compras-page.test.ts   # expect: exit 0, 0 failed",
+      "grep -q '\"/taller/compras\"' src/layouts/TallerLayout.astro && grep -q '\"/taller/proveedores\"' src/layouts/TallerLayout.astro && grep -q '\"purchases.manage\"' src/layouts/TallerLayout.astro   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-08",
+    "files": [
+      "src/pages/taller/proveedores/index.astro",
+      "src/pages/taller/compras/index.astro",
+      "src/pages/taller/compras/[id].astro",
+      "src/layouts/TallerLayout.astro",
+      "tests/integration/compras-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T1",
+    "title": "F2-09 Compute net, VAT and total for neto orders",
+    "epic": "02-precios-netos",
+    "dependencies": ["E1-T9"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN una orden `neto` tiene líneas vigentes por 10.000 THE SYSTEM SHALL dejar `subtotal_clp = 10000`, `vat_clp = 1900` y `total_clp = 11900`",
+      "WHEN una orden `neto` suma 10.003 THE SYSTEM SHALL dejar `vat_clp = 1901` y `total_clp = 11904`",
+      "WHEN se anula una línea de una orden `neto` THE SYSTEM SHALL recalcular neto, IVA y total sobre las líneas vigentes en la misma transacción",
+      "WHEN una orden `final` cambia sus líneas THE SYSTEM SHALL calcular `total_clp` y `estimated_minutes` como antes y dejar `subtotal_clp` y `vat_clp` en 0",
+      "WHEN `vatOfNet` recibe 0, 50 y 10000 THE SYSTEM SHALL devolver 0, 10 y 1900",
+      "WHEN corren `items.test.ts`, `order-items.test.ts`, `approvals.test.ts` y `delivery.test.ts` THE SYSTEM SHALL pasar sin cambios en esos archivos"
+    ],
+    "verify": [
+      "pnpm test tests/integration/pricing-totals.test.ts tests/integration/items.test.ts tests/integration/order-items.test.ts tests/integration/approvals.test.ts tests/integration/delivery.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/taller/items.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-09",
+    "files": [
+      "src/server/taller/order-totals.ts",
+      "src/server/taller/items.ts",
+      "src/server/taller/rules.ts",
+      "tests/integration/pricing-totals.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T2",
+    "title": "F2-10 Copy branch pricing mode on order creation",
+    "epic": "02-precios-netos",
+    "dependencies": ["E2-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN la sucursal tiene `new_order_pricing_mode = 'neto'` y se inicia una recepción o se abre una garantía THE SYSTEM SHALL crear la orden con `pricing_mode = 'neto'`",
+      "WHEN la sucursal está en `final` THE SYSTEM SHALL crear las órdenes con `pricing_mode = 'final'` como hoy",
+      "WHEN `setNewOrderPricingMode` cambia el régimen THE SYSTEM SHALL dejar intactos `pricing_mode`, `total_clp`, `subtotal_clp` y `vat_clp` de las órdenes existentes y registrar `pricing.mode_changed` con el régimen anterior y el nuevo",
+      "WHEN `reception` o `mechanic` llaman `setNewOrderPricingMode` THE SYSTEM SHALL devolver `ok: false` con código `forbidden` sin cambiar la sucursal",
+      "WHEN el dueño hace POST del régimen en `/taller/catalogo` THE SYSTEM SHALL responder 303 a `/taller/catalogo?hecho=pricing`",
+      "WHEN se cuentan las líneas de `src/server/taller/orders.ts` THE SYSTEM SHALL tener menos de 400"
+    ],
+    "verify": [
+      "pnpm test tests/integration/pricing-switch.test.ts tests/integration/reception.test.ts tests/integration/warranty.test.ts tests/integration/catalog.test.ts   # expect: exit 0, 0 failed",
+      "grep -q 'export async function allocateOrderNumber' src/server/taller/order-creation.ts   # expect: exit 0",
+      "test \"$(wc -l < src/server/taller/orders.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-10",
+    "files": [
+      "src/server/taller/order-creation.ts",
+      "src/server/taller/orders.ts",
+      "src/pages/taller/catalogo/index.astro",
+      "tests/integration/pricing-switch.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T3",
+    "title": "F2-11 Show net, VAT and total on order screens",
+    "epic": "02-precios-netos",
+    "dependencies": ["E2-T2"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se renderiza `/taller/ordenes/<id>` de una orden `neto` con neto 10.000 THE SYSTEM SHALL mostrar `Neto` `$10.000`, `IVA (19%)` `$1.900` y `Total para el cliente` `$11.900`",
+      "WHEN se renderiza `/taller/ordenes/<id>/entrega` de esa orden THE SYSTEM SHALL mostrar neto, IVA, `Total` `$11.900` y `Saldo` `$11.900`, y el campo `Monto` con valor `11900`",
+      "WHEN se renderiza `/taller/ordenes/<id>/recepcion` de esa orden THE SYSTEM SHALL mostrar `Neto`, `IVA (19%)` y el total `$11.900`",
+      "WHEN las tres páginas se renderizan para una orden `final` THE SYSTEM SHALL no contener `IVA (19%)` y mostrar el total con el mismo marcado de hoy",
+      "WHEN se fuerza `status = 'entregada'` en una orden `neto` de total 11.900 con `paid_clp = 10000` THE SYSTEM SHALL fallar con código `23514`, y con `paid_clp = 11900` SHALL aceptarlo",
+      "WHEN corre `pnpm test` THE SYSTEM SHALL pasar sin cambios en ninguna prueba existente"
+    ],
+    "verify": [
+      "pnpm test tests/integration/order-amounts-page.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-11",
+    "files": [
+      "src/components/taller/OrderAmounts.astro",
+      "src/pages/taller/ordenes/[id]/index.astro",
+      "src/pages/taller/ordenes/[id]/recepcion.astro",
+      "src/pages/taller/ordenes/[id]/entrega.astro",
+      "tests/integration/order-amounts-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T4",
+    "title": "F2-12 Link part lines to inventory products",
+    "epic": "02-precios-netos",
+    "dependencies": ["E2-T3"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `addProductPartItem` agrega 1 unidad de un producto con `stock_qty = 5` a una orden THE SYSTEM SHALL dejar `stock_qty = 4`, una línea `repuesto` con `product_id` y `unit_cost_clp` igual al costo del producto, y un movimiento `consumo_orden` de -1 que referencia esa línea",
+      "WHEN se anula esa línea con `voidItem` THE SYSTEM SHALL devolver el stock a 5 con un movimiento `anulacion` de +1, dejando dos movimientos",
+      "WHEN el producto no tiene stock suficiente THE SYSTEM SHALL devolver `ok: false` con código `out_of_stock` sin dejar la línea ni el movimiento",
+      "WHEN la orden es `neto` THE SYSTEM SHALL usar `price_clp` del producto como precio unitario de la línea, y en una orden `final` SHALL usar `price_clp + vatOfNet(price_clp)`",
+      "WHEN `listItems` corre para `mechanic` o `reception` THE SYSTEM SHALL devolver las líneas sin la clave `unitCostClp`, y con ella para `owner` y `admin`",
+      "WHEN el mecánico llama `addProductPartItem` THE SYSTEM SHALL devolver `ok: false` con código `forbidden`, y `addPartItem` sin producto SHALL comportarse como hoy"
+    ],
+    "verify": [
+      "pnpm test tests/integration/part-stock.test.ts tests/integration/order-items.test.ts tests/integration/items.test.ts tests/integration/quotes.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/taller/items.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0 (incluye e2e/lineas-guardar-cambios.spec.ts sin cambios)"
+    ],
+    "checkpoint": "f2-12",
+    "files": [
+      "src/server/taller/part-stock.ts",
+      "src/server/taller/items.ts",
+      "src/pages/taller/ordenes/[id]/lineas.astro",
+      "tests/integration/part-stock.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T5",
+    "title": "F2-13 Render net and VAT rows in order emails",
+    "epic": "02-precios-netos",
+    "dependencies": ["E2-T4"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN `receivedBikeEmail` recibe líneas por 10.000 y `pricingMode: neto` THE SYSTEM SHALL incluir en `text` y en `html` las filas `Neto` `$10.000`, `IVA (19%)` `$1.900` y `Total cotizado` `$11.900`",
+      "WHEN `readyForPickupEmail` recibe una orden `neto` con neto 10.000, IVA 1.900, total 11.900 y abonado 5.000 THE SYSTEM SHALL mostrar `Neto`, `IVA (19%)`, `Total` `$11.900`, `Abonado` `$5.000` y `Saldo` `$6.900`",
+      "WHEN `quoteEmail` recibe `pricingMode: neto` THE SYSTEM SHALL mostrar neto, IVA y `Total` con IVA, y `quoteTotalClp(items, 'neto')` SHALL devolver 11900 para 10.000 netos",
+      "WHEN las tres plantillas reciben `final` o no reciben régimen THE SYSTEM SHALL producir `subject`, `html` y `text` idénticos a los de hoy",
+      "WHEN se cuentan las líneas de `src/server/email/templates.ts` THE SYSTEM SHALL tener menos de 400"
+    ],
+    "verify": [
+      "pnpm test tests/unit/pricing-emails.test.ts tests/unit/received-email.test.ts tests/unit/ready-email.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/email/templates.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-13",
+    "files": [
+      "src/server/email/amounts.ts",
+      "src/server/email/templates.ts",
+      "src/server/email/order-templates.ts",
+      "tests/unit/pricing-emails.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T6",
+    "title": "F2-14 Send the breakdown in reception, ready and quote emails",
+    "epic": "02-precios-netos",
+    "dependencies": ["E2-T5"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN se finaliza la recepción de una orden `neto` con líneas por 10.000 THE SYSTEM SHALL enviar `Recibimos tu bicicleta` con `IVA (19%)` `$1.900` y `Total cotizado` `$11.900`",
+      "WHEN el control de calidad aprueba una orden `neto` de neto 10.000 THE SYSTEM SHALL enviar `Lista para retirar` con `Neto`, `IVA (19%)` y `Total` `$11.900`",
+      "WHEN `sendQuote` corre sobre una orden `neto` de neto 10.000 THE SYSTEM SHALL enviar neto, IVA y total, y registrar `notify.quote_sent` con `totalClp` 11900",
+      "WHEN las mismas acciones corren sobre una orden `final` THE SYSTEM SHALL enviar correos sin `IVA (19%)`, con `received-notification.test.ts`, `ready-notification.test.ts` y `quotes.test.ts` sin cambios"
+    ],
+    "verify": [
+      "pnpm test tests/integration/pricing-notifications.test.ts tests/integration/received-notification.test.ts tests/integration/ready-notification.test.ts tests/integration/quotes.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/taller/reception.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-14",
+    "files": [
+      "src/server/taller/reception.ts",
+      "src/server/taller/qc.ts",
+      "src/server/taller/quotes.ts",
+      "tests/integration/pricing-notifications.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T7",
+    "title": "F2-15 Freeze the breakdown in the service report",
+    "epic": "02-precios-netos",
+    "dependencies": ["E2-T6"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN se genera el informe de una orden `neto` con neto 10.000 THE SYSTEM SHALL guardar en el snapshot `subtotalClp` 10000, `vatClp` 1900, `vatRatePercent` 19 y `totalClp` 11900",
+      "WHEN `ReportView` recibe ese snapshot THE SYSTEM SHALL mostrar las filas `Neto`, `IVA (19%)` y `Total` con los tres montos",
+      "WHEN se genera el informe de una orden `final` THE SYSTEM SHALL guardar el snapshot sin `subtotalClp`, `vatClp` ni `vatRatePercent`",
+      "WHEN se abre un informe guardado antes del cambio THE SYSTEM SHALL validarlo y mostrarlo como hoy",
+      "WHEN se cuentan las líneas de `src/server/taller/reports.ts` THE SYSTEM SHALL tener menos de 400"
+    ],
+    "verify": [
+      "pnpm test tests/integration/report-pricing.test.ts tests/integration/reports.test.ts tests/integration/report-view.test.ts tests/integration/report-page.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/taller/reports.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-15",
+    "files": [
+      "src/server/taller/report-snapshot.ts",
+      "src/server/taller/reports.ts",
+      "src/components/taller/ReportView.astro",
+      "tests/integration/report-pricing.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T8",
+    "title": "F2-16 Show net and VAT on approvals",
+    "epic": "02-precios-netos",
+    "dependencies": ["E2-T7"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN el cliente abre `/aprobacion/<token>` de un adicional de 10.000 en una orden `neto` THE SYSTEM SHALL mostrar `Precio neto` `$10.000`, `IVA (19%)` `$1.900` y `Total` `$11.900`",
+      "WHEN el adicional es de una orden `final` THE SYSTEM SHALL mostrar `Precio` con el monto como hoy, con `approval-page.test.ts` sin cambios",
+      "WHEN el cliente aprueba ese adicional en una orden `neto` sin otras líneas THE SYSTEM SHALL agregar la línea con `unit_price_clp = 10000` y dejar la orden con `total_clp = 11900`",
+      "WHEN el personal abre `/taller/ordenes/<id>/adicional` de una orden `neto` THE SYSTEM SHALL rotular el campo de precio como `Precio neto` y mostrar cada propuesta con su IVA",
+      "WHEN se cuentan las líneas de `src/server/taller/approvals.ts` THE SYSTEM SHALL tener menos de 400"
+    ],
+    "verify": [
+      "pnpm test tests/integration/approval-pricing.test.ts tests/integration/approval-page.test.ts tests/integration/approvals.test.ts tests/integration/approval-decide.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/taller/approvals.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-16",
+    "files": [
+      "src/server/taller/approvals.ts",
+      "src/pages/aprobacion/[token].astro",
+      "src/pages/taller/ordenes/[id]/adicional.astro",
+      "tests/integration/approval-pricing.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T9",
+    "title": "F2-17 Prepare publication window V1",
+    "epic": "02-precios-netos",
+    "dependencies": ["E2-T8"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `pnpm db:migrate` y `pnpm db:check` corren sobre la base dev THE SYSTEM SHALL salir 0 con `products`, `stock_movements`, `suppliers`, `purchase_orders` y `purchase_order_items` presentes",
+      "WHEN se buscan en `drizzle/*.sql` las migraciones de la ventana V1 THE SYSTEM SHALL encontrar exactamente una con `CREATE TABLE` de `products`, sin `DROP TABLE`, `DROP COLUMN`, `DROP CONSTRAINT` ni `RENAME`",
+      "WHEN se lee `docs/ventanas/f2-v1.md` THE SYSTEM SHALL contener `## Precondiciones`, `## Pasos en Replit` y `## Verificación después de publicar`, y el nombre de esa migración",
+      "WHEN corre `pnpm gate` sobre el tag de la ventana THE SYSTEM SHALL salir 0"
+    ],
+    "verify": [
+      "pnpm db:migrate   # expect: exit 0",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "f=\"$(grep -lE 'CREATE TABLE (\"public\"\\.)?\"products\"' drizzle/*.sql)\"; test \"$(printf '%s\\n' \"$f\" | grep -c .)\" = 1 && { grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1; }   # expect: exit 0 — una sola migración de la ventana y sin borrados",
+      "f=\"$(grep -lE 'CREATE TABLE (\"public\"\\.)?\"products\"' drizzle/*.sql)\"; grep -qF \"$(basename \"$f\")\" docs/ventanas/f2-v1.md   # expect: exit 0",
+      "grep -qF '## Precondiciones' docs/ventanas/f2-v1.md && grep -qF '## Pasos en Replit' docs/ventanas/f2-v1.md && grep -qF '## Verificación después de publicar' docs/ventanas/f2-v1.md   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-17",
+    "files": ["docs/ventanas/f2-v1.md"],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T1",
+    "title": "F2-18 Add sales and sale items schema",
+    "epic": "03-ventas-pagos",
+    "dependencies": ["E2-T9"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL crear `sales` y `sale_items` y agregar `branches.next_sale_number` con valor por defecto 1",
+      "WHEN una venta se guarda con `total_clp` distinto de `subtotal_clp + vat_clp` THE SYSTEM SHALL rechazarla con código `23514`",
+      "WHEN una venta queda `pagada` con `paid_clp` distinto de `total_clp`, o lleva `discount_clp > 0` sin `discount_reason` THE SYSTEM SHALL rechazarla con código `23514`",
+      "WHEN una venta queda `anulada` sin `voided_at`, o tiene `voided_at` en otro estado THE SYSTEM SHALL rechazarla con código `23514`",
+      "WHEN se guardan dos ventas con el mismo `number` en una sucursal THE SYSTEM SHALL rechazar la segunda con código `23505`",
+      "WHEN `pnpm db:check` corre THE SYSTEM SHALL revisar las columnas de `saleTables` y salir 0"
+    ],
+    "verify": [
+      "pnpm test tests/integration/sales-schema.test.ts   # expect: exit 0, 0 failed",
+      "f=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1   # expect: 1 = aditiva → la línea sale 0",
+      "pnpm db:migrate   # expect: exit 0",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-18",
+    "files": [
+      "src/server/db/schema-sales.ts",
+      "src/server/db/schema.ts",
+      "scripts/db-check.ts",
+      "tests/integration/sales-schema.test.ts",
+      "drizzle/**"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T2",
+    "title": "F2-19 Extend payments additively for sales and fees",
+    "epic": "03-ventas-pagos",
+    "dependencies": ["E3-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL dejar `payments.work_order_id` nullable y agregar `sale_id`, `external_id`, `fee_clp` con valor por defecto 0 y `net_clp`, sin cambiar `payments_method_check`",
+      "WHEN se inserta un pago sin `work_order_id` ni `sale_id`, o con ambos THE SYSTEM SHALL rechazarlo con código `23514`",
+      "WHEN se inserta un pago con `fee_clp` negativo o mayor que `amount_clp`, o con `net_clp` distinto de `amount_clp - fee_clp` THE SYSTEM SHALL rechazarlo con código `23514`",
+      "WHEN `listPayments` corre para `reception` o `mechanic` THE SYSTEM SHALL devolver los pagos sin las claves `feeClp` ni `netClp`, y con ellas para `owner` y `admin`",
+      "WHEN corren `payments.test.ts`, `delivery.test.ts`, `history.test.ts` e `indicators.test.ts` THE SYSTEM SHALL pasar sin cambios en esos archivos",
+      "WHEN se cuentan las líneas de `src/server/db/schema-payments.ts` THE SYSTEM SHALL tener menos de 400"
+    ],
+    "verify": [
+      "pnpm test tests/integration/payments-extension.test.ts tests/integration/payments.test.ts tests/integration/delivery.test.ts tests/integration/history.test.ts tests/integration/indicators.test.ts   # expect: exit 0, 0 failed",
+      "f=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1   # expect: 1 = aditiva (DROP NOT NULL se permite) → la línea sale 0",
+      "pnpm db:migrate   # expect: exit 0",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "test \"$(wc -l < src/server/db/schema-payments.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-19",
+    "files": [
+      "src/server/db/schema-payments.ts",
+      "src/server/taller/payments.ts",
+      "src/server/taller/history.ts",
+      "tests/integration/payments-extension.test.ts",
+      "drizzle/**"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T3",
+    "title": "F2-20 Replace the payment method CHECK for Mercado Pago",
+    "epic": "03-ventas-pagos",
+    "dependencies": ["E3-T2"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `pnpm db:generate` corre THE SYSTEM SHALL emitir una migración propia cuyas únicas sentencias quitan y vuelven a crear `payments_method_check`",
+      "WHEN se inserta un pago `mercadopago` con `external_id` THE SYSTEM SHALL aceptarlo, y sin `external_id` SHALL rechazarlo con código `23514`",
+      "WHEN se inserta un pago con método `cheque` THE SYSTEM SHALL rechazarlo con código `23514`",
+      "WHEN se leen `PAYMENT_METHODS` y `RECORDABLE_PAYMENT_METHODS` THE SYSTEM SHALL tener `transferencia`, `tarjeta`, `efectivo` y `otro` en el primero, y esos cuatro más `mercadopago` en el segundo, con la etiqueta `Mercado Pago`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/payment-method-check.test.ts tests/integration/payments.test.ts tests/integration/indicators.test.ts   # expect: exit 0, 0 failed",
+      "f=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -qF 'DROP CONSTRAINT \"payments_method_check\"' \"$f\" && grep -qF 'ADD CONSTRAINT \"payments_method_check\"' \"$f\" && { grep -Eq 'CREATE TABLE|CREATE (UNIQUE )?INDEX|DROP INDEX|ADD COLUMN|DROP COLUMN|ALTER COLUMN|RENAME' \"$f\"; test $? -eq 1; } && test -z \"$(grep -oE 'CONSTRAINT \"[a-z_]+\"' \"$f\" | grep -v '\"payments_method_check\"')\"   # expect: exit 0 — la migración más nueva solo quita y vuelve a crear payments_method_check",
+      "pnpm db:migrate   # expect: exit 0",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-20",
+    "files": [
+      "src/server/db/schema-payments.ts",
+      "src/server/taller/rules.ts",
+      "tests/integration/payment-method-check.test.ts",
+      "drizzle/**"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T4",
+    "title": "F2-21 Add counter sales server and customer history",
+    "epic": "03-ventas-pagos",
+    "dependencies": ["E3-T3"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `reception` registra una venta sin cliente de 2 unidades de un producto de 5.000 netos con stock 3, pagada por transferencia THE SYSTEM SHALL crear la venta `VM-00001` `pagada` con `subtotal_clp = 10000`, `vat_clp = 1900` y `total_clp = 11900`, un `sale_items` con precio y costo congelados, un pago `final` con `sale_id` por 11.900, y dejar `stock_qty = 1` con un movimiento `venta` de -2",
+      "WHEN una línea pide más unidades que el stock THE SYSTEM SHALL devolver `ok: false` con código `out_of_stock` sin escribir venta, líneas, pago ni movimientos",
+      "WHEN `reception` envía un descuento THE SYSTEM SHALL devolver `ok: false` con código `forbidden`, y WHEN `owner` aplica 1.000 con motivo THE SYSTEM SHALL calcular el IVA sobre el neto con descuento y registrar `sale.discounted` con usuario, monto y motivo",
+      "WHEN `owner` anula la venta con motivo THE SYSTEM SHALL dejarla `anulada` con `voided_at`, `voided_by` y el motivo, devolver el stock con movimientos `anulacion`, anular su pago y registrar `sale.voided`; `reception` SHALL recibir `forbidden`",
+      "WHEN la venta lleva cliente THE SYSTEM SHALL aparecer en `customerTimeline` de ese cliente como `Venta VM-00001` con su total, aunque el cliente no tenga órdenes",
+      "WHEN `listSales` corre para `reception` THE SYSTEM SHALL devolver las ventas sin las claves `unitCostClp` ni `feeClp`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/sales.test.ts tests/integration/history.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/taller/sales.ts | tr -d ' ')\" -lt 400 && test \"$(wc -l < src/server/taller/history.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-21",
+    "files": [
+      "src/server/taller/sales.ts",
+      "src/server/taller/sale-void.ts",
+      "src/server/taller/rules.ts",
+      "src/server/taller/history.ts",
+      "tests/integration/sales.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T5",
+    "title": "F2-22 Add sale pages and tablet counter sale",
+    "epic": "03-ventas-pagos",
+    "dependencies": ["E3-T4"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN el spec `e2e/venta-mostrador.spec.ts` corre en tablet THE SYSTEM SHALL registrar una venta sin cliente de 2 unidades por transferencia, mostrar `Total` `$11.900` antes de registrar y `Venta VM-` con cinco dígitos y `registrada.` después, y la ficha del producto SHALL mostrar stock `1`",
+      "WHEN el mecánico pide `/taller/ventas/nueva` en ese spec THE SYSTEM SHALL responder 403",
+      "WHEN se lee `src/layouts/TallerLayout.astro` THE SYSTEM SHALL contener el enlace `/taller/ventas` con la acción `sales.record`"
+    ],
+    "verify": [
+      "pnpm build && pnpm test:tablet e2e/venta-mostrador.spec.ts   # expect: exit 0, 0 failed",
+      "grep -q '\"/taller/ventas\"' src/layouts/TallerLayout.astro && grep -q '\"sales.record\"' src/layouts/TallerLayout.astro   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-22",
+    "files": [
+      "src/pages/taller/ventas/index.astro",
+      "src/pages/taller/ventas/nueva.astro",
+      "src/layouts/TallerLayout.astro",
+      "e2e/venta-mostrador.spec.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T6",
+    "title": "F2-23 Record Mercado Pago on order payments",
+    "epic": "03-ventas-pagos",
+    "dependencies": ["E3-T5"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN se registra en una orden un pago `mercadopago` de 11.900 con `externalId` y comisión 450 THE SYSTEM SHALL guardar `external_id`, `fee_clp = 450` y `net_clp = 11450`",
+      "WHEN el pago `mercadopago` llega sin `externalId` THE SYSTEM SHALL devolver `ok: false` con código `validation_error` sin escribir",
+      "WHEN un pago que no es `mercadopago` trae comisión mayor que 0 THE SYSTEM SHALL devolver `ok: false` con código `validation_error`",
+      "WHEN `workshopIndicators` corre con un pago `mercadopago` en el rango THE SYSTEM SHALL agregar la fila `Mercado Pago` a `income.byMethod` y sumarlo al total, y sin pagos `mercadopago` SHALL devolver las cuatro filas de hoy",
+      "WHEN se lee `src/pages/taller/ordenes/[id]/entrega.astro` THE SYSTEM SHALL ofrecer los métodos de `RECORDABLE_PAYMENT_METHODS` y los campos `Id de la operación` y `Comisión`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/mercadopago-payments.test.ts tests/integration/payments.test.ts tests/integration/indicators.test.ts tests/integration/indicadores-page.test.ts   # expect: exit 0, 0 failed",
+      "grep -q 'RECORDABLE_PAYMENT_METHODS' 'src/pages/taller/ordenes/[id]/entrega.astro' && grep -qF 'Id de la operación' 'src/pages/taller/ordenes/[id]/entrega.astro'   # expect: exit 0",
+      "test \"$(wc -l < src/server/taller/payments.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0 (incluye e2e/entrega.spec.ts sin cambios)"
+    ],
+    "checkpoint": "f2-23",
+    "files": [
+      "src/server/taller/payments.ts",
+      "src/pages/taller/ordenes/[id]/entrega.astro",
+      "src/server/taller/indicators.ts",
+      "tests/integration/mercadopago-payments.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T7",
+    "title": "F2-24 Prepare publication window V2",
+    "epic": "03-ventas-pagos",
+    "dependencies": ["E3-T6"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `pnpm db:migrate` y `pnpm db:check` corren sobre la base dev THE SYSTEM SHALL salir 0 con `sales` y `sale_items` presentes",
+      "WHEN se revisan las tres migraciones de la ventana V2 THE SYSTEM SHALL encontrar la de `CREATE TABLE` de `sales` y la que agrega `sale_id` sin `DROP CONSTRAINT`, `DROP TABLE`, `DROP COLUMN` ni `RENAME`, y la del CHECK de método como la única con `DROP CONSTRAINT`",
+      "WHEN se lee `docs/ventanas/f2-v2.md` THE SYSTEM SHALL contener `## Precondiciones`, `## Pasos en Replit` y `## Verificación después de publicar`, y los nombres de las tres migraciones",
+      "WHEN corre `pnpm gate` THE SYSTEM SHALL salir 0"
+    ],
+    "verify": [
+      "pnpm db:migrate   # expect: exit 0",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "f=\"$(grep -lE 'CREATE TABLE (\"public\"\\.)?\"sales\"' drizzle/*.sql)\"; test -f \"$f\" && { grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1; } && grep -qF \"$(basename \"$f\")\" docs/ventanas/f2-v2.md   # expect: exit 0",
+      "f=\"$(grep -l 'ADD COLUMN \"sale_id\"' drizzle/*.sql)\"; test -f \"$f\" && { grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1; } && grep -qF \"$(basename \"$f\")\" docs/ventanas/f2-v2.md   # expect: exit 0",
+      "f=\"$(grep -l 'DROP CONSTRAINT \"payments_method_check\"' drizzle/*.sql)\"; test -f \"$f\" && grep -qF 'ADD CONSTRAINT \"payments_method_check\"' \"$f\" && grep -qF \"$(basename \"$f\")\" docs/ventanas/f2-v2.md   # expect: exit 0 — una sola migración la quita y la vuelve a crear",
+      "grep -qF '## Precondiciones' docs/ventanas/f2-v2.md && grep -qF '## Pasos en Replit' docs/ventanas/f2-v2.md && grep -qF '## Verificación después de publicar' docs/ventanas/f2-v2.md   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-24",
+    "files": ["docs/ventanas/f2-v2.md"],
+    "status": "pending"
+  },
+  {
+    "id": "E4-T1",
+    "title": "F2-25 Add cash sessions, movements and expenses schema",
+    "epic": "04-caja-gastos",
+    "dependencies": ["E3-T7"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL crear `cash_sessions`, `cash_movements` y `expenses` y agregar `branches.cash_control_enabled` con valor por defecto `false`",
+      "WHEN se abre una segunda sesión sin cerrar la primera en la misma sucursal THE SYSTEM SHALL rechazarla con código `23505`",
+      "WHEN una sesión se cierra con `difference_clp` distinto de `counted_cash_clp - expected_cash_clp`, o queda con solo parte de los datos de cierre THE SYSTEM SHALL rechazarla con código `23514`",
+      "WHEN un gasto tiene `amount_clp <= 0` o una categoría fuera de `arriendo`, `sueldos`, `servicios`, `insumos`, `repuestos` y `otros` THE SYSTEM SHALL rechazarlo con código `23514`",
+      "WHEN un movimiento de caja tiene `amount_clp <= 0` o `kind` fuera de `ingreso` y `egreso` THE SYSTEM SHALL rechazarlo con código `23514`",
+      "WHEN `pnpm db:check` corre THE SYSTEM SHALL revisar las columnas de `cashTables` y salir 0"
+    ],
+    "verify": [
+      "pnpm test tests/integration/cash-schema.test.ts   # expect: exit 0, 0 failed",
+      "f=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1   # expect: 1 = aditiva → la línea sale 0",
+      "pnpm db:migrate   # expect: exit 0",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-25",
+    "files": [
+      "src/server/db/schema-cash.ts",
+      "src/server/db/schema.ts",
+      "scripts/db-check.ts",
+      "tests/integration/cash-schema.test.ts",
+      "drizzle/**"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E4-T2",
+    "title": "F2-26 Link payments and sales to cash sessions",
+    "epic": "04-caja-gastos",
+    "dependencies": ["E4-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL agregar `payments.cash_session_id` y `sales.cash_session_id`, nullable y con FK a `cash_sessions`, sin borrar nada",
+      "WHEN se inserta un pago o una venta con un `cash_session_id` que no existe THE SYSTEM SHALL rechazarlo con código `23503`",
+      "WHEN corren `payments.test.ts`, `payments-extension.test.ts` y `sales.test.ts` THE SYSTEM SHALL pasar sin cambios en esos archivos",
+      "WHEN se cuentan las líneas de `schema-payments.ts` y `schema-sales.ts` THE SYSTEM SHALL tener menos de 400 en cada uno"
+    ],
+    "verify": [
+      "pnpm test tests/integration/cash-links-schema.test.ts tests/integration/payments.test.ts tests/integration/payments-extension.test.ts tests/integration/sales.test.ts   # expect: exit 0, 0 failed",
+      "f=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1   # expect: 1 = aditiva → la línea sale 0",
+      "pnpm db:migrate   # expect: exit 0",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "test \"$(wc -l < src/server/db/schema-payments.ts | tr -d ' ')\" -lt 400 && test \"$(wc -l < src/server/db/schema-sales.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-26",
+    "files": [
+      "src/server/db/schema-payments.ts",
+      "src/server/db/schema-sales.ts",
+      "tests/integration/cash-links-schema.test.ts",
+      "drizzle/**"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E4-T3",
+    "title": "F2-27 Add cash session server",
+    "epic": "04-caja-gastos",
+    "dependencies": ["E4-T2"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN la caja está habilitada y `reception` abre una sesión con 20.000 THE SYSTEM SHALL crearla con `opened_by` y `opening_cash_clp = 20000` y registrar `cash.opened`, y una segunda apertura SHALL devolver `ok: false` con código `cash_session_open`",
+      "WHEN se cierra con conteo 31.000 tras un ingreso de 15.000 y un egreso de 3.000 THE SYSTEM SHALL guardar `expected_cash_clp = 32000` y `difference_clp = -1000` y registrar `cash.closed` con esperado, contado y diferencia",
+      "WHEN la caja no está habilitada y alguien intenta abrirla THE SYSTEM SHALL devolver `ok: false` con código `cash_control_off`",
+      "WHEN `reception` llama `setCashControl` THE SYSTEM SHALL devolver `forbidden`, y WHEN `owner` intenta desactivarla con una sesión abierta THE SYSTEM SHALL devolver `cash_session_open`; cada cambio efectivo SHALL registrar `cash.control_changed`",
+      "WHEN `dayPaymentsSummary` corre THE SYSTEM SHALL sumar por método los pagos vigentes del día local de órdenes y ventas, incluidos transferencia, tarjeta y Mercado Pago",
+      "WHEN el mecánico llama cualquier función de caja THE SYSTEM SHALL devolver `ok: false` con código `forbidden`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/cash.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-27",
+    "files": ["src/server/taller/cash.ts", "src/server/taller/rules.ts", "tests/integration/cash.test.ts"],
+    "status": "pending"
+  },
+  {
+    "id": "E4-T4",
+    "title": "F2-28 Route cash order payments through the session",
+    "epic": "04-caja-gastos",
+    "dependencies": ["E4-T3"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN la caja está habilitada y abierta y se registra un pago `efectivo` de una orden THE SYSTEM SHALL guardar el pago con `cash_session_id` y un `cash_movements` `ingreso` por el mismo monto, en la misma transacción",
+      "WHEN la caja está habilitada y no hay sesión abierta THE SYSTEM SHALL devolver `ok: false` con código `cash_closed` sin escribir pago ni movimiento",
+      "WHEN la caja no está habilitada THE SYSTEM SHALL registrar el pago `efectivo` como hoy, sin `cash_session_id`, con `payments.test.ts` sin cambios",
+      "WHEN se anula un pago en efectivo cuya sesión sigue abierta THE SYSTEM SHALL marcar también su movimiento con `voided_at`",
+      "WHEN la sesión de ese pago ya cerró THE SYSTEM SHALL devolver `ok: false` con código `cash_session_closed` sin anular nada",
+      "WHEN se registra un pago por transferencia con la caja abierta THE SYSTEM SHALL no crear movimiento de caja"
+    ],
+    "verify": [
+      "pnpm test tests/integration/cash-order-payments.test.ts tests/integration/payments.test.ts tests/integration/delivery.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/taller/payments.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-28",
+    "files": [
+      "src/server/taller/payments.ts",
+      "src/pages/taller/ordenes/[id]/entrega.astro",
+      "tests/integration/cash-order-payments.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E4-T5",
+    "title": "F2-29 Route cash sales and refunds through the session",
+    "epic": "04-caja-gastos",
+    "dependencies": ["E4-T4"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN la caja está abierta y se registra una venta sin cliente en efectivo THE SYSTEM SHALL dejar la venta `pagada` con `cash_session_id`, el pago y un `cash_movements` `ingreso` por el total",
+      "WHEN la caja está habilitada y cerrada THE SYSTEM SHALL devolver `ok: false` con código `cash_closed` en una venta en efectivo sin escribir venta, pago, stock ni movimiento",
+      "WHEN el dueño registra con la caja abierta una devolución de 1 unidad de una venta, con monto y motivo THE SYSTEM SHALL crear un `cash_movements` `egreso` con `reference_kind = 'sale_refund'`, un `stock_movements` `devolucion` de +1 y registrar `cash.refund` con usuario, monto y motivo",
+      "WHEN la devolución supera lo pagado menos lo ya devuelto, o la pide `reception` THE SYSTEM SHALL devolver `invalid_amount` o `forbidden` sin escribir",
+      "WHEN se anula una venta en efectivo cuya sesión ya cerró THE SYSTEM SHALL devolver `ok: false` con código `cash_session_closed` sin cambiar la venta",
+      "WHEN la caja no está habilitada THE SYSTEM SHALL registrar ventas en efectivo sin sesión, con `sales.test.ts` sin cambios"
+    ],
+    "verify": [
+      "pnpm test tests/integration/cash-sales-refunds.test.ts tests/integration/sales.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/taller/sales.ts | tr -d ' ')\" -lt 400 && test \"$(wc -l < src/server/taller/sale-void.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-29",
+    "files": [
+      "src/server/taller/sales.ts",
+      "src/server/taller/sale-void.ts",
+      "src/server/taller/refunds.ts",
+      "tests/integration/cash-sales-refunds.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E4-T6",
+    "title": "F2-30 Add expenses server and page",
+    "epic": "04-caja-gastos",
+    "dependencies": ["E4-T5"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN el dueño registra con la caja abierta un gasto en efectivo de 8.000 THE SYSTEM SHALL guardar el gasto con `cash_session_id` y un `cash_movements` `egreso` de 8.000",
+      "WHEN registra un gasto por transferencia THE SYSTEM SHALL guardarlo sin sesión y sin movimiento de caja",
+      "WHEN la caja está habilitada y cerrada y el gasto es en efectivo THE SYSTEM SHALL devolver `ok: false` con código `cash_closed` sin escribir",
+      "WHEN `reception` o `mechanic` registran o anulan un gasto THE SYSTEM SHALL devolver `ok: false` con código `forbidden`",
+      "WHEN se anula un gasto con motivo THE SYSTEM SHALL marcar `voided_at`, `voided_by` y el motivo, anular su movimiento si la sesión sigue abierta o devolver `cash_session_closed` si cerró, y registrar `expense.voided`",
+      "WHEN `reception` pide `/taller/gastos` THE SYSTEM SHALL responder 403, y `src/layouts/TallerLayout.astro` SHALL contener `/taller/gastos` con la acción `expenses.record`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/expenses.test.ts   # expect: exit 0, 0 failed",
+      "grep -q '\"/taller/gastos\"' src/layouts/TallerLayout.astro && grep -q '\"expenses.record\"' src/layouts/TallerLayout.astro   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-30",
+    "files": [
+      "src/server/taller/expenses.ts",
+      "src/server/taller/rules.ts",
+      "src/pages/taller/gastos/index.astro",
+      "src/layouts/TallerLayout.astro",
+      "tests/integration/expenses.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E5-T1",
+    "title": "F2-31 Add the cash page and tablet cash sale",
+    "epic": "05-caja-indicadores-cierre",
+    "dependencies": ["E4-T6"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN el spec `e2e/caja-efectivo.spec.ts` corre en tablet THE SYSTEM SHALL habilitar la caja, abrirla con $10.000, registrar una venta en efectivo de $5.950, mostrar el ingreso y `Esperado` `$15.950`, cerrarla con conteo 15.950 mostrando `Diferencia: $0.` y dejar la caja deshabilitada al terminar",
+      "WHEN `reception` abre `/taller/caja` THE SYSTEM SHALL mostrar apertura y cierre, sin el interruptor de control de caja ni el formulario de devolución",
+      "WHEN el mecánico pide `/taller/caja` THE SYSTEM SHALL responder 403",
+      "WHEN la página muestra una sesión cerrada con diferencia distinta de 0 THE SYSTEM SHALL marcarla con `span.status` y el texto `Diferencia` con el monto con signo",
+      "WHEN se lee `src/layouts/TallerLayout.astro` THE SYSTEM SHALL contener el enlace `/taller/caja` con la acción `cash.open_close`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/caja-page.test.ts   # expect: exit 0, 0 failed",
+      "pnpm build && pnpm test:tablet e2e/caja-efectivo.spec.ts   # expect: exit 0, 0 failed",
+      "grep -q '\"/taller/caja\"' src/layouts/TallerLayout.astro && grep -q '\"cash.open_close\"' src/layouts/TallerLayout.astro   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-31",
+    "files": [
+      "src/pages/taller/caja/index.astro",
+      "src/layouts/TallerLayout.astro",
+      "e2e/caja-efectivo.spec.ts",
+      "tests/integration/caja-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E5-T2",
+    "title": "F2-32 Prepare publication window V3",
+    "epic": "05-caja-indicadores-cierre",
+    "dependencies": ["E5-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `pnpm db:migrate` y `pnpm db:check` corren sobre la base dev THE SYSTEM SHALL salir 0 con `cash_sessions`, `cash_movements` y `expenses` presentes",
+      "WHEN se revisan las dos migraciones de la ventana V3 THE SYSTEM SHALL encontrar la de `CREATE TABLE` de `cash_sessions` y la que agrega `cash_session_id`, ninguna con `DROP TABLE`, `DROP COLUMN`, `DROP CONSTRAINT` ni `RENAME`",
+      "WHEN se lee `docs/ventanas/f2-v3.md` THE SYSTEM SHALL contener `## Precondiciones`, `## Pasos en Replit` y `## Verificación después de publicar`, y los nombres de las dos migraciones",
+      "WHEN corre `pnpm gate` THE SYSTEM SHALL salir 0"
+    ],
+    "verify": [
+      "pnpm db:migrate   # expect: exit 0",
+      "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
+      "f=\"$(grep -lE 'CREATE TABLE (\"public\"\\.)?\"cash_sessions\"' drizzle/*.sql)\"; test -f \"$f\" && { grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1; } && grep -qF \"$(basename \"$f\")\" docs/ventanas/f2-v3.md   # expect: exit 0",
+      "f=\"$(grep -l 'ADD COLUMN \"cash_session_id\"' drizzle/*.sql)\"; test -f \"$f\" && { grep -Eq 'DROP (TABLE|COLUMN|CONSTRAINT)|RENAME' \"$f\"; test $? -eq 1; } && grep -qF \"$(basename \"$f\")\" docs/ventanas/f2-v3.md   # expect: exit 0",
+      "grep -qF '## Precondiciones' docs/ventanas/f2-v3.md && grep -qF '## Pasos en Replit' docs/ventanas/f2-v3.md && grep -qF '## Verificación después de publicar' docs/ventanas/f2-v3.md   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-32",
+    "files": ["docs/ventanas/f2-v3.md"],
+    "status": "pending"
+  },
+  {
+    "id": "E5-T3",
+    "title": "F2-33 Compute Stage B finance indicators",
+    "epic": "05-caja-indicadores-cierre",
+    "dependencies": ["E5-T2"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN `reception` o `mechanic` llaman `financeIndicators` THE SYSTEM SHALL devolver `null`",
+      "WHEN el rango tiene un pago de orden de 11.900, una venta pagada de total 11.900 y un gasto de 8.000 THE SYSTEM SHALL devolver ingresos brutos 23.800, ingresos netos 20.000, egresos 8.000, balance 12.000 y gastos sobre ingresos 40",
+      "WHEN el rango tiene un pago `mercadopago` de 11.900 con comisión 450 THE SYSTEM SHALL devolver en `mercadoPago` bruto 11.900, comisión 450 y neto 11.450",
+      "WHEN hay una orden `neto` entregada con un servicio de 10.000 y un repuesto ligado de 5.000 con costo 3.000, y una venta pagada de 2 unidades a 5.000 con costo 3.000 THE SYSTEM SHALL devolver mix servicios 10.000, repuestos 5.000, ventas de mostrador 10.000 y `partsMarginClp` 6.000",
+      "WHEN el inventario tiene 3 productos activos, uno con `min_stock > 0` y bajo mínimo, y uno sin stock THE SYSTEM SHALL devolver `activeCount` 3, `lowStockCount` 1, `outOfStockCount` 1 y `valueAtCostClp` igual a la suma de stock por costo",
+      "WHEN el rango no tiene movimientos THE SYSTEM SHALL devolver ceros, sin dividir por cero"
+    ],
+    "verify": [
+      "pnpm test tests/integration/indicators-finance.test.ts tests/integration/indicators.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/server/taller/indicators-finance.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-33",
+    "files": ["src/server/taller/indicators-finance.ts", "tests/integration/indicators-finance.test.ts"],
+    "status": "pending"
+  },
+  {
+    "id": "E5-T4",
+    "title": "F2-34 Show Stage B blocks on /taller/indicadores",
+    "epic": "05-caja-indicadores-cierre",
+    "dependencies": ["E5-T3"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN el dueño abre `/taller/indicadores` con un rango THE SYSTEM SHALL mostrar las secciones `Egresos del período`, `Balance`, `Mix de ingresos`, `Mercado Pago` e `Inventario` con los montos de `financeIndicators` en celdas `mono`",
+      "WHEN `reception` pide `/taller/indicadores` THE SYSTEM SHALL responder 403 como hoy",
+      "WHEN corre `indicadores-page.test.ts` THE SYSTEM SHALL pasar sin cambios en ese archivo",
+      "WHEN se cuentan las líneas de `src/pages/taller/indicadores.astro` THE SYSTEM SHALL tener menos de 400"
+    ],
+    "verify": [
+      "pnpm test tests/integration/indicadores-finance-page.test.ts tests/integration/indicadores-page.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(wc -l < src/pages/taller/indicadores.astro | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0 (incluye e2e/indicadores.spec.ts sin cambios)"
+    ],
+    "checkpoint": "f2-34",
+    "files": [
+      "src/pages/taller/indicadores.astro",
+      "src/components/taller/FinanceBlocks.astro",
+      "tests/integration/indicadores-finance-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E5-T5",
+    "title": "F2-35 Add phase health check and close the phase",
+    "epic": "05-caja-indicadores-cierre",
+    "dependencies": ["E5-T4"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `phase2Health` corre sobre una base sin anomalías THE SYSTEM SHALL devolver `ok: true` con `netoInconsistent`, `cashUnlinked`, `cashDifferenceOver` y `stockDrift` en 0",
+      "WHEN existe una orden `neto` con `vat_clp` distinto de `vatOfNet(subtotal_clp)` THE SYSTEM SHALL contarla en `netoInconsistent` y devolver `ok: false`",
+      "WHEN existe un pago `efectivo` vigente sin `cash_session_id` creado después del último `cash.control_changed` de una sucursal con la caja habilitada THE SYSTEM SHALL contarlo en `cashUnlinked`",
+      "WHEN una sesión cerrada tiene una diferencia absoluta mayor que 5.000 THE SYSTEM SHALL contarla en `cashDifferenceOver`, y WHEN un producto tiene `stock_qty` distinto de la suma de sus movimientos THE SYSTEM SHALL contarlo en `stockDrift`",
+      "WHEN `node scripts/f2-check.ts` corre con un `DATABASE_URL` inalcanzable THE SYSTEM SHALL salir con código 2 y un mensaje que contiene `No se pudo conectar`",
+      "WHEN se leen `package.json` y `README.md` THE SYSTEM SHALL tener el script `f2:check` igual a `node --env-file-if-exists=.env scripts/f2-check.ts` y la sección `## Operación de la fase 2`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/phase2-health.test.ts   # expect: exit 0, 0 failed",
+      "out=\"$(DATABASE_URL=postgres://127.0.0.1:1/x node scripts/f2-check.ts 2>&1)\"; test $? -eq 2 && printf '%s' \"$out\" | grep -q 'No se pudo conectar'   # expect: exit 0 — código 2 (conexión) y no 1 (umbral)",
+      "test \"$(node -p \"require('./package.json').scripts['f2:check']\")\" = \"node --env-file-if-exists=.env scripts/f2-check.ts\"   # expect: exit 0",
+      "grep -qF '## Operación de la fase 2' README.md   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "f2-35",
+    "files": [
+      "src/server/taller/phase2-health.ts",
+      "scripts/f2-check.ts",
+      "package.json",
+      "README.md",
+      "tests/integration/phase2-health.test.ts"
+    ],
+    "status": "pending"
+  }
+]
