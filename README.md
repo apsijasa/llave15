@@ -128,6 +128,10 @@ En una orden **Entregada**, dueño, administrador o recepción pueden escribir e
 
 Espera el resultado de la subida. Si aparece **No se pudo subir la foto. Intenta de nuevo.**, revisa la conexión y vuelve a seleccionarla. El límite es **15 MB por foto** y el archivo debe ser una imagen. Si seleccionaste varias y una falla, recarga la galería para comprobar cuáles quedaron guardadas antes de reintentar las pendientes. La recepción exige al menos una foto guardada. Conviene subir las fotos antes de firmar: una subida exitosa recarga la página.
 
+### Indicadores
+
+Dueño y administrador ven en **Indicadores** los ingresos por medio de pago, las entregas y el ticket promedio, las órdenes por estado, los servicios más pedidos, los clientes nuevos y recurrentes, la conversión de reservas y la cobertura de checklist, control e informes, para el rango de fechas que elijan (hasta un año). Es la primera etapa del panel financiero; la caja diaria con apertura y cierre llega con la fase 2.
+
 ### Tareas diarias y respaldos
 
 El escenario de **Make.com** se configura para las **10:00**, zona **America/Santiago**, y encadena cuatro llamadas POST: `/api/tareas/recordatorios`, `/api/tareas/alertas`, `/api/tareas/retencion` y `/api/tareas/mantenciones`, con `Authorization: Bearer <TASKS_SECRET>`. El secreto va en Make.com y en los secretos de la publicación. Configura un aviso al dueño ante respuestas fallidas; los detalles están en **Recordatorios por correo (cron externo)**.

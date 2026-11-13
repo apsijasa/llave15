@@ -51,7 +51,7 @@ Que el dueño tenga, en una sola pantalla de `/taller`, la lectura completa del 
 
 ## Etapas propuestas
 
-- **Etapa A, indicadores con datos de la fase 1.** Una vez cumplidas las dos semanas de operación real, se puede adelantar todo lo marcado "Fase 1" en la tabla, en una pantalla `/taller/indicadores` solo para dueño y administración (permiso `dashboard.finance`). Ningún cambio de esquema: solo consultas.
+- [x] **Etapa A, indicadores con datos de la fase 1: hecha.** Pantalla `/taller/indicadores` para dueño y administración (permiso `dashboard.finance`), decisión 54. Consultas sobre datos de la fase 1 con rango de fechas, sin cambios de esquema.
 - **Etapa B, junto con la fase 2.** Al construir caja, inventario y registro de gastos, se agregan balance, mix de ingresos, inventario y el reporte de ingresos y egresos. El diseño de la fase 2 debe guardar desde el primer día lo que estos indicadores necesitan: costo de cada repuesto, categoría de cada gasto y origen de cada venta.
 - **Etapa C, cierre del panel.** Comparativas contra el período anterior, metas, reportes descargables y, si se decide, cotizaciones independientes.
 
