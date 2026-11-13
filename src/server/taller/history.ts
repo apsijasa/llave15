@@ -5,13 +5,8 @@ import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
 import { localToInstant } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
-import {
-  bikeComponents,
-  payments,
-  workOrderApprovals,
-  workOrderItems,
-  workOrders,
-} from "../db/schema-orders.ts";
+import { workOrderApprovals, workOrderItems, workOrders } from "../db/schema-orders.ts";
+import { bikeComponents, payments } from "../db/schema-payments.ts";
 import { serviceReports } from "../db/schema-reports.ts";
 import { formatClp } from "../email/templates.ts";
 import { getBike } from "./bikes.ts";

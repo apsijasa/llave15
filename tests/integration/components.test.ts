@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeEach, expect, it } from "vitest";
 import type { SessionUser } from "../../src/server/auth/admin-auth.ts";
-import { bikeComponents, workOrderItems, workOrders } from "../../src/server/db/schema-orders.ts";
+import { workOrderItems, workOrders } from "../../src/server/db/schema-orders.ts";
+import { bikeComponents } from "../../src/server/db/schema-payments.ts";
 import { auditLog, bikes, customers } from "../../src/server/db/schema-taller.ts";
 import { branches, users } from "../../src/server/db/schema.ts";
 import {

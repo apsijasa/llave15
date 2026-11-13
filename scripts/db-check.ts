@@ -3,6 +3,7 @@ import { getTableColumns, getTableName } from "drizzle-orm";
 import postgres from "postgres";
 import { getDbEnv } from "../src/lib/env.ts";
 import { orderTables } from "../src/server/db/schema-orders.ts";
+import { paymentTables } from "../src/server/db/schema-payments.ts";
 import { reportTables } from "../src/server/db/schema-reports.ts";
 import { tallerTables } from "../src/server/db/schema-taller.ts";
 import { allTables } from "../src/server/db/schema.ts";
@@ -57,7 +58,13 @@ try {
     process.exit(1);
   }
   const presentColumns = new Set(columns.map((row) => `${row.table_name}.${row.column_name}`));
-  const missingColumns = [...allTables, ...tallerTables, ...orderTables, ...reportTables]
+  const missingColumns = [
+    ...allTables,
+    ...tallerTables,
+    ...orderTables,
+    ...reportTables,
+    ...paymentTables,
+  ]
     .flatMap((table) =>
       Object.values(getTableColumns(table)).map(
         (column) => `${getTableName(table)}.${column.name}`,

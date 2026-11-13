@@ -6,7 +6,8 @@ import { can } from "../auth/permissions.ts";
 import { TIMEZONE } from "../booking/rules.ts";
 import { localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
-import { payments, workOrderItems, workOrders } from "../db/schema-orders.ts";
+import { workOrderItems, workOrders } from "../db/schema-orders.ts";
+import { payments } from "../db/schema-payments.ts";
 import { users } from "../db/schema.ts";
 import {
   bookingIndicators,

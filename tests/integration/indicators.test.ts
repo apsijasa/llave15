@@ -4,12 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { log } from "../../src/lib/log.ts";
 import type { SessionUser } from "../../src/server/auth/admin-auth.ts";
 import { createBooking } from "../../src/server/booking/create-booking.ts";
-import {
-  intakeChecks,
-  payments,
-  workOrderItems,
-  workOrders,
-} from "../../src/server/db/schema-orders.ts";
+import { intakeChecks, workOrderItems, workOrders } from "../../src/server/db/schema-orders.ts";
+import { payments } from "../../src/server/db/schema-payments.ts";
 import { serviceReports } from "../../src/server/db/schema-reports.ts";
 import { bikes, customers, servicePrices, services } from "../../src/server/db/schema-taller.ts";
 import { bookings, branches, users } from "../../src/server/db/schema.ts";

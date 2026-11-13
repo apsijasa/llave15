@@ -5,13 +5,13 @@ import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
 import type { AppDb } from "../db/client.ts";
 import {
-  bikeComponents,
   intakeChecks,
   orderPhotos,
   workOrderApprovals,
   workOrderItems,
   workOrders,
 } from "../db/schema-orders.ts";
+import { bikeComponents } from "../db/schema-payments.ts";
 import { serviceReports } from "../db/schema-reports.ts";
 import { bikes, customers, services } from "../db/schema-taller.ts";
 import type { ObjectStorage } from "../storage/storage.ts";

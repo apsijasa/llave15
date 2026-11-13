@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, expect, it } from "vitest";
 import type { SessionUser } from "../../src/server/auth/admin-auth.ts";
-import { payments, workOrders } from "../../src/server/db/schema-orders.ts";
+import { workOrders } from "../../src/server/db/schema-orders.ts";
+import { payments } from "../../src/server/db/schema-payments.ts";
 import { bikes, customers } from "../../src/server/db/schema-taller.ts";
 import { branches, users } from "../../src/server/db/schema.ts";
 import { adminDashboard } from "../../src/server/taller/dashboard.ts";
