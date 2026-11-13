@@ -106,7 +106,7 @@ Dueño, administrador o recepción abren **Adicional**, escriben problema, recom
 ### Control de calidad
 
 Al terminar la reparación, pasa la orden a **Control de calidad** y abre esa pantalla en la tablet. Solo el dueño puede registrar la revisión: marca **OK** o **Falla** en todos los puntos, anota lo necesario y pulsa **Aprobar control**. Si todo está OK, queda **Lista para retirar**; si hay una falla, vuelve a **En reparación** y conserva el historial. Actualmente se permite el autocontrol del dueño y queda identificado en el historial.
-Al aprobar el control, se avisa al cliente por correo si tiene un correo registrado.
+Al aprobar el control, se avisa al cliente por correo si tiene un correo registrado. Si WhatsApp está habilitado y el cliente lo aceptó al reservar, también recibe el aviso por WhatsApp.
 
 ### Pagos y entrega
 
@@ -211,6 +211,7 @@ La integración directa con **WhatsApp Business Cloud API de Meta** es opcional.
 4. En WhatsApp Manager, crea las plantillas de categoría correspondiente y espera la aprobación de Meta antes de enviar. Configura los nombres aprobados en `WHATSAPP_REMINDER_TEMPLATE` y `WHATSAPP_READY_TEMPLATE`, y el idioma disponible/aprobado en `WHATSAPP_TEMPLATE_LANGUAGE` (por defecto `es_CL`). Los parámetros del cuerpo deben ser posicionales y mantener este orden:
    - Recordatorio: `{{1}}` nombre, `{{2}}` fecha `dd/MM/yyyy`, `{{3}}` hora de Santiago `HH:mm`, `{{4}}` código de reserva.
    - Bicicleta lista: `{{1}}` nombre, `{{2}}` bicicleta, `{{3}}` código.
+   - Cuando el aviso sale por una orden, `WHATSAPP_READY_TEMPLATE` recibe `[nombre, bicicleta, número de orden]` (por ejemplo, `OT-00001`). El dueño revisa el texto aprobado en Meta antes de habilitar WhatsApp para órdenes.
    - Ejemplo de recordatorio: «Hola {{1}}, te recordamos tu reserva del {{2}} a las {{3}}. Código: {{4}}».
    - Ejemplo de bicicleta lista: «Hola {{1}}, tu bicicleta {{2}} está lista para retirar. Reserva: {{3}}».
 5. En los secretos del entorno donde corre la app, configura `WHATSAPP_ENABLED=true`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_GRAPH_VERSION` (por defecto `v23.0`) y los nombres/idioma exactos de las plantillas aprobadas. Mantén `WHATSAPP_ENABLED=false` mientras falte cualquier requisito. No agregues ninguna de estas credenciales al cliente.
