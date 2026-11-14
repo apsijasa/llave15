@@ -171,7 +171,7 @@ Se pueden publicar juntas: `db:migrate` aplica todas las pendientes en orden.
 pnpm inventory:import <archivo.csv> <correo> [--dry-run]
 ```
 
-El CSV vive **fuera del repositorio**. Corre primero con `--dry-run` para revisar los errores sin escribir. El correo es el de un usuario dueño o administración, que queda como autor de los productos y de sus movimientos iniciales. Sale `0` si todo entró, `1` si el CSV o el correo tienen errores, y `2` si faltan argumentos o falla la base.
+El CSV vive **fuera del repositorio**. El comando escribe en la base de `DATABASE_URL`: en la Shell del workspace de Replit es la de **desarrollo**; cargar el inventario en producción requiere la conexión de producción y se coordina aparte. Corre primero con `--dry-run` para revisar los errores sin escribir. El correo es el de un usuario dueño o administración, que queda como autor de los productos y de sus movimientos iniciales. Sale `0` si todo entró, `1` si el CSV o el correo tienen errores, y `2` si faltan argumentos o falla la base.
 
 ### Chequeo diario `f2:check`
 
@@ -188,7 +188,27 @@ Revisa todas las sucursales e imprime solo conteos, nunca datos personales:
 | `cashDifferenceOver` | Cierres de caja con una diferencia de más de $5.000, en cualquier sentido. |
 | `stockDrift` | Productos cuyo stock no coincide con la suma de sus movimientos. |
 
-Sale `0` si los cuatro están en cero, `1` si alguno no, y `2` si no pudo conectarse a la base. Durante el primer mes de operación con stock y caja, **el dueño lo corre cada día contra producción** en la Shell de Replit (`corepack pnpm@12.4.2 f2:check`). Claude nunca lo corre contra producción.
+Sale `0` si los cuatro están en cero, `1` si alguno no, y `2` si no pudo conectarse a la base.
+
+**Ojo:** `f2:check` revisa la base a la que apunta `DATABASE_URL`. En la Shell del workspace de Replit esa es la base **de desarrollo**, no la de producción. Para revisar producción, durante el primer mes de operación con stock y caja el dueño corre cada día esta consulta de solo lectura en el panel **Database** de producción; las cuatro columnas deben dar `0`:
+
+```sql
+select
+  (select count(*) from work_orders
+     where pricing_mode = 'neto' and vat_clp <> (subtotal_clp * 19 + 50) / 100) as neto_inconsistent,
+  (select count(*) from payments p join branches b on b.id = p.branch_id
+     where b.cash_control_enabled and p.method = 'efectivo' and p.voided_at is null
+       and p.cash_session_id is null
+       and p.created_at > (select max(a.created_at) from audit_log a
+                           where a.branch_id = p.branch_id and a.action = 'cash.control_changed')) as cash_unlinked,
+  (select count(*) from cash_sessions
+     where closed_at is not null and abs(difference_clp) > 5000) as cash_difference_over,
+  (select count(*) from products p
+     where p.stock_qty <> coalesce((select sum(m.quantity) from stock_movements m
+                                    where m.product_id = p.id), 0)) as stock_drift;
+```
+
+Claude nunca consulta producción.
 
 ### Criterios de la fase y sus pruebas
 
@@ -207,7 +227,7 @@ Sale `0` si los cuatro están en cero, `1` si alguno no, y `2` si no pudo conect
 | 11. La auditoría registra ajustes, cierres, anulaciones y descuentos | `products.test.ts` (`stock.adjusted`), `cash.test.ts` (`cash.closed`), `sales.test.ts` (`sale.voided`, `sale.discounted`), `cash-sales-refunds.test.ts` (`cash.refund`) |
 | 12. Orden neta de $10.000: IVA $1.900 y total $11.900; las anteriores no cambian | `tests/integration/pricing-totals.test.ts` y `order-amounts-page.test.ts` |
 | 13. `pnpm gate` en verde | `pnpm gate` |
-| 14. Un mes de operación real con stock y caja sin planilla | Lo confirma el dueño; `pnpm f2:check` sale `0` cada día del mes |
+| 14. Un mes de operación real con stock y caja sin planilla | Lo confirma el dueño; la consulta de salud da `0` en producción cada día del mes |
 
 ## Publicar
 
