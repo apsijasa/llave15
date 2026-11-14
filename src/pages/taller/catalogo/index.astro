@@ -2,6 +2,7 @@
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
@@ -13,7 +14,17 @@ import {
   pricesFormSchema,
   serviceFormSchema,
 } from "../../../server/taller/catalog.ts";
-import { BIKE_TYPES, BIKE_TYPE_LABELS } from "../../../server/taller/rules.ts";
+import {
+  getNewOrderPricingMode,
+  pricingModeSchema,
+  setNewOrderPricingMode,
+} from "../../../server/taller/order-creation.ts";
+import {
+  BIKE_TYPES,
+  BIKE_TYPE_LABELS,
+  PRICING_MODES,
+  PRICING_MODE_LABELS,
+} from "../../../server/taller/rules.ts";
 
 export const prerender = false;
 const PATH = "/taller/catalogo";
@@ -53,50 +64,95 @@ if (Astro.request.method === "POST") {
   if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
   if (!can(user.role, "catalog.edit")) return forbiddenResponse();
   const form = await Astro.request.formData();
-  values = Object.fromEntries([...form].map(([key, value]) => [key, String(value)]));
-  const parsed = formSchema.safeParse({
-    ...values,
-    isActive: true,
-    prices: Object.fromEntries(BIKE_TYPES.map((type) => [type, values[`precio_${type}`] ?? ""])),
-  });
-  if (!parsed.success) {
-    Astro.response.status = 422;
-    error = "Revisa los datos del servicio.";
-    for (const issue of parsed.error.issues) {
-      const field = String(issue.path[0]);
-      if (field === "prices") {
-        fieldErrors[`price-${String(issue.path[1])}`] =
-          fieldMessages.priceClp ?? "Revisa este dato.";
-      } else {
-        fieldErrors[field] = fieldMessages[field] ?? "Revisa este dato.";
-      }
+  if (form.get("action") === "pricing") {
+    const parsed = pricingModeSchema.safeParse({ mode: form.get("mode") });
+    if (!parsed.success) {
+      Astro.response.status = 422;
+      fieldErrors.mode = "Selecciona un régimen de precios válido.";
+    } else {
+      const result = await setNewOrderPricingMode(db, user, parsed.data, now);
+      if (result.ok)
+        return new Response(null, {
+          status: 303,
+          headers: { location: `${PATH}?hecho=pricing`, "cache-control": "no-store" },
+        });
+      if (result.code === "forbidden") return forbiddenResponse();
+      Astro.response.status = result.code === "not_found" ? 404 : 422;
+      fieldErrors.mode = "No se pudo guardar el régimen de precios.";
     }
   } else {
-    const { prices, ...input } = parsed.data;
-    const result = await createService(db, user, input, now, prices);
-    if (result.ok)
-      return new Response(null, {
-        status: 303,
-        headers: {
-          location: `${PATH}?hecho=crear`,
-          "cache-control": "no-store",
-        },
-      });
-    if (result.code === "forbidden") return forbiddenResponse();
-    Astro.response.status = 409;
-    error = "Ya existe un servicio con ese nombre en tu sucursal.";
-    fieldErrors.name = error;
+    values = Object.fromEntries([...form].map(([key, value]) => [key, String(value)]));
+    const parsed = formSchema.safeParse({
+      ...values,
+      isActive: true,
+      prices: Object.fromEntries(BIKE_TYPES.map((type) => [type, values[`precio_${type}`] ?? ""])),
+    });
+    if (!parsed.success) {
+      Astro.response.status = 422;
+      error = "Revisa los datos del servicio.";
+      for (const issue of parsed.error.issues) {
+        const field = String(issue.path[0]);
+        if (field === "prices") {
+          fieldErrors[`price-${String(issue.path[1])}`] =
+            fieldMessages.priceClp ?? "Revisa este dato.";
+        } else {
+          fieldErrors[field] = fieldMessages[field] ?? "Revisa este dato.";
+        }
+      }
+    } else {
+      const { prices, ...input } = parsed.data;
+      const result = await createService(db, user, input, now, prices);
+      if (result.ok)
+        return new Response(null, {
+          status: 303,
+          headers: {
+            location: `${PATH}?hecho=crear`,
+            "cache-control": "no-store",
+          },
+        });
+      if (result.code === "forbidden") return forbiddenResponse();
+      Astro.response.status = 409;
+      error = "Ya existe un servicio con ese nombre en tu sucursal.";
+      fieldErrors.name = error;
+    }
   }
 }
 const catalog = await listCatalog(db, user);
-const notice = Astro.url.searchParams.get("hecho") === "crear" ? "Servicio creado." : "";
+const pricingMode = canEdit ? await getNewOrderPricingMode(db, user) : null;
+const notices: Record<string, string> = {
+  crear: "Servicio creado.",
+  pricing: "Régimen de precios guardado.",
+};
+const notice = notices[Astro.url.searchParams.get("hecho") ?? ""] ?? "";
 ---
 
-<TallerLayout title="Catálogo — Vector Bikes" description="Servicios y precios del taller por tipo de bicicleta." path={PATH} user={user}>
+<TallerLayout title={`Catálogo — ${SITE.name}`} description="Servicios y precios del taller por tipo de bicicleta." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Catálogo de servicios" />
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}</p>}
+    {canEdit && pricingMode && (
+      <Card id="pricing-mode" title="Régimen de precios de órdenes nuevas">
+        <p>Régimen actual: {PRICING_MODE_LABELS[pricingMode]}</p>
+        <form method="post" action={PATH}>
+          <input type="hidden" name="action" value="pricing" />
+          <fieldset>
+            <legend>Régimen de precios</legend>
+            <div class="options">
+              {PRICING_MODES.map((mode) => (
+                <label>
+                  <input type="radio" name="mode" value={mode} required checked={pricingMode === mode} aria-invalid={Boolean(fieldErrors.mode)} aria-describedby={fieldErrors.mode ? "pricing-error pricing-note" : "pricing-note"} />
+                  {PRICING_MODE_LABELS[mode]}
+                </label>
+              ))}
+            </div>
+            {fieldErrors.mode && <p id="pricing-error" role="alert">{fieldErrors.mode}</p>}
+          </fieldset>
+          <p id="pricing-note" class="muted">Afecta solo a las órdenes creadas después del cambio. Antes de pasar a netos, confirma que los precios del catálogo y de los productos están cargados sin IVA.</p>
+          <button type="submit" class="btn">Guardar régimen</button>
+        </form>
+      </Card>
+    )}
     <Card><div class="scroll-x">
       <table class="dense">
         <caption>Servicios y precios en pesos chilenos de tu sucursal</caption>

@@ -9,23 +9,13 @@ import { bookingBikes, bookings } from "../db/schema.ts";
 import { recordAudit } from "./audit.ts";
 import { bikeFormSchema, insertBike, listBikesOfCustomer } from "./bikes.ts";
 import { customerFormSchema, findCustomerByPhone, insertCustomer } from "./customers.ts";
+import { allocateNewOrder } from "./order-creation.ts";
 import { isAllowedTransition, TAX_DOC_TYPES } from "./rules.ts";
 import type { OrderStatus } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 
 export function formatOrderNumber(n: number): string {
   return `OT-${String(n).padStart(5, "0")}`;
-}
-
-export async function allocateOrderNumber(db: AppDb, branchId: string): Promise<number> {
-  const result = (await db.execute(sql`
-    update branches set next_order_number = next_order_number + 1
-    where id = ${branchId} returning next_order_number - 1 as number
-  `)) as unknown as { number: number }[] | { rows: { number: number }[] };
-  // postgres-js devuelve un arreglo; PGlite devuelve { rows }.
-  const [row] = Array.isArray(result) ? result : result.rows;
-  if (!row) throw new Error("No se encontró la sucursal para numerar la orden.");
-  return row.number;
 }
 
 type StatusChange = {
@@ -208,12 +198,13 @@ async function insertReceptionOrder(
   const bookingPosition = await requireAvailableBooking(db, actor, input.bookingId);
   const customer = await receptionCustomer(db, actor, input, now);
   const bike = await receptionBike(db, actor, customer.id, input, now);
-  const number = await allocateOrderNumber(db, actor.branchId);
+  const { number, pricingMode } = await allocateNewOrder(db, actor.branchId);
   const [order] = await db
     .insert(workOrders)
     .values({
       branchId: actor.branchId,
       number,
+      pricingMode,
       customerId: customer.id,
       bikeId: bike.id,
       bookingId: input.bookingId,
@@ -371,12 +362,13 @@ export async function openWarrantyOrder(
       .for("update");
     if (!original || original.voidedAt) return { ok: false, code: "not_found" } as const;
     if (original.status !== "entregada") return { ok: false, code: "not_delivered" } as const;
-    const number = await allocateOrderNumber(tx, actor.branchId);
+    const { number, pricingMode } = await allocateNewOrder(tx, actor.branchId);
     const [order] = await tx
       .insert(workOrders)
       .values({
         branchId: actor.branchId,
         number,
+        pricingMode,
         customerId: original.customerId,
         bikeId: original.bikeId,
         warrantyOfOrderId: originalId,
