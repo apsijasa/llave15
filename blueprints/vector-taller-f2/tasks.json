@@ -765,7 +765,7 @@
       "tests/integration/cash-links-schema.test.ts",
       "drizzle/**"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E4-T3",
