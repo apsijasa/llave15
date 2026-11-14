@@ -225,6 +225,13 @@
       "when": 1794686691893,
       "tag": "0031_brainy_hawkeye",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1794691883991,
+      "tag": "0032_chilly_power_pack",
+      "breakpoints": true
     }
   ]
 }

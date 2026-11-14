@@ -169,6 +169,7 @@ export const branches = pgTable(
     nextPurchaseNumber: integer("next_purchase_number").notNull().default(1),
     nextSaleNumber: integer("next_sale_number").notNull().default(1),
     newOrderPricingMode: text("new_order_pricing_mode").notNull().default("final"),
+    cashControlEnabled: boolean("cash_control_enabled").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

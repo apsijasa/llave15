@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { getTableColumns, getTableName } from "drizzle-orm";
 import postgres from "postgres";
 import { getDbEnv } from "../src/lib/env.ts";
+import { cashTables } from "../src/server/db/schema-cash.ts";
 import { inventoryTables } from "../src/server/db/schema-inventory.ts";
 import { orderTables } from "../src/server/db/schema-orders.ts";
 import { paymentTables } from "../src/server/db/schema-payments.ts";
@@ -66,6 +67,7 @@ try {
     ...inventoryTables,
     ...orderTables,
     ...reportTables,
+    ...cashTables,
     ...saleTables,
     ...paymentTables,
   ]
