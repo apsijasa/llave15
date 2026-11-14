@@ -429,7 +429,7 @@
       "src/server/taller/quotes.ts",
       "tests/integration/pricing-notifications.test.ts"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E2-T7",
