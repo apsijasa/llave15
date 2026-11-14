@@ -570,7 +570,7 @@
       "tests/integration/payments-extension.test.ts",
       "drizzle/**"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E3-T3",
