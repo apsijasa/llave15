@@ -7,6 +7,7 @@ import type { AppDb } from "../db/client.ts";
 import { workOrders } from "../db/schema-orders.ts";
 import { payments } from "../db/schema-payments.ts";
 import { recordAudit } from "./audit.ts";
+import { recordCashMovement, requireOpenCashSession, voidCashMovementFor } from "./cash.ts";
 import type { AuditAction } from "./audit.ts";
 import { PAYMENT_KINDS, RECORDABLE_PAYMENT_METHODS, TERMINAL_STATUSES } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
@@ -117,6 +118,15 @@ async function auditPayment(
   );
 }
 
+/** Error centinela: el movimiento de caja falló después de escribir el pago. */
+class CashMovementFailure extends Error {
+  code: string;
+  constructor(code: string) {
+    super(code);
+    this.code = code;
+  }
+}
+
 function isDepositConflict(error: unknown): boolean {
   if (!isUniqueViolation(error)) return false;
   const seen = new Set<unknown>();
@@ -140,6 +150,7 @@ async function insertPayment(
   orderId: string,
   input: z.infer<typeof paymentInputSchema>,
   now: Date,
+  cashSessionId: string | null = null,
 ) {
   const values =
     input.method === "mercadopago"
@@ -151,6 +162,7 @@ async function insertPayment(
       ...values,
       branchId: actor.branchId,
       workOrderId: orderId,
+      cashSessionId,
       receivedBy: actor.id,
       receivedAt: now,
       createdAt: now,
@@ -158,6 +170,21 @@ async function insertPayment(
     })
     .returning({ id: payments.id });
   if (!payment) throw new Error("No se pudo registrar el pago.");
+  if (cashSessionId) {
+    const movement = await recordCashMovement(
+      db,
+      actor,
+      {
+        sessionId: cashSessionId,
+        kind: "ingreso",
+        amountClp: input.amountClp,
+        referenceKind: "payment",
+        referenceId: payment.id,
+      },
+      now,
+    );
+    if (!movement.ok) throw new CashMovementFailure(movement.code);
+  }
   await recomputePaid(db, orderId, now);
   await auditPayment(db, actor, orderId, "payment.recorded", values, now);
   return { ok: true, paymentId: payment.id } as const;
@@ -188,10 +215,17 @@ export async function recordPayment(
         return { ok: false, code: "invalid_status" } as const;
       if (parsed.data.amountClp <= 0 || parsed.data.amountClp > order.totalClp - order.paidClp)
         return { ok: false, code: "invalid_amount" } as const;
-      return insertPayment(tx, actor, orderId, parsed.data, now);
+      let cashSessionId: string | null = null;
+      if (parsed.data.method === "efectivo") {
+        const cash = await requireOpenCashSession(tx, actor.branchId);
+        if (cash.mode === "closed") return { ok: false, code: "cash_closed" } as const;
+        if (cash.mode === "open") cashSessionId = cash.sessionId;
+      }
+      return insertPayment(tx, actor, orderId, parsed.data, now, cashSessionId);
     });
   } catch (error) {
     if (isDepositConflict(error)) return { ok: false, code: "deposit_exists" } as const;
+    if (error instanceof CashMovementFailure) return { ok: false, code: error.code } as const;
     throw error;
   }
 }
@@ -222,6 +256,10 @@ export async function voidPayment(db: AppDb, actor: SessionUser, paymentId: stri
     if (!access.ok) return access;
     const { payment } = access;
     if (payment.workOrderId === null) return { ok: false, code: "not_found" } as const;
+    if (payment.cashSessionId) {
+      const cash = await voidCashMovementFor(tx, actor, "payment", paymentId, now);
+      if (!cash.ok) return cash;
+    }
     await tx
       .update(payments)
       .set({ voidedAt: now, voidedBy: actor.id, updatedAt: now })

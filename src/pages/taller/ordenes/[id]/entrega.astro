@@ -149,6 +149,8 @@ if (parsedInput?.success) {
     invalid_status: "El estado de la orden no permite esta operación de pago.",
     invalid_amount: "El monto debe ser un entero mayor que cero y no superar el saldo.",
     deposit_exists: "Ya hay un abono vigente. Anúlalo antes de registrar otro.",
+    cash_closed: "La caja está cerrada: ábrela en Caja antes de cobrar en efectivo.",
+    cash_session_closed: "La caja de ese pago ya se cerró: registra una devolución en Caja.",
     not_found: "No se encontró la orden o el pago.",
   };
   if (action === "deliver")
