@@ -1,0 +1,185 @@
+---
+import { DateTime } from "luxon";
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { TIMEZONE } from "../../../server/booking/rules.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { formatClp } from "../../../server/email/templates.ts";
+import {
+  PAYMENT_METHOD_LABELS,
+  SALE_STATUSES,
+  SALE_STATUS_LABELS,
+} from "../../../server/taller/rules.ts";
+import { voidSale } from "../../../server/taller/sale-void.ts";
+import { listSales } from "../../../server/taller/sales.ts";
+
+export const prerender = false;
+const PATH = "/taller/ventas";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "sales.record")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+
+const today = DateTime.fromJSDate(now, { zone: TIMEZONE }).toFormat("yyyy-MM-dd");
+const rangeSchema = z
+  .object({ from: z.iso.date(), to: z.iso.date() })
+  .refine(
+    ({ from, to }) =>
+      from <= to &&
+      DateTime.fromISO(to, { zone: "UTC" }).diff(DateTime.fromISO(from, { zone: "UTC" }), "days")
+        .days < 31,
+  );
+const rangeValues = {
+  from: Astro.url.searchParams.get("desde") ?? today,
+  to: Astro.url.searchParams.get("hasta") ?? today,
+};
+const range = rangeSchema.safeParse(rangeValues);
+if (!range.success) Astro.response.status = 422;
+const notice = z
+  .object({
+    hecho: z.enum(["sale", "void"]),
+    venta: z
+      .string()
+      .regex(/^VM-\d{5}$/)
+      .optional(),
+  })
+  .safeParse(Object.fromEntries(Astro.url.searchParams));
+const success = notice.success
+  ? notice.data.hecho === "void"
+    ? "Venta anulada."
+    : notice.data.venta
+      ? `Venta ${notice.data.venta} registrada.`
+      : ""
+  : "";
+const voidSchema = z.object({
+  action: z.literal("void"),
+  saleId: z.uuid(),
+  reason: z.string().trim().min(3).max(200),
+});
+let error = "";
+let values: Record<string, string> = {};
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  if (!can(user.role, "payments.void")) return forbiddenResponse();
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const parsed = voidSchema.safeParse(values);
+  if (!parsed.success) {
+    Astro.response.status = 422;
+    error = "Selecciona una venta y escribe un motivo de entre 3 y 200 caracteres.";
+  } else if (range.success) {
+    const result = await voidSale(
+      db,
+      user,
+      parsed.data.saleId,
+      { reason: parsed.data.reason },
+      now,
+    );
+    if (result.ok) {
+      const query = new URLSearchParams({
+        hecho: "void",
+        desde: range.data.from,
+        hasta: range.data.to,
+      });
+      return new Response(null, {
+        status: 303,
+        headers: { location: `${PATH}?${query}`, "cache-control": "no-store" },
+      });
+    }
+    if (result.code === "forbidden") return forbiddenResponse();
+    Astro.response.status =
+      result.code === "not_found" ? 404 : result.code === "validation_error" ? 422 : 409;
+    error =
+      result.code === "not_found"
+        ? "No se encontró la venta en tu sucursal."
+        : result.code === "invalid_status"
+          ? "La venta ya está anulada o su estado no permite anularla."
+          : "No se pudo anular la venta. Revisa los datos.";
+  }
+}
+const sales = range.success
+  ? (await listSales(db, user, range.data)).map((sale) => ({
+      ...sale,
+      status: z.enum(SALE_STATUSES).parse(sale.status),
+    }))
+  : [];
+const canVoid = can(user.role, "payments.void");
+const dateFormat = new Intl.DateTimeFormat("es-CL", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: TIMEZONE,
+});
+---
+
+<TallerLayout title={`Ventas — ${SITE.name}`} description="Ventas de mostrador del taller." path={PATH} user={user}>
+  <div class="stack sale-list">
+    <PageHeader title="Ventas"><a slot="actions" class="btn" href="/taller/ventas/nueva">Nueva venta</a></PageHeader>
+    {success && Astro.request.method === "GET" && <p role="status">{success}</p>}
+    {error && <p role="alert" id="void-error">{error}</p>}
+    <Card title="Rango de fechas" id="sales-range">
+      {!range.success && <p role="alert" id="range-error">El rango no es válido. Usa Desde anterior o igual a Hasta y un máximo de 31 días.</p>}
+      <form method="get" action={PATH} class="sales-range">
+        <div class="field"><label for="desde">Desde</label><input id="desde" name="desde" type="date" value={rangeValues.from} required aria-invalid={!range.success} aria-describedby={!range.success ? "range-error" : undefined} /></div>
+        <div class="field"><label for="hasta">Hasta</label><input id="hasta" name="hasta" type="date" value={rangeValues.to} required aria-invalid={!range.success} aria-describedby={!range.success ? "range-error" : undefined} /></div>
+        <button type="submit" class="btn">Aplicar</button>
+      </form>
+    </Card>
+    <Card>
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Ventas del período</caption>
+          <thead><tr><th scope="col">Número</th><th scope="col">Hora</th><th scope="col">Cliente</th><th scope="col">Total</th><th scope="col">Medio</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead>
+          <tbody>
+            {sales.map((sale) => <tr>
+              <th scope="row">{sale.number}</th>
+              <td><time datetime={sale.createdAt.toISOString()}>{dateFormat.format(sale.createdAt)}</time></td>
+              <td>{sale.customerName ?? "Sin cliente"}</td>
+              <td>{formatClp(sale.totalClp)}</td>
+              <td>{sale.method ? PAYMENT_METHOD_LABELS[sale.method] : "—"}</td>
+              <td><span class={`status status--${sale.status}`}>{SALE_STATUS_LABELS[sale.status]}</span></td>
+              <td>{canVoid && sale.status !== "anulada" ? <form method="post" class="stack sale-void" action={`${PATH}?${new URLSearchParams({ desde: rangeValues.from, hasta: rangeValues.to })}`}>
+                <input type="hidden" name="action" value="void" />
+                <input type="hidden" name="saleId" value={sale.id} />
+                <div class="field">
+                  <label for={`reason-${sale.id}`}>Motivo</label>
+                  <input id={`reason-${sale.id}`} name="reason" required minlength="3" maxlength="200" value={values.saleId === sale.id ? values.reason ?? "" : ""} aria-invalid={Boolean(error && values.saleId === sale.id)} aria-describedby={error && values.saleId === sale.id ? "void-error" : undefined} />
+                </div>
+                <button type="submit" class="btn ghost" name="submit" aria-label={`Anular ${sale.number}`}>Anular</button>
+              </form> : "—"}</td>
+            </tr>)}
+            {sales.length === 0 && <tr><td colspan="7">No hay ventas en este período.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .sale-list .sales-range { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+  .taller .sale-list .sale-void { min-width: 180px; gap: 8px; }
+  .taller .sale-list .status--abierta { border-style: dotted; }
+  .taller .sale-list .status--pagada { border: 3px double var(--ink); }
+  .taller .sale-list .status--anulada { border-style: dashed; }
+</style>

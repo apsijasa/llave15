@@ -1,0 +1,250 @@
+---
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin, normalizePhone } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { formatClp } from "../../../server/email/templates.ts";
+import { findCustomerByPhone } from "../../../server/taller/customers.ts";
+import { listProducts } from "../../../server/taller/products.ts";
+import {
+  PAYMENT_METHOD_LABELS,
+  RECORDABLE_PAYMENT_METHODS,
+  VAT_RATE_PERCENT,
+} from "../../../server/taller/rules.ts";
+import { createSale, previewSale, saleFormSchema } from "../../../server/taller/sales.ts";
+
+export const prerender = false;
+const PATH = "/taller/ventas/nueva";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "sales.record")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+
+const rows = [1, 2, 3, 4, 5];
+const canDiscount = can(user.role, "items.override_price");
+const requestSchema = z.object({
+  action: z.enum(["preview", "record"]),
+  phone: z
+    .string()
+    .trim()
+    .max(30)
+    .refine((phone) => !phone || normalizePhone(phone) !== null)
+    .transform((phone) => normalizePhone(phone) ?? ""),
+});
+let values: Record<string, string> = { method: "transferencia", discountClp: "0" };
+const fieldErrors: Record<string, string> = {};
+let error = "";
+let totals: { subtotalClp: number; vatClp: number; totalClp: number } | undefined;
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const request = requestSchema.safeParse({ ...values, phone: values.phone ?? "" });
+  const selectedRows = rows.filter((row) => values[`product${row}`]);
+  const parsed = saleFormSchema.safeParse({
+    items: selectedRows.map((row) => ({
+      productId: values[`product${row}`],
+      quantity: Number(values[`quantity${row}`]),
+    })),
+    discountClp: Number(values.discountClp || 0),
+    discountReason: values.discountReason || undefined,
+    method: values.method,
+    externalId: values.externalId || undefined,
+    feeClp: values.feeClp ? Number(values.feeClp) : undefined,
+    docType: values.docType || undefined,
+    docNumber: values.docNumber || undefined,
+  });
+  if (!request.success || !parsed.success) {
+    Astro.response.status = 422;
+    error = "Revisa los datos de la venta.";
+    if (!request.success) {
+      if (request.error.issues.some((issue) => issue.path[0] === "phone"))
+        fieldErrors.phone = "Ingresa un teléfono celular chileno válido.";
+    }
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const [field, index, itemField] = issue.path;
+        const key =
+          field === "items" && typeof index === "number"
+            ? `${itemField === "quantity" ? "quantity" : "product"}${selectedRows[index]}`
+            : String(field);
+        fieldErrors[key] = issue.code === "custom" ? issue.message : "Revisa este campo.";
+      }
+    }
+  } else {
+    if (parsed.data.discountClp > 0 && !canDiscount) return forbiddenResponse();
+    const customer = request.data.phone
+      ? await findCustomerByPhone(db, user, request.data.phone)
+      : null;
+    if (request.data.phone && !customer) {
+      Astro.response.status = 422;
+      error = fieldErrors.phone = "No hay un cliente con ese teléfono.";
+    } else {
+      const input = { ...parsed.data, customerId: customer?.id };
+      const result =
+        request.data.action === "preview"
+          ? await previewSale(db, user, input)
+          : await createSale(db, user, input, now);
+      if (result.ok) {
+        if ("number" in result)
+          return new Response(null, {
+            status: 303,
+            headers: {
+              location: `/taller/ventas?hecho=sale&venta=${encodeURIComponent(result.number)}`,
+              "cache-control": "no-store",
+            },
+          });
+        totals = result;
+      } else {
+        if (result.code === "forbidden") return forbiddenResponse();
+        Astro.response.status =
+          result.code === "out_of_stock" ? 409 : result.code === "not_found" ? 404 : 422;
+        error =
+          result.code === "out_of_stock"
+            ? "No hay stock suficiente."
+            : result.code === "invalid_amount"
+              ? "Revisa el descuento, la comisión y el total de la venta."
+              : result.code === "not_found"
+                ? "No se encontró un producto o cliente de tu sucursal."
+                : "Revisa los datos de la venta.";
+      }
+    }
+  }
+}
+const products = (await listProducts(db, user)).filter(
+  (product) => product.isActive && product.stockQty > 0,
+);
+const textFields = [
+  {
+    key: "phone",
+    label: "Teléfono del cliente (opcional)",
+    type: "tel",
+    max: 30,
+    group: "customer",
+  },
+  {
+    key: "discountClp",
+    label: "Descuento (neto)",
+    type: "number",
+    max: 2_147_483_647,
+    group: "discount",
+  },
+  {
+    key: "discountReason",
+    label: "Motivo del descuento",
+    type: "text",
+    max: 200,
+    group: "discount",
+  },
+  { key: "externalId", label: "Id de la operación", type: "text", max: 100, group: "mercadopago" },
+  { key: "feeClp", label: "Comisión", type: "number", max: 2_147_483_647, group: "mercadopago" },
+  { key: "docNumber", label: "Folio", type: "text", max: 30, group: "document" },
+] as const;
+const sections = [
+  { key: "customer", legend: "Cliente" },
+  ...(canDiscount ? [{ key: "discount", legend: "Descuento" }] : []),
+  { key: "mercadopago", legend: "Solo Mercado Pago" },
+  { key: "document", legend: "Documento de venta" },
+];
+---
+
+<TallerLayout title={`Nueva venta — ${SITE.name}`} description="Registrar una venta de mostrador." path="/taller/ventas" user={user}>
+  <div class="stack sale-new">
+    <PageHeader title="Nueva venta"><a slot="actions" href="/taller/ventas">Volver a ventas</a></PageHeader>
+    {error && <p role="alert" id="sale-error">{error}</p>}
+    <Card>
+      {products.length === 0 && <p>No hay productos activos con stock disponible.</p>}
+      <form method="post" action={PATH} class="stack">
+        <fieldset class="stack" aria-describedby={fieldErrors.items ? "items-error" : undefined}>
+          <legend>Productos</legend>
+          {fieldErrors.items && <p id="items-error">Selecciona entre uno y cinco productos distintos.</p>}
+          {rows.map((row) => (
+            <div class="sale-row">
+              <div class="field">
+                <label for={`product${row}`}>Producto {row}</label>
+                <select id={`product${row}`} name={`product${row}`} aria-invalid={Boolean(fieldErrors[`product${row}`] || fieldErrors.items)} aria-describedby={fieldErrors[`product${row}`] ? `product${row}-error` : fieldErrors.items ? "items-error" : undefined}>
+                  <option value="">—</option>
+                  {products.map((product) => <option value={product.id} selected={values[`product${row}`] === product.id}>{`${product.sku} · ${product.name} · stock ${product.stockQty} · ${formatClp(product.priceClp)}`}</option>)}
+                </select>
+                {fieldErrors[`product${row}`] && <p id={`product${row}-error`}>{fieldErrors[`product${row}`]}</p>}
+              </div>
+              <div class="field">
+                <label for={`quantity${row}`}>Cantidad {row}</label>
+                <input id={`quantity${row}`} name={`quantity${row}`} type="number" min="1" max="100" step="1" value={values[`quantity${row}`] ?? "1"} aria-invalid={Boolean(fieldErrors[`quantity${row}`])} aria-describedby={fieldErrors[`quantity${row}`] ? `quantity${row}-error` : undefined} />
+                {fieldErrors[`quantity${row}`] && <p id={`quantity${row}-error`}>{fieldErrors[`quantity${row}`]}</p>}
+              </div>
+            </div>
+          ))}
+        </fieldset>
+        <fieldset aria-describedby={fieldErrors.method ? "method-error" : undefined}>
+          <legend>Medio de pago</legend>
+          <div class="options">
+            {RECORDABLE_PAYMENT_METHODS.map((method) => (
+              <label for={`method-${method}`}><input id={`method-${method}`} type="radio" name="method" value={method} checked={values.method === method} required aria-invalid={Boolean(fieldErrors.method)} aria-describedby={fieldErrors.method ? "method-error" : undefined} />{PAYMENT_METHOD_LABELS[method]}</label>
+            ))}
+          </div>
+          {fieldErrors.method && <p id="method-error">Selecciona un medio de pago.</p>}
+        </fieldset>
+        {sections.map((section) => (
+          <fieldset>
+            <legend>{section.legend}</legend>
+            {section.key === "mercadopago" && <p class="muted">Completa estos campos solo al registrar un pago con Mercado Pago.</p>}
+            <div class="fields">
+              {section.key === "document" && <div class="field">
+                <label for="docType">Documento</label>
+                <select id="docType" name="docType" aria-invalid={Boolean(fieldErrors.docType)} aria-describedby={fieldErrors.docType ? "docType-error" : undefined}>
+                  <option value="">Sin documento</option>
+                  <option value="boleta" selected={values.docType === "boleta"}>Boleta</option>
+                  <option value="factura" selected={values.docType === "factura"}>Factura</option>
+                </select>
+                {fieldErrors.docType && <p id="docType-error">Selecciona un documento válido.</p>}
+              </div>}
+              {textFields.filter((field) => field.group === section.key).map((field) => (
+                <div class="field">
+                  <label for={field.key}>{field.label}</label>
+                  <input id={field.key} name={field.key} type={field.type} value={values[field.key] ?? ""} maxlength={field.type === "number" ? undefined : field.max} min={field.type === "number" ? 0 : undefined} max={field.type === "number" ? field.max : undefined} step={field.type === "number" ? 1 : undefined} aria-invalid={Boolean(fieldErrors[field.key])} aria-describedby={fieldErrors[field.key] ? `${field.key}-error` : undefined} />
+                  {fieldErrors[field.key] && <p id={`${field.key}-error`}>{fieldErrors[field.key]}</p>}
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        {totals && <dl class="data" aria-label="Total de la venta">
+          <dt>Neto</dt><dd>{formatClp(totals.subtotalClp)}</dd>
+          <dt>IVA ({VAT_RATE_PERCENT}%)</dt><dd>{formatClp(totals.vatClp)}</dd>
+          <dt>Total</dt><dd>{formatClp(totals.totalClp)}</dd>
+        </dl>}
+        <div class="sale-actions">
+          <button type="submit" class="btn ghost" name="action" value="preview" disabled={products.length === 0}>Calcular total</button>
+          <button type="submit" class="btn" name="action" value="record" disabled={products.length === 0}>Registrar venta</button>
+        </div>
+      </form>
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .sale-new .sale-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, 100px); gap: 8px; }
+  .taller .sale-new .sale-row select { width: 100%; min-width: 48px; }
+  .taller .sale-new .sale-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+</style>
