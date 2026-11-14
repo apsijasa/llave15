@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { cashSessions } from "./schema-cash.ts";
 import { products } from "./schema-inventory.ts";
 import { customers } from "./schema-taller.ts";
 import { branches, createdAt, instant, updatedAt, users } from "./schema.ts";
@@ -17,6 +18,9 @@ export const sales = pgTable(
     branchId: branchReference(),
     number: integer("number").notNull(),
     customerId: uuid("customer_id").references(() => customers.id, { onDelete: "restrict" }),
+    cashSessionId: uuid("cash_session_id").references(() => cashSessions.id, {
+      onDelete: "restrict",
+    }),
     status: text("status").$type<"abierta" | "pagada" | "anulada">().notNull().default("abierta"),
     subtotalClp: integer("subtotal_clp").notNull(),
     discountClp: integer("discount_clp").notNull().default(0),
@@ -39,6 +43,7 @@ export const sales = pgTable(
     uniqueIndex("uq_sales_branch_number").on(t.branchId, t.number),
     index("idx_sales_branch_created").on(t.branchId, t.createdAt),
     index("idx_sales_customer").on(t.customerId),
+    index("idx_sales_cash_session").on(t.cashSessionId),
     check("sales_number_check", sql`number >= 1`),
     check("sales_status_check", sql`status in ('abierta', 'pagada', 'anulada')`),
     check(

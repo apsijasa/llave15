@@ -232,6 +232,13 @@
       "when": 1794691883991,
       "tag": "0032_chilly_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794693863339,
+      "tag": "0033_secret_madripoor",
+      "breakpoints": true
     }
   ]
 }

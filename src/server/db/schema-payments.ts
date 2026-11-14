@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { check, date, index, integer, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { cashSessions } from "./schema-cash.ts";
 import { workOrderItems, workOrders } from "./schema-orders.ts";
 import { sales } from "./schema-sales.ts";
 import { bikes } from "./schema-taller.ts";
@@ -25,6 +26,9 @@ export const payments = pgTable(
     branchId: branchReference(),
     workOrderId: uuid("work_order_id").references(() => workOrders.id, { onDelete: "restrict" }),
     saleId: uuid("sale_id").references(() => sales.id, { onDelete: "restrict" }),
+    cashSessionId: uuid("cash_session_id").references(() => cashSessions.id, {
+      onDelete: "restrict",
+    }),
     kind: text("kind").$type<"abono" | "final">().notNull(),
     method: text("method")
       .$type<"transferencia" | "tarjeta" | "efectivo" | "otro" | "mercadopago">()
@@ -48,6 +52,7 @@ export const payments = pgTable(
       .where(sql`kind = 'abono' and voided_at is null`),
     index("idx_payments_branch_received").on(t.branchId, t.receivedAt),
     index("idx_payments_sale").on(t.saleId),
+    index("idx_payments_cash_session").on(t.cashSessionId),
     check("payments_kind_check", sql`kind in ('abono', 'final')`),
     check(
       "payments_method_check",
