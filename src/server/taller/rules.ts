@@ -200,3 +200,17 @@ export const STOCK_MOVEMENT_LABELS: Record<(typeof STOCK_MOVEMENT_KINDS)[number]
   devolucion: "Devolución",
   anulacion: "Anulación",
 };
+
+export const PURCHASE_STATUSES = ["borrador", "enviada", "recibida", "anulada"] as const;
+export const PURCHASE_STATUS_LABELS: Record<(typeof PURCHASE_STATUSES)[number], string> = {
+  borrador: "Borrador",
+  enviada: "Enviada",
+  recibida: "Recibida",
+  anulada: "Anulada",
+};
+export const PURCHASE_DOC_TYPES = ["factura", "boleta", "guia"] as const;
+export const PURCHASE_DOC_TYPE_LABELS: Record<(typeof PURCHASE_DOC_TYPES)[number], string> = {
+  factura: "Factura",
+  boleta: "Boleta",
+  guia: "Guía de despacho",
+};
