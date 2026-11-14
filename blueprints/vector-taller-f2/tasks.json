@@ -263,7 +263,7 @@
       "src/layouts/TallerLayout.astro",
       "tests/integration/compras-page.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E2-T1",
