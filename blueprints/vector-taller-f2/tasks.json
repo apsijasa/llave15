@@ -627,7 +627,7 @@
       "src/server/taller/history.ts",
       "tests/integration/sales.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E3-T5",
