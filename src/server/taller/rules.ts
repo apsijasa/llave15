@@ -244,3 +244,11 @@ export function grossOfNet(net: number): number {
 export function netOfGross(gross: number): number {
   return Math.round((gross * 100) / (100 + VAT_RATE_PERCENT));
 }
+
+export const CASH_MOVEMENT_KIND_LABELS = { ingreso: "Ingreso", egreso: "Egreso" } as const;
+export const CASH_REFERENCE_LABELS = {
+  payment: "Pago",
+  expense: "Gasto",
+  sale_refund: "Devolución de venta",
+  order_refund: "Devolución de orden",
+} as const;
