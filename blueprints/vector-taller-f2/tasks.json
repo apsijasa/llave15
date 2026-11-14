@@ -598,7 +598,7 @@
       "tests/integration/payment-method-check.test.ts",
       "drizzle/**"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E3-T4",
