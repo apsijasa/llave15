@@ -320,7 +320,7 @@
       "src/pages/taller/catalogo/index.astro",
       "tests/integration/pricing-switch.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E2-T3",
