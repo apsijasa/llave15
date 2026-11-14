@@ -947,7 +947,7 @@
     ],
     "checkpoint": "f2-33",
     "files": ["src/server/taller/indicators-finance.ts", "tests/integration/indicators-finance.test.ts"],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E5-T4",
