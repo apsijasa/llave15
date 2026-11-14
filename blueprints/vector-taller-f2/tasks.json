@@ -787,7 +787,7 @@
     ],
     "checkpoint": "f2-27",
     "files": ["src/server/taller/cash.ts", "src/server/taller/rules.ts", "tests/integration/cash.test.ts"],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E4-T4",
