@@ -456,7 +456,7 @@
       "src/components/taller/ReportView.astro",
       "tests/integration/report-pricing.test.ts"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E2-T8",
