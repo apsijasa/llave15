@@ -972,7 +972,7 @@
       "src/components/taller/FinanceBlocks.astro",
       "tests/integration/indicadores-finance-page.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E5-T5",
