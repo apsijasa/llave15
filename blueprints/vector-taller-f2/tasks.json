@@ -208,7 +208,7 @@
       "package.json",
       "tests/integration/inventory-import.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E1-T8",
