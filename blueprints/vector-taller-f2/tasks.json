@@ -814,7 +814,7 @@
       "src/pages/taller/ordenes/[id]/entrega.astro",
       "tests/integration/cash-order-payments.test.ts"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E4-T5",
