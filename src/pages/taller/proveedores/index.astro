@@ -1,0 +1,181 @@
+---
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import {
+  createSupplier,
+  listSuppliers,
+  supplierFormSchema,
+  updateSupplier,
+} from "../../../server/taller/suppliers.ts";
+
+export const prerender = false;
+const PATH = "/taller/proveedores";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "purchases.manage")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+const formSchema = supplierFormSchema
+  .omit({ isActive: true })
+  .extend({
+    action: z.enum(["create", "update"]).default("create"),
+    supplierId: z.uuid().optional(),
+    isActive: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
+  })
+  .refine((data) => data.action !== "update" || Boolean(data.supplierId), { path: ["supplierId"] });
+let values: Record<string, string> = {};
+let error = "";
+const fieldErrors: Record<string, string> = {};
+const messages: Record<string, string> = {
+  name: "Ingresa un nombre de 2 a 120 caracteres.",
+  rut: "Ingresa un RUT válido.",
+  phone: "Usa hasta 30 caracteres para el teléfono.",
+  email: "Ingresa un correo válido.",
+  notes: "Usa hasta 500 caracteres para las notas.",
+  isActive: "Selecciona un estado válido.",
+};
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const parsed = formSchema.safeParse(values);
+  if (!parsed.success) {
+    Astro.response.status = 422;
+    error = "Revisa los datos del proveedor.";
+    for (const issue of parsed.error.issues) {
+      const field = String(issue.path[0]);
+      fieldErrors[field] = messages[field] ?? "Revisa este dato.";
+    }
+  } else {
+    const result =
+      parsed.data.action === "update" && parsed.data.supplierId
+        ? await updateSupplier(db, user, parsed.data.supplierId, parsed.data, now)
+        : await createSupplier(db, user, parsed.data, now);
+    if (result.ok)
+      return new Response(null, {
+        status: 303,
+        headers: { location: `${PATH}?hecho=${parsed.data.action}`, "cache-control": "no-store" },
+      });
+    if (result.code === "forbidden") return forbiddenResponse();
+    Astro.response.status = result.code === "not_found" ? 404 : 409;
+    error =
+      result.code === "rut_exists"
+        ? "Ya existe un proveedor con ese RUT en tu sucursal."
+        : "No se encontró el proveedor.";
+    if (result.code === "rut_exists") fieldErrors.rut = error;
+  }
+}
+const suppliers = await listSuppliers(db, user);
+const forms: {
+  id: string;
+  name: string;
+  existing: boolean;
+  failed: boolean;
+  values: Record<string, string>;
+}[] = [
+  { id: "new", name: "Nuevo proveedor", values: {} as Record<string, string>, existing: false },
+  ...suppliers.map((supplier) => ({
+    id: supplier.id,
+    name: supplier.name,
+    existing: true,
+    values: {
+      name: supplier.name,
+      rut: supplier.rut ?? "",
+      phone: supplier.phone ?? "",
+      email: supplier.email ?? "",
+      notes: supplier.notes ?? "",
+      isActive: String(supplier.isActive),
+    },
+  })),
+].map((form) => {
+  const failed = Boolean(error) && (values.supplierId ?? "new") === form.id;
+  return { ...form, failed, values: failed ? values : form.values };
+});
+const fields = [
+  { key: "name", label: "Nombre", type: "text", max: 120 },
+  { key: "rut", label: "RUT", type: "text", max: 30 },
+  { key: "phone", label: "Teléfono", type: "tel", max: 30 },
+  { key: "email", label: "Correo", type: "email", max: 254 },
+] as const;
+const notice = ["create", "update"].includes(Astro.url.searchParams.get("hecho") ?? "")
+  ? "Proveedor guardado."
+  : "";
+---
+
+<TallerLayout title={`Proveedores — ${SITE.name}`} description="Proveedores del taller." path={PATH} user={user}>
+  <div class="stack supplier-list">
+    <PageHeader title="Proveedores" />
+    {notice && <p role="status">{notice}</p>}
+    {error && <p role="alert">{error}</p>}
+    {suppliers.length === 0 && <p>Aún no hay proveedores en tu sucursal.</p>}
+    {forms.map((form) => (
+      <Card title={form.name}>
+        {form.existing && <dl class="data">
+          <dt>RUT</dt><dd>{form.values.rut || "Sin RUT"}</dd>
+          <dt>Teléfono</dt><dd>{form.values.phone || "Sin teléfono"}</dd>
+          <dt>Correo</dt><dd>{form.values.email || "Sin correo"}</dd>
+          <dt>Estado</dt><dd>{form.values.isActive === "false" ? "Inactivo" : "Activo"}</dd>
+        </dl>}
+        <details open={!form.existing || form.failed}>
+          <summary>{form.existing ? "Editar proveedor" : "Datos del nuevo proveedor"}</summary>
+          <form method="post" action={PATH} class="stack">
+            <input type="hidden" name="action" value={form.existing ? "update" : "create"} />
+            {form.existing && <input type="hidden" name="supplierId" value={form.id} />}
+            <div class="fields">
+              {fields.map((field) => (
+                <div class="field">
+                  <label for={`${form.id}-${field.key}`}>{field.label}</label>
+                  <input id={`${form.id}-${field.key}`} name={field.key} type={field.type} required={field.key === "name"} minlength={field.key === "name" ? 2 : undefined} maxlength={field.max} value={form.values[field.key] ?? ""} aria-invalid={form.failed && Boolean(fieldErrors[field.key])} aria-describedby={form.failed && fieldErrors[field.key] ? `${form.id}-${field.key}-error` : undefined} />
+                  {form.failed && fieldErrors[field.key] && <p id={`${form.id}-${field.key}-error`}>{fieldErrors[field.key]}</p>}
+                </div>
+              ))}
+              <div class="field">
+                <label for={`${form.id}-notes`}>Notas</label>
+                <textarea id={`${form.id}-notes`} name="notes" rows="2" maxlength="500" aria-invalid={form.failed && Boolean(fieldErrors.notes)} aria-describedby={form.failed && fieldErrors.notes ? `${form.id}-notes-error` : undefined}>{form.values.notes ?? ""}</textarea>
+                {form.failed && fieldErrors.notes && <p id={`${form.id}-notes-error`}>{fieldErrors.notes}</p>}
+              </div>
+              {form.existing && <div class="field">
+                <label for={`${form.id}-isActive`}>Estado</label>
+                <select id={`${form.id}-isActive`} name="isActive" aria-invalid={form.failed && Boolean(fieldErrors.isActive)} aria-describedby={form.failed && fieldErrors.isActive ? `${form.id}-isActive-error` : undefined}>
+                  <option value="true" selected={form.values.isActive !== "false"}>Activo</option>
+                  <option value="false" selected={form.values.isActive === "false"}>Inactivo</option>
+                </select>
+                {form.failed && fieldErrors.isActive && <p id={`${form.id}-isActive-error`}>{fieldErrors.isActive}</p>}
+              </div>}
+            </div>
+            <button class="btn" type="submit">Guardar proveedor</button>
+          </form>
+        </details>
+      </Card>
+    ))}
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .supplier-list summary { min-height: 48px; min-width: 48px; padding-block: 12px; cursor: pointer; }
+  .taller .supplier-list details { margin-block-start: 8px; }
+</style>

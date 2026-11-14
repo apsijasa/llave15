@@ -1,0 +1,256 @@
+---
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { formatClp } from "../../../server/email/templates.ts";
+import { listProducts } from "../../../server/taller/products.ts";
+import {
+  addPurchaseItem,
+  formatPurchaseNumber,
+  getPurchase,
+  receivePurchase,
+  sendPurchase,
+  voidPurchase,
+} from "../../../server/taller/purchases.ts";
+import {
+  PURCHASE_DOC_TYPES,
+  PURCHASE_DOC_TYPE_LABELS,
+  PURCHASE_STATUSES,
+  PURCHASE_STATUS_LABELS,
+} from "../../../server/taller/rules.ts";
+
+export const prerender = false;
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "purchases.manage")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+if (Astro.request.method === "POST" && !isAllowedOrigin(Astro.request)) return forbiddenResponse();
+const id = z.uuid().safeParse(Astro.params.id);
+if (!id.success)
+  return new Response("Compra no encontrada.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+const purchase = await getPurchase(db, user, id.data);
+if (!purchase)
+  return new Response("Compra no encontrada.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+const PATH = `/taller/compras/${id.data}`;
+const status = z.enum(PURCHASE_STATUSES).parse(purchase.status);
+const docType = z.enum(PURCHASE_DOC_TYPES).nullable().parse(purchase.docType);
+const showCosts = can(user.role, "costs.view");
+function integer(min: number, max: number) {
+  return z
+    .string()
+    .trim()
+    .regex(/^\d+$/)
+    .transform(Number)
+    .pipe(z.number().int().min(min).max(max));
+}
+const formSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("add"),
+    productId: z.uuid(),
+    quantity: integer(1, 10_000),
+    unitCostClp: integer(0, 10_000_000),
+  }),
+  z.object({ action: z.literal("send") }),
+  z.object({
+    action: z.literal("receive"),
+    docType: z.enum(PURCHASE_DOC_TYPES),
+    docNumber: z.string().trim().min(1).max(80),
+  }),
+  z.object({ action: z.literal("void"), reason: z.string().trim().min(3).max(200) }),
+]);
+let values: Record<string, string> = {};
+let error = "";
+const fieldErrors: Record<string, string> = {};
+const messages: Record<string, string> = {
+  productId: "Selecciona un producto.",
+  quantity: "Ingresa una cantidad entera entre 1 y 10000.",
+  unitCostClp: "Ingresa un costo en pesos enteros entre 0 y 10000000.",
+  docType: "Selecciona el tipo de documento.",
+  docNumber: "Ingresa un folio de hasta 80 caracteres.",
+  reason: "Ingresa un motivo de 3 a 200 caracteres.",
+};
+if (Astro.request.method === "POST") {
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const parsed = formSchema.safeParse(values);
+  if (!parsed.success) {
+    Astro.response.status = 422;
+    error = "Revisa los datos de la compra.";
+    for (const issue of parsed.error.issues) {
+      const field = String(issue.path[0]);
+      fieldErrors[field] = messages[field] ?? "Selecciona una acción válida.";
+    }
+  } else {
+    const input = parsed.data;
+    if (input.action === "add" && !showCosts) return forbiddenResponse();
+    const result =
+      input.action === "add"
+        ? await addPurchaseItem(db, user, id.data, input, now)
+        : input.action === "send"
+          ? await sendPurchase(db, user, id.data, now)
+          : input.action === "receive"
+            ? await receivePurchase(db, user, id.data, input, now)
+            : await voidPurchase(db, user, id.data, input, now);
+    if (result.ok)
+      return new Response(null, {
+        status: 303,
+        headers: { location: `${PATH}?hecho=${input.action}`, "cache-control": "no-store" },
+      });
+    if (result.code === "forbidden") return forbiddenResponse();
+    Astro.response.status =
+      result.code === "not_found" ? 404 : result.code === "validation_error" ? 422 : 409;
+    error =
+      result.code === "not_found"
+        ? "No se encontró la compra o el producto."
+        : result.code === "validation_error"
+          ? "Revisa los datos de la compra."
+          : "La compra cambió o esta acción no está disponible. Revisa su estado y sus líneas.";
+  }
+}
+const isDraft = purchase.status === "borrador";
+const canComplete = isDraft || purchase.status === "enviada";
+const products = isDraft && showCosts ? await listProducts(db, user) : [];
+const notices: Record<string, string> = {
+  add: "Línea agregada.",
+  send: "Compra enviada.",
+  receive: "Compra recibida.",
+  void: "Compra anulada.",
+};
+const notice = notices[Astro.url.searchParams.get("hecho") ?? ""];
+const numberFields = [
+  { key: "quantity", label: "Cantidad", min: 1, max: 10000, value: "1" },
+  { key: "unitCostClp", label: "Costo unitario neto", min: 0, max: 10000000, value: "" },
+];
+---
+
+<TallerLayout title={`${formatPurchaseNumber(purchase.number)} — ${SITE.name}`} description="Detalle de la compra al proveedor." path="/taller/compras" user={user}>
+  <div class="stack purchase-detail">
+    <PageHeader title={formatPurchaseNumber(purchase.number)}>
+      <a slot="actions" class="btn ghost" href="/taller/compras">Volver a compras</a>
+    </PageHeader>
+    {notice && <p role="status">{notice}</p>}
+    {error && <p role="alert">{error}</p>}
+    <Card>
+      <dl class="data">
+        <dt>Proveedor</dt><dd>{purchase.supplierName}</dd>
+        <dt>Estado</dt><dd><span class={`status status--${status}`}>{PURCHASE_STATUS_LABELS[status]}</span></dd>
+        {purchase.notes && <><dt>Notas</dt><dd>{purchase.notes}</dd></>}
+        {docType && <><dt>Tipo de documento</dt><dd>{PURCHASE_DOC_TYPE_LABELS[docType]}</dd></>}
+        {purchase.docNumber && <><dt>Folio</dt><dd>{purchase.docNumber}</dd></>}
+      </dl>
+    </Card>
+    <Card title="Líneas">
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Productos de la compra</caption>
+          <thead><tr><th scope="col">SKU</th><th scope="col">Producto</th><th scope="col">Cantidad</th>{showCosts && <th scope="col">Costo unitario neto</th>}{purchase.status === "recibida" && <th scope="col">Stock actual</th>}</tr></thead>
+          <tbody>
+            {purchase.items.map((item) => (
+              <tr>
+                <td>{item.sku}</td><th scope="row">{item.productName}</th><td>{item.quantity}</td>
+                {showCosts && <td>{"unitCostClp" in item && typeof item.unitCostClp === "number" ? formatClp(item.unitCostClp) : "Sin información"}</td>}
+                {purchase.status === "recibida" && <td>{item.stockQty}</td>}
+              </tr>
+            ))}
+            {purchase.items.length === 0 && <tr><td colspan={3 + Number(showCosts) + Number(purchase.status === "recibida")}>La compra aún no tiene líneas.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+    {isDraft && showCosts && <Card title="Agregar línea">
+      <form method="post" action={PATH} class="stack">
+        <input type="hidden" name="action" value="add" />
+        <div class="fields">
+          <div class="field">
+            <label for="productId">Producto</label>
+            <select id="productId" name="productId" required aria-invalid={Boolean(fieldErrors.productId)} aria-describedby={fieldErrors.productId ? "productId-error" : "products-help"}>
+              <option value="">Selecciona un producto</option>
+              {products.map((product) => <option value={product.id} selected={values.productId === product.id}>{product.sku} · {product.name}</option>)}
+            </select>
+            <p id="products-help" class="muted">Hasta 300 productos. Si falta uno, revisa el inventario.</p>
+            {fieldErrors.productId && <p id="productId-error">{fieldErrors.productId}</p>}
+          </div>
+          {numberFields.map((field) => <div class="field">
+            <label for={field.key}>{field.label}</label>
+            <input id={field.key} name={field.key} type="number" inputmode="numeric" required min={field.min} max={field.max} step="1" value={values[field.key] ?? field.value} aria-invalid={Boolean(fieldErrors[field.key])} aria-describedby={fieldErrors[field.key] ? `${field.key}-error` : undefined} />
+            {fieldErrors[field.key] && <p id={`${field.key}-error`}>{fieldErrors[field.key]}</p>}
+          </div>)}
+        </div>
+        <button type="submit" class="btn">Agregar línea</button>
+      </form>
+    </Card>}
+    {isDraft && <Card title="Envío al proveedor">
+      <form method="post" action={PATH}>
+        <input type="hidden" name="action" value="send" />
+        <button type="submit" class="btn">Marcar enviada</button>
+      </form>
+    </Card>}
+    {canComplete && <>
+      <Card title="Recibir compra">
+        <form method="post" action={PATH} class="stack">
+          <input type="hidden" name="action" value="receive" />
+          <div class="fields">
+            <div class="field">
+              <label for="docType">Tipo de documento</label>
+              <select id="docType" name="docType" required aria-invalid={Boolean(fieldErrors.docType)} aria-describedby={fieldErrors.docType ? "docType-error" : undefined}>
+                <option value="">Selecciona un tipo</option>
+                {PURCHASE_DOC_TYPES.map((type) => <option value={type} selected={values.docType === type}>{PURCHASE_DOC_TYPE_LABELS[type]}</option>)}
+              </select>
+              {fieldErrors.docType && <p id="docType-error">{fieldErrors.docType}</p>}
+            </div>
+            <div class="field">
+              <label for="docNumber">Folio</label>
+              <input id="docNumber" name="docNumber" required maxlength="80" value={values.docNumber ?? ""} aria-invalid={Boolean(fieldErrors.docNumber)} aria-describedby={fieldErrors.docNumber ? "docNumber-error" : undefined} />
+              {fieldErrors.docNumber && <p id="docNumber-error">{fieldErrors.docNumber}</p>}
+            </div>
+          </div>
+          <button type="submit" class="btn" disabled={purchase.items.length === 0}>Recibir</button>
+        </form>
+      </Card>
+      <Card title="Anular compra">
+        <form method="post" action={PATH} class="stack">
+          <input type="hidden" name="action" value="void" />
+          <div class="field">
+            <label for="reason">Motivo</label>
+            <input id="reason" name="reason" required minlength="3" maxlength="200" value={values.reason ?? ""} aria-invalid={Boolean(fieldErrors.reason)} aria-describedby={fieldErrors.reason ? "reason-error" : undefined} />
+            {fieldErrors.reason && <p id="reason-error">{fieldErrors.reason}</p>}
+          </div>
+          <button type="submit" class="btn ghost">Anular</button>
+        </form>
+      </Card>
+    </>}
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .purchase-detail .status--enviada { border-style: dotted; }
+  .taller .purchase-detail .status--recibida { border: 3px double var(--ink); }
+  .taller .purchase-detail .status--anulada { border-style: dashed; }
+</style>

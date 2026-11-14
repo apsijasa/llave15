@@ -1,0 +1,136 @@
+---
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { formatClp } from "../../../server/email/templates.ts";
+import {
+  createPurchase,
+  formatPurchaseNumber,
+  listPurchases,
+} from "../../../server/taller/purchases.ts";
+import { PURCHASE_STATUSES, PURCHASE_STATUS_LABELS } from "../../../server/taller/rules.ts";
+import { listSuppliers } from "../../../server/taller/suppliers.ts";
+
+export const prerender = false;
+const PATH = "/taller/compras";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "purchases.manage")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+const formSchema = z.object({
+  supplierId: z.uuid(),
+  notes: z.string().trim().max(500).default(""),
+});
+let values: Record<string, string> = {};
+let error = "";
+const fieldErrors: Record<string, string> = {};
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const parsed = formSchema.safeParse(values);
+  if (!parsed.success) {
+    Astro.response.status = 422;
+    error = "Revisa los datos de la compra.";
+    for (const issue of parsed.error.issues) {
+      const field = String(issue.path[0]);
+      fieldErrors[field] =
+        field === "supplierId"
+          ? "Selecciona un proveedor."
+          : "Usa hasta 500 caracteres para las notas.";
+    }
+  } else {
+    const result = await createPurchase(db, user, parsed.data, now);
+    if (result.ok)
+      return new Response(null, {
+        status: 303,
+        headers: { location: `${PATH}/${result.purchaseId}`, "cache-control": "no-store" },
+      });
+    if (result.code === "forbidden") return forbiddenResponse();
+    Astro.response.status = result.code === "not_found" ? 404 : 422;
+    error = "No se encontró el proveedor. Revisa los datos de la compra.";
+    fieldErrors.supplierId = error;
+  }
+}
+const purchases = (await listPurchases(db, user)).map((purchase) => ({
+  ...purchase,
+  status: z.enum(PURCHASE_STATUSES).parse(purchase.status),
+}));
+const suppliers = await listSuppliers(db, user);
+const showCosts = can(user.role, "costs.view");
+---
+
+<TallerLayout title={`Compras — ${SITE.name}`} description="Compras a proveedores del taller." path={PATH} user={user}>
+  <div class="stack purchase-list">
+    <PageHeader title="Compras" />
+    {error && <p role="alert">{error}</p>}
+    <Card>
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Compras (hasta 300 resultados)</caption>
+          <thead><tr><th scope="col">Compra</th><th scope="col">Proveedor</th><th scope="col">Estado</th>{showCosts && <th scope="col">Total a costo neto</th>}</tr></thead>
+          <tbody>
+            {purchases.map((purchase) => (
+              <tr>
+                <th scope="row"><a href={`${PATH}/${purchase.id}`}>{formatPurchaseNumber(purchase.number)}</a></th>
+                <td>{purchase.supplierName}</td>
+                <td><span class={`status status--${purchase.status}`}>{PURCHASE_STATUS_LABELS[purchase.status]}</span></td>
+                {showCosts && <td>{typeof purchase.totalClp === "number" ? formatClp(purchase.totalClp) : "Sin información"}</td>}
+              </tr>
+            ))}
+            {purchases.length === 0 && <tr><td colspan={showCosts ? 4 : 3}>Aún no hay compras en tu sucursal.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+    <Card title="Nueva compra">
+      {suppliers.length === 0 && <p>Primero guarda un proveedor en <a class="btn ghost" href="/taller/proveedores">Proveedores</a>.</p>}
+      <form method="post" action={PATH} class="stack">
+        <div class="fields">
+          <div class="field">
+            <label for="supplierId">Proveedor</label>
+            <select id="supplierId" name="supplierId" required aria-invalid={Boolean(fieldErrors.supplierId)} aria-describedby={fieldErrors.supplierId ? "supplierId-error" : undefined}>
+              <option value="">Selecciona un proveedor</option>
+              {suppliers.map((supplier) => <option value={supplier.id} selected={values.supplierId === supplier.id}>{supplier.name}{supplier.isActive ? "" : " (Inactivo)"}</option>)}
+            </select>
+            {fieldErrors.supplierId && <p id="supplierId-error">{fieldErrors.supplierId}</p>}
+          </div>
+          <div class="field">
+            <label for="notes">Notas</label>
+            <textarea id="notes" name="notes" rows="2" maxlength="500" aria-invalid={Boolean(fieldErrors.notes)} aria-describedby={fieldErrors.notes ? "notes-error" : undefined}>{values.notes ?? ""}</textarea>
+            {fieldErrors.notes && <p id="notes-error">{fieldErrors.notes}</p>}
+          </div>
+        </div>
+        <button type="submit" class="btn" disabled={suppliers.length === 0}>Nueva compra</button>
+      </form>
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .purchase-list th a { display: inline-flex; align-items: center; min-height: 48px; min-width: 48px; }
+  .taller .purchase-list .status--enviada { border-style: dotted; }
+  .taller .purchase-list .status--recibida { border: 3px double var(--ink); }
+  .taller .purchase-list .status--anulada { border-style: dashed; }
+</style>
