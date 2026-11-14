@@ -6,12 +6,19 @@ import type { AppDb } from "../db/client.ts";
 import { payments } from "../db/schema-payments.ts";
 import { saleItems, sales } from "../db/schema-sales.ts";
 import { recordAudit } from "./audit.ts";
+import { voidCashMovementFor } from "./cash.ts";
 import { applyStockMovement } from "./stock.ts";
 
 const reasonSchema = z.object({ reason: z.string().trim().min(3).max(200) });
+type VoidCode =
+  | "not_found"
+  | "out_of_stock"
+  | "cash_session_closed"
+  | "forbidden"
+  | "validation_error";
 class VoidFailure extends Error {
-  code: "not_found" | "out_of_stock";
-  constructor(code: "not_found" | "out_of_stock") {
+  code: VoidCode;
+  constructor(code: VoidCode) {
     super(code);
     this.code = code;
   }
@@ -74,6 +81,25 @@ async function voidPayments(
     );
 }
 
+/** Antes de escribir: anula los ingresos de caja de los pagos en efectivo de la venta. */
+async function voidCashIncome(tx: AppDb, actor: SessionUser, saleId: string, now: Date) {
+  const rows = await tx
+    .select({ id: payments.id, cashSessionId: payments.cashSessionId })
+    .from(payments)
+    .where(
+      and(
+        eq(payments.branchId, actor.branchId),
+        eq(payments.saleId, saleId),
+        isNull(payments.voidedAt),
+      ),
+    );
+  for (const payment of rows) {
+    if (!payment.cashSessionId) continue;
+    const result = await voidCashMovementFor(tx, actor, "payment", payment.id, now);
+    if (!result.ok) throw new VoidFailure(result.code);
+  }
+}
+
 async function cancelSale(
   tx: AppDb,
   actor: SessionUser,
@@ -82,6 +108,7 @@ async function cancelSale(
   now: Date,
 ) {
   const saleId = sale.id;
+  await voidCashIncome(tx, actor, saleId, now);
   await tx
     .update(sales)
     .set({

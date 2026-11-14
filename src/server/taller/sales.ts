@@ -1,9 +1,7 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
-import { DateTime } from "luxon";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
-import { TIMEZONE } from "../booking/rules.ts";
 import type { AppDb } from "../db/client.ts";
 import { products } from "../db/schema-inventory.ts";
 import { payments } from "../db/schema-payments.ts";
@@ -11,8 +9,10 @@ import { saleItems, sales } from "../db/schema-sales.ts";
 import { customers } from "../db/schema-taller.ts";
 import { branches } from "../db/schema.ts";
 import { recordAudit } from "./audit.ts";
+import { recordCashMovement, requireOpenCashSession } from "./cash.ts";
 import type { AuditAction } from "./audit.ts";
 import { RECORDABLE_PAYMENT_METHODS, vatOfNet } from "./rules.ts";
+import { formatSaleNumber, visibleItem } from "./sale-queries.ts";
 import { applyStockMovement } from "./stock.ts";
 
 const pesos = z.number().int().min(0).max(2_147_483_647);
@@ -53,17 +53,15 @@ type FailureCode =
   | "validation_error"
   | "not_found"
   | "out_of_stock"
-  | "invalid_amount";
+  | "invalid_amount"
+  | "cash_closed"
+  | "cash_session_closed";
 class SaleFailure extends Error {
   code: FailureCode;
   constructor(code: FailureCode) {
     super(code);
     this.code = code;
   }
-}
-
-export function formatSaleNumber(number: number): string {
-  return `VM-${String(number).padStart(5, "0")}`;
 }
 
 function parseSale(actor: SessionUser, input: unknown) {
@@ -126,15 +124,6 @@ async function calculateSale(db: AppDb, actor: SessionUser, input: SaleInput, lo
   return { items, subtotalClp, vatClp, totalClp };
 }
 type CalculatedSale = Awaited<ReturnType<typeof calculateSale>>;
-
-function visibleItem(
-  actor: SessionUser,
-  item: CalculatedSale["items"][number] | typeof saleItems.$inferSelect,
-) {
-  if (can(actor.role, "costs.view")) return item;
-  const { unitCostClp: _cost, ...visible } = item;
-  return visible;
-}
 
 export async function previewSale(db: AppDb, actor: SessionUser, input: unknown) {
   try {
@@ -202,6 +191,7 @@ async function insertSale(
   input: SaleInput,
   totals: CalculatedSale,
   now: Date,
+  cashSessionId: string | null,
 ) {
   const [branch] = await tx
     .update(branches)
@@ -222,6 +212,7 @@ async function insertSale(
       ...fields,
       branchId: actor.branchId,
       number: branch.number,
+      cashSessionId,
       subtotalClp: totals.subtotalClp,
       vatClp: totals.vatClp,
       totalClp: totals.totalClp,
@@ -242,6 +233,7 @@ async function paySale(
   input: SaleInput,
   now: Date,
 ) {
+  const { cashSessionId } = sale;
   const feeClp = input.feeClp ?? 0;
   const [payment] = await tx
     .insert(payments)
@@ -249,6 +241,7 @@ async function paySale(
       branchId: actor.branchId,
       saleId: sale.id,
       workOrderId: null,
+      cashSessionId,
       kind: "final",
       method: input.method,
       amountClp: sale.totalClp,
@@ -262,6 +255,21 @@ async function paySale(
     })
     .returning({ id: payments.id });
   if (!payment) throw new Error("No se pudo registrar el pago.");
+  if (cashSessionId) {
+    const movement = await recordCashMovement(
+      tx,
+      actor,
+      {
+        sessionId: cashSessionId,
+        kind: "ingreso",
+        amountClp: sale.totalClp,
+        referenceKind: "payment",
+        referenceId: payment.id,
+      },
+      now,
+    );
+    if (!movement.ok) throw new SaleFailure(movement.code);
+  }
   await tx
     .update(sales)
     .set({ status: "pagada", paidClp: sale.totalClp, updatedAt: now })
@@ -287,8 +295,12 @@ export async function createSale(db: AppDb, actor: SessionUser, input: unknown, 
         .where(eq(branches.id, actor.branchId))
         .for("update");
       if (!branch) throw new SaleFailure("not_found");
+      const cash =
+        parsed.method === "efectivo" ? await requireOpenCashSession(tx, branch.id) : null;
+      if (cash?.mode === "closed") throw new SaleFailure("cash_closed");
       const totals = await calculateSale(tx, actor, parsed, true);
-      const sale = await insertSale(tx, actor, parsed, totals, now);
+      const cashSessionId = cash?.mode === "open" ? cash.sessionId : null;
+      const sale = await insertSale(tx, actor, parsed, totals, now, cashSessionId);
       await paySale(tx, actor, sale, parsed, now);
       await auditSale(
         tx,
@@ -323,69 +335,4 @@ export async function createSale(db: AppDb, actor: SessionUser, input: unknown, 
   }
 }
 
-const rangeSchema = z
-  .object({ from: z.iso.date(), to: z.iso.date() })
-  .refine(
-    ({ from, to }) =>
-      from <= to &&
-      DateTime.fromISO(to, { zone: "UTC" }).diff(DateTime.fromISO(from, { zone: "UTC" }), "days")
-        .days < 31,
-  );
-
-async function saleRows(db: AppDb, actor: SessionUser, filter: ReturnType<typeof and>) {
-  const rows = await db
-    .select({ sale: sales, customerName: customers.name })
-    .from(sales)
-    .leftJoin(
-      customers,
-      and(eq(customers.id, sales.customerId), eq(customers.branchId, actor.branchId)),
-    )
-    .where(and(eq(sales.branchId, actor.branchId), filter))
-    .orderBy(desc(sales.createdAt), desc(sales.number));
-  if (!rows.length) return [];
-  const ids = rows.map(({ sale }) => sale.id);
-  const items = await db
-    .select()
-    .from(saleItems)
-    .where(and(eq(saleItems.branchId, actor.branchId), inArray(saleItems.saleId, ids)))
-    .orderBy(asc(saleItems.createdAt), asc(saleItems.id));
-  const paid = await db
-    .select()
-    .from(payments)
-    .where(and(eq(payments.branchId, actor.branchId), inArray(payments.saleId, ids)))
-    .orderBy(asc(payments.receivedAt), asc(payments.id));
-  const visiblePayments = paid.map((payment) => {
-    if (can(actor.role, "costs.view")) return payment;
-    const { feeClp: _fee, netClp: _net, ...visible } = payment;
-    return visible;
-  });
-  return rows.map(({ sale, customerName }) => ({
-    ...sale,
-    number: formatSaleNumber(sale.number),
-    customerName,
-    method: paid.find((payment) => payment.saleId === sale.id)?.method,
-    items: items.filter((item) => item.saleId === sale.id).map((item) => visibleItem(actor, item)),
-    payments: visiblePayments.filter((payment) => payment.saleId === sale.id),
-  }));
-}
-
-export async function listSales(
-  db: AppDb,
-  actor: SessionUser,
-  range: { from: string; to: string },
-) {
-  if (!can(actor.role, "sales.record")) return [];
-  const parsed = rangeSchema.safeParse(range);
-  if (!parsed.success) return [];
-  const start = DateTime.fromISO(parsed.data.from, { zone: TIMEZONE }).startOf("day").toJSDate();
-  const end = DateTime.fromISO(parsed.data.to, { zone: TIMEZONE })
-    .plus({ days: 1 })
-    .startOf("day")
-    .toJSDate();
-  return saleRows(db, actor, and(gte(sales.createdAt, start), lt(sales.createdAt, end)));
-}
-
-export async function listCustomerSales(db: AppDb, actor: SessionUser, customerId: string) {
-  if (!can(actor.role, "sales.record") || !z.uuid().safeParse(customerId).success) return [];
-  return saleRows(db, actor, and(eq(sales.customerId, customerId), isNull(sales.voidedAt)));
-}
+export { formatSaleNumber, listCustomerSales, listSales } from "./sale-queries.ts";
