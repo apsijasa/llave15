@@ -235,7 +235,7 @@
       "src/server/taller/rules.ts",
       "tests/integration/purchases.test.ts"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E1-T9",
