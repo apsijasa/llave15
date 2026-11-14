@@ -14,7 +14,7 @@ import { createTransport } from "../email/transport.ts";
 import { notifyOrderReadyByWhatsApp } from "../whatsapp/order-notices.ts";
 import { recordAudit } from "./audit.ts";
 import { formatOrderNumber, recordStatusChange } from "./orders.ts";
-import { QC_CHECK_KEYS, QC_REQUIRE_SECOND_PERSON, QC_RESULTS } from "./rules.ts";
+import { PRICING_MODES, QC_CHECK_KEYS, QC_REQUIRE_SECOND_PERSON, QC_RESULTS } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 import { ensureTrackingLink } from "./tracking.ts";
 
@@ -88,6 +88,9 @@ async function readyNotificationOrder(db: AppDb, actor: SessionUser, orderId: st
   const [order] = await db
     .select({
       number: workOrders.number,
+      pricingMode: workOrders.pricingMode,
+      subtotalClp: workOrders.subtotalClp,
+      vatClp: workOrders.vatClp,
       totalClp: workOrders.totalClp,
       paidClp: workOrders.paidClp,
       customerName: customers.name,
@@ -136,6 +139,11 @@ async function notifyReadyForPickup(
     const tracking = await ensureTrackingLink(db, actor, orderId, siteUrl, now);
     const email = readyForPickupEmail({
       ...order,
+      pricing: {
+        mode: z.enum(PRICING_MODES).parse(order.pricingMode),
+        subtotalClp: order.subtotalClp,
+        vatClp: order.vatClp,
+      },
       trackingUrl: tracking.ok ? tracking.url : null,
       orderNumber: formatOrderNumber(order.number),
       bike: `${order.brand} ${order.model}`.trim(),

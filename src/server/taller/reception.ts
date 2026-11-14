@@ -18,6 +18,7 @@ import { recordAudit } from "./audit.ts";
 import { isChecklistComplete, listAccessories } from "./intake.ts";
 import { listItems } from "./items.ts";
 import { formatOrderNumber, getOrderHeader, recordStatusChange } from "./orders.ts";
+import { PRICING_MODES } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 import { ensureTrackingLink } from "./tracking.ts";
 
@@ -233,6 +234,7 @@ async function receivedNotificationOrder(db: AppDb, actor: SessionUser, orderId:
   const [order] = await db
     .select({
       number: workOrders.number,
+      pricingMode: workOrders.pricingMode,
       requestedService: workOrders.requestedService,
       estimatedDeliveryDate: workOrders.estimatedDeliveryDate,
       warrantyOfOrderId: workOrders.warrantyOfOrderId,
@@ -254,7 +256,7 @@ async function receivedNotificationOrder(db: AppDb, actor: SessionUser, orderId:
         isNull(workOrders.voidedAt),
       ),
     );
-  return order;
+  return order ? { ...order, pricingMode: z.enum(PRICING_MODES).parse(order.pricingMode) } : order;
 }
 
 async function warrantyOrderNumber(db: AppDb, actor: SessionUser, orderId: string | null) {

@@ -1,4 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
+import { z } from "zod";
 import { getEmailEnv, getSiteEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
@@ -14,7 +15,7 @@ import type { EmailTransport } from "../email/transport.ts";
 import { recordAudit } from "./audit.ts";
 import { listItems } from "./items.ts";
 import { formatOrderNumber, getOrderHeader } from "./orders.ts";
-import { TERMINAL_STATUSES } from "./rules.ts";
+import { PRICING_MODES, TERMINAL_STATUSES } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 import { ensureTrackingLink } from "./tracking.ts";
 
@@ -56,7 +57,7 @@ async function deliverQuote(
     return { ok: false, code: "send_failed" };
   }
   await sendShopCopy(transport, env, customerEmail, email, input.orderNumber);
-  const totalClp = quoteTotalClp(input.items);
+  const totalClp = quoteTotalClp(input.items, input.pricingMode);
   await recordAudit(
     db,
     {
@@ -100,6 +101,7 @@ export async function sendQuote(
   );
   const input: QuoteEmail = {
     orderNumber: formatOrderNumber(order.number),
+    pricingMode: z.enum(PRICING_MODES).parse(order.pricingMode),
     customerName: customer.name,
     bike: `${bike.brand} ${bike.model}`.trim(),
     items,
