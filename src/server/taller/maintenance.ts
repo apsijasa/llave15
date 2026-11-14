@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, lt, notInArray } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { getEmailEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
+import { SITE } from "../../lib/site.ts";
 import { TIMEZONE } from "../booking/rules.ts";
 import { localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
@@ -11,6 +12,7 @@ import { escapeHtml } from "../email/templates.ts";
 import { createTransport } from "../email/transport.ts";
 import type { EmailTransport } from "../email/transport.ts";
 import type { ObjectStorage } from "../storage/storage.ts";
+import { lowStockProducts } from "./low-stock.ts";
 import { formatOrderNumber } from "./orders.ts";
 import { TERMINAL_STATUSES } from "./rules.ts";
 
@@ -64,24 +66,41 @@ export async function sendOverdueDigest(
   db: AppDb,
   now: Date,
   deps: { transport?: EmailTransport } = {},
-): Promise<{ overdue: number; sent: boolean }> {
+): Promise<{ overdue: number; sent: boolean; lowStock?: number }> {
   const orders = await overdueOrders(db, now);
-  if (orders.length === 0) return { overdue: 0, sent: false };
+  const products = await lowStockProducts(db);
+  if (orders.length === 0 && products.length === 0) return { overdue: 0, sent: false };
   const lines = orders.map((order) => {
     const date = DateTime.fromISO(order.estimatedDeliveryDate, { zone: TIMEZONE });
     return `${order.number} · ${order.customerName} · ${order.bike} · prometida ${date.toFormat("dd-MM-yyyy")} (${order.daysLate} días)`;
   });
+  if (products.length > 0) {
+    lines.push("Stock bajo mínimo:");
+    lines.push(
+      ...products.map(
+        (product) =>
+          `${product.sku} · ${product.name} · stock ${product.stockQty} (mínimo ${product.minStock})`,
+      ),
+    );
+  }
   try {
     await (deps.transport ?? createTransport()).send({
       to: getEmailEnv().SHOP_NOTIFY_EMAIL,
-      subject: `Órdenes atrasadas: ${orders.length} · Vector Bikes`,
+      subject:
+        orders.length > 0
+          ? `Órdenes atrasadas: ${orders.length} · ${SITE.name}`
+          : `Stock bajo mínimo: ${products.length} · ${SITE.name}`,
       text: lines.join("\n"),
       html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
     });
   } catch (error) {
     throw new OverdueDigestError(orders.length, error);
   }
-  return { overdue: orders.length, sent: true };
+  return {
+    overdue: orders.length,
+    sent: true,
+    ...(products.length > 0 ? { lowStock: products.length } : {}),
+  };
 }
 
 /**

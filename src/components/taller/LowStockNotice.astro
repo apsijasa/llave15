@@ -1,0 +1,53 @@
+---
+interface Props {
+  items: {
+    sku: string;
+    name: string;
+    stockQty: number;
+    minStock: number;
+    href: string;
+  }[];
+}
+
+const { items } = Astro.props;
+---
+
+<aside class="card low-stock-notice" role="status" aria-label="Stock bajo mínimo">
+  <p><span class="status status--bajo">Bajo mínimo</span></p>
+  <ul>
+    {items.map((item) => (
+      <li>
+        <a href={item.href}>
+          <span>{item.sku} · {item.name}</span>
+          <span class="mono">stock {item.stockQty} (mínimo {item.minStock})</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+</aside>
+
+<style>
+  .low-stock-notice,
+  ul {
+    display: grid;
+    gap: 8px;
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  a {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    min-height: 48px;
+    min-width: 48px;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+  }
+  .status--bajo {
+    border-style: dashed;
+  }
+</style>
