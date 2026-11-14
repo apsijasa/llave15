@@ -174,7 +174,7 @@ async function lockPayment(db: AppDb, actor: SessionUser, paymentId: string) {
     .select({ orderId: payments.workOrderId })
     .from(payments)
     .where(and(scope, isNull(payments.voidedAt)));
-  if (!reference) return { ok: false, code: "not_found" } as const;
+  if (!reference || reference.orderId === null) return { ok: false, code: "not_found" } as const;
   const access = await accessibleOrder(db, actor, reference.orderId, true);
   if (!access.ok) return access;
   const [payment] = await db
@@ -193,6 +193,7 @@ export async function voidPayment(db: AppDb, actor: SessionUser, paymentId: stri
     const access = await lockPayment(tx, actor, paymentId);
     if (!access.ok) return access;
     const { payment } = access;
+    if (payment.workOrderId === null) return { ok: false, code: "not_found" } as const;
     await tx
       .update(payments)
       .set({ voidedAt: now, voidedBy: actor.id, updatedAt: now })
@@ -216,7 +217,7 @@ export async function voidPayment(db: AppDb, actor: SessionUser, paymentId: stri
 
 export async function listPayments(db: AppDb, actor: SessionUser, orderId: string) {
   if (!(await accessibleOrder(db, actor, orderId)).ok) return [];
-  return db
+  const rows = await db
     .select()
     .from(payments)
     .where(
@@ -227,4 +228,6 @@ export async function listPayments(db: AppDb, actor: SessionUser, orderId: strin
       ),
     )
     .orderBy(asc(payments.receivedAt), asc(payments.id));
+  if (can(actor.role, "costs.view")) return rows;
+  return rows.map(({ feeClp: _feeClp, netClp: _netClp, ...visible }) => visible);
 }

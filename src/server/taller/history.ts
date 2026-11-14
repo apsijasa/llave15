@@ -264,7 +264,7 @@ async function paymentEvents(db: AppDb, actor: SessionUser, orderIds: string[]) 
     .orderBy(asc(payments.receivedAt), asc(payments.id));
   return rows.map(
     (row): TimelineEvent => ({
-      orderId: row.orderId,
+      orderId: row.orderId ?? undefined,
       at: row.at.toISOString(),
       kind: "payment",
       title: PAYMENT_KIND_LABELS[row.kind],

@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { check, date, index, integer, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { workOrderItems, workOrders } from "./schema-orders.ts";
+import { sales } from "./schema-sales.ts";
 import { bikes } from "./schema-taller.ts";
 import { branches, createdAt, instant, updatedAt, users } from "./schema.ts";
 
@@ -22,12 +23,14 @@ export const payments = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     branchId: branchReference(),
-    workOrderId: uuid("work_order_id")
-      .notNull()
-      .references(() => workOrders.id, { onDelete: "restrict" }),
+    workOrderId: uuid("work_order_id").references(() => workOrders.id, { onDelete: "restrict" }),
+    saleId: uuid("sale_id").references(() => sales.id, { onDelete: "restrict" }),
     kind: text("kind").$type<"abono" | "final">().notNull(),
     method: text("method").$type<"transferencia" | "tarjeta" | "efectivo" | "otro">().notNull(),
     amountClp: integer("amount_clp").notNull(),
+    externalId: text("external_id"),
+    feeClp: integer("fee_clp").notNull().default(0),
+    netClp: integer("net_clp"),
     receivedBy: uuid("received_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -42,9 +45,14 @@ export const payments = pgTable(
       .on(t.workOrderId)
       .where(sql`kind = 'abono' and voided_at is null`),
     index("idx_payments_branch_received").on(t.branchId, t.receivedAt),
+    index("idx_payments_sale").on(t.saleId),
     check("payments_kind_check", sql`kind in ('abono', 'final')`),
     check("payments_method_check", sql`method in ('transferencia', 'tarjeta', 'efectivo', 'otro')`),
     check("payments_amount_check", sql`amount_clp > 0`),
+    check("payments_target_check", sql`num_nonnulls(work_order_id, sale_id) = 1`),
+    check("payments_fee_check", sql`fee_clp >= 0 and fee_clp <= amount_clp`),
+    check("payments_net_check", sql`net_clp is null or net_clp = amount_clp - fee_clp`),
+    check("payments_mercadopago_check", sql`method <> 'mercadopago' or external_id is not null`),
   ],
 );
 
