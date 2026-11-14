@@ -130,7 +130,7 @@ Espera el resultado de la subida. Si aparece **No se pudo subir la foto. Intenta
 
 ### Indicadores
 
-Dueño y administrador ven en **Indicadores** los ingresos por medio de pago, las entregas y el ticket promedio, las órdenes por estado, los servicios más pedidos, los clientes nuevos y recurrentes, la conversión de reservas y la cobertura de checklist, control e informes, para el rango de fechas que elijan (hasta un año). Es la primera etapa del panel financiero; la caja diaria con apertura y cierre llega con la fase 2.
+Dueño y administrador ven en **Indicadores** los ingresos por medio de pago, las entregas y el ticket promedio, las órdenes por estado, los servicios más pedidos, los clientes nuevos y recurrentes, la conversión de reservas y la cobertura de checklist, control e informes, para el rango de fechas que elijan (hasta un año). Desde la fase 2 suma la Etapa B: egresos, balance, mix de ingresos, Mercado Pago e inventario.
 
 ### Tareas diarias y respaldos
 
@@ -139,6 +139,75 @@ El escenario de **Make.com** se configura para las **10:00**, zona **America/San
 Recordatorios envía los correos del día anterior; alertas manda al taller el resumen de órdenes atrasadas y debe llamarse una sola vez al día. Retención elimina las copias completas de fotos de recepción de más de seis meses y conserva las miniaturas para el historial e informe. Las fotos de reparación y terminado se conservan. Mantenciones avisa al cliente una semana antes de la fecha sugerida en el informe, una sola vez. La integración opcional de recordatorios WhatsApp tiene su propio cron, descrito en **Recordatorios**.
 
 Confirma en el panel **Database** de Replit que los respaldos programados de la base estén activos y revisa sus puntos de restauración. Las fotos y firmas están en almacenamiento separado: respalda también ese almacenamiento junto con la base. La aplicación no programa respaldos; esa configuración se administra en la plataforma.
+
+## Operación de la fase 2
+
+La fase 2 agrega inventario, compras, ventas de mostrador, caja diaria, gastos, Mercado Pago como registro e indicadores financieros (`blueprints/vector-taller-f2/FASE2.md`).
+
+### Los dos interruptores
+
+Los dos llegan apagados: mientras nadie los toque, el taller funciona como antes de la fase 2.
+
+| Interruptor | Dónde | Quién | Qué cambia |
+|---|---|---|---|
+| Régimen de precios de órdenes nuevas | `/taller/catalogo` | Dueño o administración (`catalog.edit`) | En **Precios netos**, cada orden nueva muestra Neto / IVA (19%) / Total. Las órdenes existentes no cambian de régimen nunca. |
+| Control de caja | `/taller/caja` | Dueño o administración (`dashboard.finance`) | Habilitado, todo cobro, venta, gasto o devolución en efectivo exige una caja abierta y queda en sus movimientos. No se puede desactivar con una caja abierta. |
+
+Pasar a precios netos conviene después de cargar el catálogo y el inventario en netos. Habilitar la caja es el corte C5 descrito en `docs/ventanas/f2-v3.md`.
+
+### Publicación en tres ventanas
+
+Cada ventana tiene su guía, con precondiciones, pasos en Replit, verificación y reversión:
+
+- `docs/ventanas/f2-v1.md`: inventario, compras y precios netos (migración `0028`).
+- `docs/ventanas/f2-v2.md`: ventas de mostrador y Mercado Pago (`0029` a `0031`; la `0031` es la única no aditiva de la fase).
+- `docs/ventanas/f2-v3.md`: caja diaria y gastos (`0032` y `0033`).
+
+Se pueden publicar juntas: `db:migrate` aplica todas las pendientes en orden.
+
+### Inventario inicial
+
+```bash
+pnpm inventory:import <archivo.csv> <correo> [--dry-run]
+```
+
+El CSV vive **fuera del repositorio**. Corre primero con `--dry-run` para revisar los errores sin escribir. El correo es el de un usuario dueño o administración, que queda como autor de los productos y de sus movimientos iniciales. Sale `0` si todo entró, `1` si el CSV o el correo tienen errores, y `2` si faltan argumentos o falla la base.
+
+### Chequeo diario `f2:check`
+
+```bash
+pnpm f2:check
+```
+
+Revisa todas las sucursales e imprime solo conteos, nunca datos personales:
+
+| Campo | Cuenta |
+|---|---|
+| `netoInconsistent` | Órdenes en precios netos cuyo IVA no es el 19% redondeado del neto. |
+| `cashUnlinked` | Pagos en efectivo vigentes sin caja, registrados después del último cambio del interruptor en una sucursal con la caja habilitada. |
+| `cashDifferenceOver` | Cierres de caja con una diferencia de más de $5.000, en cualquier sentido. |
+| `stockDrift` | Productos cuyo stock no coincide con la suma de sus movimientos. |
+
+Sale `0` si los cuatro están en cero, `1` si alguno no, y `2` si no pudo conectarse a la base. Durante el primer mes de operación con stock y caja, **el dueño lo corre cada día contra producción** en la Shell de Replit (`corepack pnpm@12.4.2 f2:check`). Claude nunca lo corre contra producción.
+
+### Criterios de la fase y sus pruebas
+
+| Criterio (FASE2 §14) | Prueba |
+|---|---|
+| 1. Una compra sube el stock con un movimiento `compra` | `tests/integration/purchases.test.ts` (F2-07) |
+| 2. El repuesto de una orden descuenta stock y lo devuelve al anular | `tests/integration/part-stock.test.ts` (F2-12) |
+| 3. Dos consumos del último stock: nunca queda negativo | `tests/integration/products.test.ts` (F2-03) y `part-stock.test.ts` |
+| 4. Venta en efectivo con caja abierta: venta, pago e ingreso | `tests/integration/cash-sales-refunds.test.ts` (F2-29) y `e2e/caja-efectivo.spec.ts` |
+| 5. Sin caja abierta, el efectivo responde `cash_closed` sin escribir | `tests/integration/cash-order-payments.test.ts` (F2-28) y `cash-sales-refunds.test.ts` |
+| 6. El cierre calcula esperado y diferencia | `tests/integration/cash.test.ts` (F2-27) |
+| 7. Un gasto en efectivo descuenta de la caja; uno por transferencia no | `tests/integration/expenses.test.ts` (F2-30) |
+| 8. Mercado Pago guarda id, comisión y neto, y el neto llega a indicadores | `tests/integration/mercadopago-payments.test.ts` (F2-23) y `indicators-finance.test.ts` (F2-33) |
+| 9. El mecánico nunca recibe costos | Omisión por rol en `products.test.ts`, `part-stock.test.ts`, `payments-extension.test.ts`, `sales.test.ts` y `e2e/inventario-ajuste.spec.ts` |
+| 10. Indicadores muestra egresos, balance y mix | `tests/integration/indicators-finance.test.ts` y `indicadores-finance-page.test.ts` (F2-34) |
+| 11. La auditoría registra ajustes, cierres, anulaciones y descuentos | `products.test.ts` (`stock.adjusted`), `cash.test.ts` (`cash.closed`), `sales.test.ts` (`sale.voided`, `sale.discounted`), `cash-sales-refunds.test.ts` (`cash.refund`) |
+| 12. Orden neta de $10.000: IVA $1.900 y total $11.900; las anteriores no cambian | `tests/integration/pricing-totals.test.ts` y `order-amounts-page.test.ts` |
+| 13. `pnpm gate` en verde | `pnpm gate` |
+| 14. Un mes de operación real con stock y caja sin planilla | Lo confirma el dueño; `pnpm f2:check` sale `0` cada día del mes |
 
 ## Publicar
 
