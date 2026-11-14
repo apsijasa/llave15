@@ -680,7 +680,7 @@
       "src/server/taller/indicators.ts",
       "tests/integration/mercadopago-payments.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E3-T7",
