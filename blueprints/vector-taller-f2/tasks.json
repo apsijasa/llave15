@@ -348,7 +348,7 @@
       "src/pages/taller/ordenes/[id]/entrega.astro",
       "tests/integration/order-amounts-page.test.ts"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E2-T4",
