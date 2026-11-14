@@ -2,6 +2,9 @@ import { DateTime } from "luxon";
 import { SITE } from "../../lib/site.ts";
 import { RECEPTION_HOURS, TIMEZONE } from "../booking/rules.ts";
 import type { Booking } from "../db/schema.ts";
+import type { PricingMode } from "../taller/rules.ts";
+import { amountRows, pricingFromNet } from "./amounts.ts";
+import type { OrderPricing } from "./amounts.ts";
 
 export type RenderedEmail = { subject: string; html: string; text: string };
 
@@ -11,6 +14,7 @@ export type ReadyForPickup = {
   bike: string;
   totalClp: number;
   paidClp: number;
+  pricing?: OrderPricing;
   trackingUrl?: string | null;
 };
 
@@ -19,6 +23,7 @@ export type ReceivedBike = {
   customerName: string;
   bike: string;
   requestedService: string;
+  pricingMode?: PricingMode;
   items: { description: string; quantity: number; unitPriceClp: number }[];
   accessories: string[];
   estimatedDeliveryDate: string | null;
@@ -312,10 +317,14 @@ export function receivedBikeEmail(order: ReceivedBike): RenderedEmail {
     for (const item of order.items) {
       rows.push([item.description, `${item.quantity} × ${formatClp(item.unitPriceClp)}`]);
     }
-    rows.push([
-      "Total cotizado",
-      formatClp(order.items.reduce((total, item) => total + item.quantity * item.unitPriceClp, 0)),
-    ]);
+    const total = order.items.reduce((sum, item) => sum + item.quantity * item.unitPriceClp, 0);
+    rows.push(
+      ...amountRows(
+        "Total cotizado",
+        total,
+        pricingFromNet(order.pricingMode ?? "final", total),
+      ).map(([label, amount]): Row => [label, formatClp(amount)]),
+    );
   }
   if (order.accessories.length > 0) rows.push(["Accesorios", order.accessories.join(", ")]);
   if (order.estimatedDeliveryDate !== null) {
@@ -351,7 +360,9 @@ export function readyForPickupEmail(order: ReadyForPickup): RenderedEmail {
     rows: [
       ["Orden", order.orderNumber],
       ["Bicicleta", order.bike],
-      ["Total", formatClp(order.totalClp)],
+      ...amountRows("Total", order.totalClp, order.pricing).map(
+        ([label, amount]): Row => [label, formatClp(amount)],
+      ),
       ["Abonado", formatClp(order.paidClp)],
       [
         "Saldo",

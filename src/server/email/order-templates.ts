@@ -1,6 +1,9 @@
 import { DateTime } from "luxon";
 import { SITE } from "../../lib/site.ts";
 import { TIMEZONE } from "../booking/rules.ts";
+import { grossOfNet } from "../taller/rules.ts";
+import type { PricingMode } from "../taller/rules.ts";
+import { amountRows, pricingFromNet } from "./amounts.ts";
 import { formatClp, render } from "./templates.ts";
 import type { EmailContent, RenderedEmail } from "./templates.ts";
 
@@ -8,6 +11,7 @@ export type QuoteEmail = {
   orderNumber: string;
   customerName: string;
   bike: string;
+  pricingMode?: PricingMode;
   items: { description: string; quantity: number; unitPriceClp: number }[];
   estimatedDeliveryDate: string | null;
   trackingUrl: string | null;
@@ -16,12 +20,14 @@ export type QuoteEmail = {
 const EXTRA_WORK_NOTE =
   "El diagnóstico y los repuestos se cotizan en el taller. Si encontramos un problema extra, te llamamos antes de hacer cualquier trabajo que no estaba en tu descripción: te explicamos la solución y tú decides.";
 
-export function quoteTotalClp(items: QuoteEmail["items"]): number {
-  return items.reduce((total, item) => total + item.quantity * item.unitPriceClp, 0);
+export function quoteTotalClp(items: QuoteEmail["items"], mode: PricingMode = "final"): number {
+  const total = items.reduce((sum, item) => sum + item.quantity * item.unitPriceClp, 0);
+  return mode === "neto" ? grossOfNet(total) : total;
 }
 
 export function quoteEmail(input: QuoteEmail): RenderedEmail {
   const firstName = input.customerName.trim().split(/\s+/)[0] ?? "";
+  const total = quoteTotalClp(input.items);
   const rows: EmailContent["rows"] = [
     ["Orden", input.orderNumber],
     ["Bicicleta", input.bike],
@@ -29,7 +35,9 @@ export function quoteEmail(input: QuoteEmail): RenderedEmail {
       item.description,
       `${item.quantity} × ${formatClp(item.unitPriceClp)}`,
     ]),
-    ["Total", formatClp(quoteTotalClp(input.items))],
+    ...amountRows("Total", total, pricingFromNet(input.pricingMode ?? "final", total)).map(
+      ([label, amount]): EmailContent["rows"][number] => [label, formatClp(amount)],
+    ),
   ];
   if (input.estimatedDeliveryDate !== null) {
     const date = DateTime.fromISO(input.estimatedDeliveryDate, { zone: TIMEZONE })
