@@ -403,7 +403,7 @@
       "src/server/email/order-templates.ts",
       "tests/unit/pricing-emails.test.ts"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E2-T6",
