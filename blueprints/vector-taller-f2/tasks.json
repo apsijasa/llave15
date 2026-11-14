@@ -900,7 +900,7 @@
       "e2e/caja-efectivo.spec.ts",
       "tests/integration/caja-page.test.ts"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E5-T2",
