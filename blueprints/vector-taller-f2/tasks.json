@@ -652,7 +652,7 @@
       "src/layouts/TallerLayout.astro",
       "e2e/venta-mostrador.spec.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E3-T6",
