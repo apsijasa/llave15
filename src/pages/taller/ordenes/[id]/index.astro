@@ -1,6 +1,7 @@
 ---
 import { z } from "zod";
 import Card from "../../../../components/taller/Card.astro";
+import OrderAmounts from "../../../../components/taller/OrderAmounts.astro";
 import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
@@ -21,6 +22,7 @@ import {
   ORDER_STATUSES,
   STATUS_LABELS,
   TERMINAL_STATUSES,
+  VAT_RATE_PERCENT,
 } from "../../../../server/taller/rules.ts";
 import type { BikeType, OrderStatus } from "../../../../server/taller/rules.ts";
 import {
@@ -240,7 +242,11 @@ const trackingText = tracking.ok
         <dl class="data">
           <dt>Servicio solicitado</dt><dd>{order.requestedService}</dd>
           <dt>Entrega estimada</dt><dd>{order.estimatedDeliveryDate ?? "Sin fecha"}</dd>
-          <dt>Total para el cliente</dt><dd class="mono">{formatClp(order.totalClp)}</dd>
+          {order.pricingMode === "neto" ? (
+            <OrderAmounts netText={formatClp(order.subtotalClp)} vatLabel={`IVA (${VAT_RATE_PERCENT}%)`} vatText={formatClp(order.vatClp)} totalLabel="Total para el cliente" totalText={formatClp(order.totalClp)} />
+          ) : (
+            <><dt>Total para el cliente</dt><dd class="mono">{formatClp(order.totalClp)}</dd></>
+          )}
         </dl>
       </Card>
       <Card id="assignment-title" title="Mecánico asignado">

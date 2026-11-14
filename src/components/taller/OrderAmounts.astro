@@ -1,0 +1,15 @@
+---
+interface Props {
+  netText: string;
+  vatLabel: string;
+  vatText: string;
+  totalLabel: string;
+  totalText: string;
+}
+
+const { netText, vatLabel, vatText, totalLabel, totalText } = Astro.props;
+---
+
+<dt>Neto</dt><dd class="mono">{netText}</dd>
+<dt>{vatLabel}</dt><dd class="mono">{vatText}</dd>
+<dt>{totalLabel}</dt><dd class="mono">{totalText}</dd>

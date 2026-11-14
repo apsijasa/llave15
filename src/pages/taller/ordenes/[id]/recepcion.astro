@@ -1,6 +1,7 @@
 ---
 import { z } from "zod";
 import Card from "../../../../components/taller/Card.astro";
+import OrderAmounts from "../../../../components/taller/OrderAmounts.astro";
 import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import ReceptionSteps from "../../../../components/taller/ReceptionSteps.astro";
@@ -39,6 +40,7 @@ import {
   INTAKE_RESULTS,
   INTAKE_RESULT_LABELS,
   STATUS_LABELS,
+  VAT_RATE_PERCENT,
 } from "../../../../server/taller/rules.ts";
 import type { BikeType, OrderStatus } from "../../../../server/taller/rules.ts";
 
@@ -314,7 +316,11 @@ const [signature, nextReception] = receptionFinished
           ))}</tbody>
         </table></div>
       )}
-      <p>Total: <span class="mono">{formatClp(order.totalClp)}</span></p>
+      {order.pricingMode === "neto" ? (
+        <dl class="data"><OrderAmounts netText={formatClp(order.subtotalClp)} vatLabel={`IVA (${VAT_RATE_PERCENT}%)`} vatText={formatClp(order.vatClp)} totalLabel="Total" totalText={formatClp(order.totalClp)} /></dl>
+      ) : (
+        <p>Total: <span class="mono">{formatClp(order.totalClp)}</span></p>
+      )}
     </Card>
     <Card id="delivery-heading" title="Fecha de entrega">
       <p class="muted">Sugerida: {suggestedDate}</p>
