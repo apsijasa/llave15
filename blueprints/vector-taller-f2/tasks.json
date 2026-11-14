@@ -291,7 +291,7 @@
       "src/server/taller/rules.ts",
       "tests/integration/pricing-totals.test.ts"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E2-T2",
