@@ -1,0 +1,47 @@
+---
+interface Row {
+  label: string;
+  value: string;
+}
+interface Section {
+  title: string;
+  rows: Row[];
+}
+interface Props {
+  sections: Section[];
+}
+
+const { sections } = Astro.props;
+const slug = (title: string) =>
+  `finance-${title
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")}`;
+---
+
+{sections.map((section) => (
+  <section class="card taller-card finance-block" aria-labelledby={slug(section.title)}>
+    <h2 id={slug(section.title)}>{section.title}</h2>
+    <div class="scroll-x">
+      <table class="dense">
+        <caption>{section.title}</caption>
+        <thead><tr><th scope="col">Indicador</th><th scope="col">Valor</th></tr></thead>
+        <tbody>
+          {section.rows.map((row) => <tr><th scope="row">{row.label}</th><td class="mono">{row.value}</td></tr>)}
+        </tbody>
+      </table>
+    </div>
+  </section>
+))}
+
+<style is:global>
+  .taller .finance-block table {
+    font-variant-numeric: tabular-nums;
+  }
+  .taller .finance-block caption {
+    text-align: left;
+    padding-block-end: 8px;
+    color: var(--ink-2);
+  }
+</style>

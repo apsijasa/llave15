@@ -1,6 +1,7 @@
 ---
 import { DateTime } from "luxon";
 import Card from "../../components/taller/Card.astro";
+import FinanceBlocks from "../../components/taller/FinanceBlocks.astro";
 import PageHeader from "../../components/taller/PageHeader.astro";
 import TallerLayout from "../../layouts/TallerLayout.astro";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
@@ -14,6 +15,8 @@ import {
   workshopIndicators,
 } from "../../server/taller/indicators.ts";
 import type { Indicators } from "../../server/taller/indicators.ts";
+import { financeIndicators } from "../../server/taller/indicators-finance.ts";
+import type { FinanceIndicators } from "../../server/taller/indicators-finance.ts";
 import { PAYMENT_METHOD_LABELS } from "../../server/taller/rules.ts";
 
 export const prerender = false;
@@ -44,6 +47,8 @@ if (!parsed.success) Astro.response.status = 422;
 const range = parsed.success ? parsed.data : defaults;
 const indicators = await workshopIndicators(db, user, range, now);
 if (!indicators) return forbiddenResponse();
+const finance = await financeIndicators(db, user, range, now);
+if (!finance) return forbiddenResponse();
 
 const today = DateTime.fromJSDate(now, { zone: TIMEZONE });
 const previousMonth = today.minus({ months: 1 });
@@ -118,6 +123,60 @@ const dateFormat = new Intl.DateTimeFormat("es-CL", {
   timeStyle: "short",
   timeZone: TIMEZONE,
 });
+
+/** Secciones de la Etapa B; los costos solo existen si `financeIndicators` los envió. */
+function financeSections(data: FinanceIndicators) {
+  const money = (amount: number | undefined) => (amount === undefined ? [] : [formatClp(amount)]);
+  const row = (label: string, values: string[]) => values.map((value) => ({ label, value }));
+  return [
+    {
+      title: "Egresos del período",
+      rows: [
+        { label: "Total", value: formatClp(data.expenses.totalClp) },
+        ...data.expenses.byCategory.map((item) => ({
+          label: item.label,
+          value: formatClp(item.amountClp),
+        })),
+      ],
+    },
+    {
+      title: "Balance",
+      rows: [
+        { label: "Ingresos netos", value: formatClp(data.income.netClp) },
+        { label: "Devoluciones", value: formatClp(data.income.refundsClp) },
+        { label: "Egresos", value: formatClp(data.expenses.totalClp) },
+        { label: "Balance", value: formatClp(data.balanceClp) },
+        { label: "Gastos sobre ingresos", value: `${data.expenseRatioPct}%` },
+      ],
+    },
+    {
+      title: "Mix de ingresos",
+      rows: [
+        { label: "Servicios", value: formatClp(data.mix.servicesClp) },
+        { label: "Repuestos", value: formatClp(data.mix.partsClp) },
+        { label: "Ventas de mostrador", value: formatClp(data.mix.counterSalesClp) },
+      ],
+    },
+    {
+      title: "Mercado Pago",
+      rows: [
+        { label: "Bruto", value: formatClp(data.mercadoPago.grossClp) },
+        ...row("Comisión", money(data.mercadoPago.feeClp)),
+        ...row("Neto", money(data.mercadoPago.netClp)),
+      ],
+    },
+    {
+      title: "Inventario",
+      rows: [
+        { label: "Productos activos", value: String(data.inventory.activeCount) },
+        { label: "Bajo mínimo", value: String(data.inventory.lowStockCount) },
+        { label: "Sin stock", value: String(data.inventory.outOfStockCount) },
+        ...row("Valor a costo", money(data.inventory.valueAtCostClp)),
+        ...row("Margen de repuestos", money(data.partsMarginClp)),
+      ],
+    },
+  ];
+}
 ---
 
 <TallerLayout title="Indicadores — Vector Bikes" description="Indicadores financieros y operativos del taller." path="/taller/indicadores" user={user}>
@@ -182,6 +241,7 @@ const dateFormat = new Intl.DateTimeFormat("es-CL", {
         <tbody>{table.rows.map(([label, value]) => <tr><th scope="row">{label}</th><td>{value}</td></tr>)}</tbody>
       </table></div>
     </Card>)}
+    <FinanceBlocks sections={financeSections(finance)} />
   </div>
 </TallerLayout>
 
