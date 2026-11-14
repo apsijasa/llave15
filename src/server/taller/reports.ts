@@ -17,7 +17,9 @@ import { bikes, customers, services } from "../db/schema-taller.ts";
 import type { ObjectStorage } from "../storage/storage.ts";
 import { recordAudit } from "./audit.ts";
 import { formatOrderNumber } from "./orders.ts";
-import { INTAKE_CHECK_LABELS } from "./rules.ts";
+import type { ReportSnapshot } from "./report-snapshot.ts";
+import { snapshotSchema } from "./report-snapshot.ts";
+import { INTAKE_CHECK_LABELS, VAT_RATE_PERCENT } from "./rules.ts";
 import { hashShareToken, newShareToken, shareTokenSchema } from "./share-tokens.ts";
 import { canAccessOrder } from "./status.ts";
 
@@ -26,55 +28,7 @@ export const reportFormSchema = z.strictObject({
   nextChecks: z.string().trim().max(2000),
 });
 type ReportInput = z.infer<typeof reportFormSchema>;
-const photoSchema = z.strictObject({ photoId: z.uuid(), thumbKey: z.string() });
-const nullableText = z.string().nullable();
-const snapshotSchema = z.strictObject({
-  version: z.literal(1),
-  orderNumber: z.string(),
-  customerFirstName: z.string(),
-  bike: z.strictObject({
-    brand: z.string(),
-    model: z.string(),
-    year: z.number().int().nullable(),
-    type: z.string(),
-    size: nullableText,
-    color: nullableText,
-    serialNumber: nullableText,
-    kmNoted: z.number().int().nullable(),
-  }),
-  receivedAt: z.iso.datetime().nullable(),
-  deliveredAt: z.iso.datetime().nullable(),
-  diagnosis: nullableText,
-  workDone: z.array(z.strictObject({ description: z.string(), quantity: z.number().int() })),
-  problemsFound: z.array(
-    z.strictObject({
-      item: z.string(),
-      result: z.enum(["revisar", "malo"]),
-      note: nullableText,
-    }),
-  ),
-  componentsReplaced: z.array(
-    z.strictObject({
-      componentType: z.string(),
-      brand: z.string(),
-      model: z.string(),
-      replaces: nullableText,
-    }),
-  ),
-  photosBefore: z.array(photoSchema),
-  photosAfter: z.array(photoSchema),
-  recommendations: z.string(),
-  nextChecks: z.string(),
-  rejectedWork: z.array(
-    z.strictObject({
-      description: z.string(),
-      recommendation: z.string(),
-      decidedAt: z.iso.datetime(),
-    }),
-  ),
-  totalClp: z.number().int(),
-});
-export type ReportSnapshot = z.infer<typeof snapshotSchema>;
+export type { ReportSnapshot } from "./report-snapshot.ts";
 type ReportOrder = typeof workOrders.$inferSelect;
 
 function orderFilter(branchId: string, orderId: string) {
@@ -243,6 +197,13 @@ async function snapshotOfOrder(
     ...input,
     rejectedWork: await reportRejectedWork(db, order),
     totalClp: order.totalClp,
+    ...(order.pricingMode === "neto"
+      ? {
+          subtotalClp: order.subtotalClp,
+          vatClp: order.vatClp,
+          vatRatePercent: VAT_RATE_PERCENT,
+        }
+      : {}),
   });
 }
 

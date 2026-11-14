@@ -33,6 +33,9 @@ interface ReportSnapshot {
   nextChecks: string;
   rejectedWork: { description: string; recommendation: string; decidedAt: string }[];
   totalClp: number;
+  subtotalClp?: number;
+  vatClp?: number;
+  vatRatePercent?: number;
 }
 interface Props {
   snapshot: ReportSnapshot;
@@ -40,7 +43,8 @@ interface Props {
 }
 const { snapshot, photos } = Astro.props;
 const { bike } = snapshot;
-const total = `$${new Intl.NumberFormat("es-CL").format(Math.round(snapshot.totalClp))}`;
+const amount = (value: number) => `$${new Intl.NumberFormat("es-CL").format(Math.round(value))}`;
+const total = amount(snapshot.totalClp);
 const date = (value: string) =>
   new Date(value).toLocaleString("es-CL", { timeZone: "America/Santiago" });
 const bikeTypes: Record<string, string> = {
@@ -104,7 +108,11 @@ const photoGroups = [
       <p>{work.description}</p><p>{work.recommendation}</p><p>Rechazado el {date(work.decidedAt)}</p>
     </li>)}</ul> : <p>Sin trabajos rechazados.</p>}
   </section>
-  <section><h2>Total</h2><p class="tabular-nums">{total}</p></section>
+  <section><h2>Total</h2>{snapshot.vatClp !== undefined ? <dl class="data">
+    <dt>Neto</dt><dd class="mono">{amount(snapshot.subtotalClp ?? 0)}</dd>
+    <dt>IVA ({snapshot.vatRatePercent}%)</dt><dd class="mono">{amount(snapshot.vatClp)}</dd>
+    <dt>Total</dt><dd class="mono">{total}</dd>
+  </dl> : <p class="tabular-nums">{total}</p>}</section>
   <section aria-label="Contacto del taller">
     <p>{SITE.name} · {SITE.addressShort} · {SITE.email} · {SITE.phoneDisplay}</p>
     {SITE.certifications.length > 0 && <p>Certificaciones: {SITE.certifications.join(" · ")}</p>}
