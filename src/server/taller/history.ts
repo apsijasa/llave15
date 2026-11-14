@@ -13,6 +13,7 @@ import { getBike } from "./bikes.ts";
 import { getCustomer } from "./customers.ts";
 import { formatOrderNumber } from "./orders.ts";
 import { PAYMENT_KIND_LABELS } from "./rules.ts";
+import { listCustomerSales } from "./sales.ts";
 
 export type TimelineEvent = {
   at: string;
@@ -23,6 +24,7 @@ export type TimelineEvent = {
     | "component_replaced"
     | "approval_rejected"
     | "report_generated"
+    | "sale"
     | "payment"
     | "warranty_opened"
     | "order_delivered";
@@ -38,6 +40,7 @@ const KIND_ORDER: TimelineEvent["kind"][] = [
   "component_installed",
   "component_replaced",
   "approval_rejected",
+  "sale",
   "payment",
   "order_delivered",
   "report_generated",
@@ -281,8 +284,15 @@ export async function customerTimeline(
   if (!can(actor.role, "customers.manage") || !z.uuid().safeParse(customerId).success) return [];
   if (!(await getCustomer(db, actor, customerId))) return [];
   const orders = await customerOrders(db, actor, customerId);
-  if (!orders.length) return [];
-  const events = openedEvents(orders);
+  const sales = await listCustomerSales(db, actor, customerId);
+  const saleEvents: TimelineEvent[] = sales.map((sale) => ({
+    at: sale.createdAt.toISOString(),
+    kind: "sale",
+    title: `Venta ${sale.number}`,
+    detail: formatClp(sale.totalClp),
+  }));
+  if (!orders.length) return sortTimeline(saleEvents);
+  const events = [...openedEvents(orders), ...saleEvents];
   events.push(
     ...(await paymentEvents(
       db,

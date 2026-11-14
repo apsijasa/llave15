@@ -218,6 +218,13 @@ export const PURCHASE_DOC_TYPE_LABELS: Record<(typeof PURCHASE_DOC_TYPES)[number
   guia: "Guía de despacho",
 };
 
+export const SALE_STATUSES = ["abierta", "pagada", "anulada"] as const;
+export const SALE_STATUS_LABELS: Record<(typeof SALE_STATUSES)[number], string> = {
+  abierta: "Abierta",
+  pagada: "Pagada",
+  anulada: "Anulada",
+};
+
 export const VAT_RATE_PERCENT = 19;
 export const PRICING_MODES = ["final", "neto"] as const;
 export type PricingMode = (typeof PRICING_MODES)[number];
