@@ -1,0 +1,295 @@
+---
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { TIMEZONE } from "../../../server/booking/rules.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { formatClp } from "../../../server/email/templates.ts";
+import {
+  closeCashSession,
+  currentCashSession,
+  dayPaymentsSummary,
+  listCashSessions,
+  openCashSession,
+  requireOpenCashSession,
+  setCashControl,
+} from "../../../server/taller/cash.ts";
+import { registerRefund } from "../../../server/taller/refunds.ts";
+import {
+  CASH_MOVEMENT_KIND_LABELS,
+  CASH_REFERENCE_LABELS,
+  PAYMENT_METHOD_LABELS,
+} from "../../../server/taller/rules.ts";
+import { listUsers } from "../../../server/taller/users.ts";
+
+export const prerender = false;
+const PATH = "/taller/caja";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "cash.open_close")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+
+const canControl = can(user.role, "dashboard.finance");
+const canRefund = can(user.role, "payments.void");
+const signedClp = (amount: number) =>
+  `${amount > 0 ? "+" : amount < 0 ? "-" : ""}${formatClp(Math.abs(amount))}`;
+const notice = z
+  .object({
+    hecho: z.enum(["control-on", "control-off", "open", "close", "refund"]),
+    diferencia: z.coerce.number().int().optional(),
+  })
+  .safeParse(Object.fromEntries(Astro.url.searchParams));
+const NOTICES = {
+  "control-on": "Control de caja habilitado.",
+  "control-off": "Control de caja desactivado.",
+  open: "Caja abierta.",
+  refund: "Devolución registrada.",
+} as const;
+const success = !notice.success
+  ? ""
+  : notice.data.hecho === "close"
+    ? `Caja cerrada. Diferencia: ${signedClp(notice.data.diferencia ?? 0)}.`
+    : NOTICES[notice.data.hecho];
+const ERRORS: Record<string, string> = {
+  cash_session_open: "Ya hay una caja abierta.",
+  cash_control_off: "El control de caja está desactivado.",
+  cash_closed: "La caja está cerrada.",
+  invalid_amount: "El monto supera lo pagado menos lo ya devuelto.",
+  not_found: "No se encontró la venta, la caja o el producto en tu sucursal.",
+  out_of_stock: "No se pudo devolver el producto al stock.",
+  validation_error: "Revisa los datos del formulario.",
+};
+const optional = (value: string | undefined) => (value?.trim() ? value.trim() : undefined);
+const optionalNumber = (value: string | undefined) => (value?.trim() ? Number(value) : undefined);
+let error = "";
+let values: Record<string, string> = {};
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const action = values.action;
+  if (action === "control" && !canControl) return forbiddenResponse();
+  if (action === "refund" && !canRefund) return forbiddenResponse();
+  const result =
+    action === "control"
+      ? await setCashControl(db, user, { enabled: values.enabled === "true" }, now)
+      : action === "open"
+        ? await openCashSession(
+            db,
+            user,
+            { openingCashClp: Number(values.openingCashClp), note: optional(values.note) },
+            now,
+          )
+        : action === "close"
+          ? await closeCashSession(
+              db,
+              user,
+              { countedCashClp: Number(values.countedCashClp), note: optional(values.note) },
+              now,
+            )
+          : action === "refund"
+            ? await registerRefund(
+                db,
+                user,
+                {
+                  saleNumber: optional(values.saleNumber)?.toUpperCase(),
+                  amountClp: Number(values.amountClp),
+                  reason: values.reason ?? "",
+                  returnedSku: optional(values.returnedSku),
+                  returnedQuantity: optionalNumber(values.returnedQuantity),
+                },
+                now,
+              )
+            : ({ ok: false, code: "validation_error" } as const);
+  if (result.ok) {
+    const query = new URLSearchParams();
+    if (action === "control")
+      query.set("hecho", values.enabled === "true" ? "control-on" : "control-off");
+    else query.set("hecho", action ?? "");
+    if ("differenceClp" in result) query.set("diferencia", String(result.differenceClp));
+    return new Response(null, {
+      status: 303,
+      headers: { location: `${PATH}?${query}`, "cache-control": "no-store" },
+    });
+  }
+  if (result.code === "forbidden") return forbiddenResponse();
+  Astro.response.status =
+    result.code === "validation_error" ? 422 : result.code === "not_found" ? 404 : 409;
+  error = ERRORS[result.code] ?? "No se pudo completar la operación.";
+}
+
+const cash = await db.transaction((tx) => requireOpenCashSession(tx, user.branchId));
+const current = cash.mode === "open" ? await currentCashSession(db, user) : null;
+const session = current && !("ok" in current) ? current : null;
+const summary = session ? await dayPaymentsSummary(db, user, now) : [];
+const otherMethods = Array.isArray(summary)
+  ? summary.filter((row) => row.method !== "efectivo")
+  : [];
+const sessions = await listCashSessions(db, user);
+const previous = Array.isArray(sessions) ? sessions.filter((row) => row.closedAt) : [];
+let openedBy = "";
+if (session) {
+  if (session.openedBy === user.id) openedBy = user.name;
+  else {
+    const staff = await listUsers(db, user);
+    openedBy =
+      (staff.ok ? staff.users.find((row) => row.id === session.openedBy)?.name : undefined) ??
+      "Otra persona del taller";
+  }
+}
+const timeFormat = new Intl.DateTimeFormat("es-CL", { timeStyle: "short", timeZone: TIMEZONE });
+const dateTimeFormat = new Intl.DateTimeFormat("es-CL", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: TIMEZONE,
+});
+---
+
+<TallerLayout title={`Caja — ${SITE.name}`} description="Caja diaria del taller." path={PATH} user={user}>
+  <div class="stack cash-page">
+    <PageHeader title="Caja" />
+    {success && Astro.request.method === "GET" && <p role="status">{success}</p>}
+    {error && <p role="alert" id="cash-error">{error}</p>}
+
+    {canControl && <Card title="Control de caja">
+      <form method="post" action={PATH}>
+        <input type="hidden" name="action" value="control" />
+        <input type="hidden" name="enabled" value={cash.mode === "off" ? "true" : "false"} />
+        <button type="submit" class="btn">{cash.mode === "off" ? "Habilitar control de caja" : "Desactivar control de caja"}</button>
+      </form>
+    </Card>}
+
+    {cash.mode === "off" && <p>El control de caja está desactivado: los cobros en efectivo se registran sin sesión.</p>}
+
+    {cash.mode === "closed" && <Card title="Abrir caja">
+      <form method="post" action={PATH} class="stack">
+        <input type="hidden" name="action" value="open" />
+        <div class="field"><label for="openingCashClp">Efectivo inicial</label>
+          <input id="openingCashClp" name="openingCashClp" type="number" min="0" max="10000000" step="1" inputmode="numeric" required value={values.openingCashClp ?? ""} aria-invalid={Boolean(error && values.action === "open")} aria-describedby={error && values.action === "open" ? "cash-error" : undefined} />
+        </div>
+        <button type="submit" class="btn">Abrir caja</button>
+      </form>
+    </Card>}
+
+    {session && <Card title="Caja abierta">
+      <dl class="data">
+        <dt>Abierta por</dt><dd>{openedBy}</dd>
+        <dt>Efectivo inicial</dt><dd>{formatClp(session.openingCashClp)}</dd>
+        <dt>Ingresos</dt><dd>{formatClp(session.incomeClp)}</dd>
+        <dt>Egresos</dt><dd>{formatClp(session.expenseClp)}</dd>
+        <dt>Esperado</dt><dd>{formatClp(session.expectedCashClp)}</dd>
+      </dl>
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Movimientos de la sesión</caption>
+          <thead><tr><th scope="col">Hora</th><th scope="col">Tipo</th><th scope="col">Origen</th><th scope="col">Monto</th><th scope="col">Nota</th></tr></thead>
+          <tbody>
+            {session.movements.map((movement) => <tr class={movement.voidedAt ? "is-voided" : undefined}>
+              <td><time datetime={movement.createdAt.toISOString()}>{timeFormat.format(movement.createdAt)}</time></td>
+              <td>{CASH_MOVEMENT_KIND_LABELS[movement.kind as keyof typeof CASH_MOVEMENT_KIND_LABELS] ?? movement.kind}{movement.voidedAt && <span class="status status--anulada">Anulada</span>}</td>
+              <td>{CASH_REFERENCE_LABELS[movement.referenceKind as keyof typeof CASH_REFERENCE_LABELS] ?? movement.referenceKind}</td>
+              <td class="mono">{formatClp(movement.amountClp)}</td>
+              <td>{movement.note ?? "—"}</td>
+            </tr>)}
+            {session.movements.length === 0 && <tr><td colspan="5">Sin movimientos todavía.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Otros medios del día</caption>
+          <thead><tr><th scope="col">Medio</th><th scope="col">Pagos</th><th scope="col">Monto</th></tr></thead>
+          <tbody>
+            {otherMethods.map((row) => <tr>
+              <td>{PAYMENT_METHOD_LABELS[row.method]}</td>
+              <td class="mono">{row.count}</td>
+              <td class="mono">{formatClp(row.amountClp)}</td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+      <form method="post" action={PATH} class="stack">
+        <input type="hidden" name="action" value="close" />
+        <div class="fields">
+          <div class="field"><label for="countedCashClp">Efectivo contado</label>
+            <input id="countedCashClp" name="countedCashClp" type="number" min="0" max="10000000" step="1" inputmode="numeric" required value={values.countedCashClp ?? ""} aria-invalid={Boolean(error && values.action === "close")} aria-describedby={error && values.action === "close" ? "cash-error" : undefined} />
+          </div>
+          <div class="field"><label for="closeNote">Nota (opcional)</label>
+            <input id="closeNote" name="note" maxlength="1000" value={values.action === "close" ? values.note ?? "" : ""} />
+          </div>
+        </div>
+        <button type="submit" class="btn">Cerrar caja</button>
+      </form>
+    </Card>}
+
+    {session && canRefund && <Card title="Devolución">
+      <form method="post" action={PATH} class="stack">
+        <input type="hidden" name="action" value="refund" />
+        <div class="fields">
+          <div class="field"><label for="saleNumber">Venta</label>
+            <input id="saleNumber" name="saleNumber" required pattern="[Vv][Mm]-[0-9]{5}" placeholder="VM-00001" value={values.saleNumber ?? ""} aria-invalid={Boolean(error && values.action === "refund")} aria-describedby={error && values.action === "refund" ? "cash-error" : undefined} />
+          </div>
+          <div class="field"><label for="amountClp">Monto</label>
+            <input id="amountClp" name="amountClp" type="number" min="1" step="1" inputmode="numeric" required value={values.amountClp ?? ""} />
+          </div>
+          <div class="field"><label for="reason">Motivo</label>
+            <input id="reason" name="reason" required minlength="3" maxlength="200" value={values.reason ?? ""} />
+          </div>
+          <div class="field"><label for="returnedSku">SKU devuelto (opcional)</label>
+            <input id="returnedSku" name="returnedSku" maxlength="64" value={values.returnedSku ?? ""} />
+          </div>
+          <div class="field"><label for="returnedQuantity">Unidades devueltas (opcional)</label>
+            <input id="returnedQuantity" name="returnedQuantity" type="number" min="1" max="100" step="1" inputmode="numeric" value={values.returnedQuantity ?? ""} />
+          </div>
+        </div>
+        <button type="submit" class="btn">Registrar devolución</button>
+      </form>
+    </Card>}
+
+    <Card>
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Sesiones anteriores</caption>
+          <thead><tr><th scope="col">Apertura</th><th scope="col">Cierre</th><th scope="col">Esperado</th><th scope="col">Contado</th><th scope="col">Diferencia</th></tr></thead>
+          <tbody>
+            {previous.map((row) => <tr>
+              <td><time datetime={row.openedAt.toISOString()}>{dateTimeFormat.format(row.openedAt)}</time></td>
+              <td>{row.closedAt && <time datetime={row.closedAt.toISOString()}>{dateTimeFormat.format(row.closedAt)}</time>}</td>
+              <td class="mono">{formatClp(row.expectedCashClp ?? 0)}</td>
+              <td class="mono">{formatClp(row.countedCashClp ?? 0)}</td>
+              <td>{row.differenceClp ? <span class="status status--diferencia">Diferencia {signedClp(row.differenceClp)}</span> : <span class="mono">{formatClp(0)}</span>}</td>
+            </tr>)}
+            {previous.length === 0 && <tr><td colspan="5">Todavía no hay sesiones cerradas.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .cash-page .status--diferencia { border: 3px double var(--ink); }
+  .taller .cash-page .status--anulada { border-style: dashed; margin-left: 8px; }
+  .taller .cash-page .is-voided td { color: var(--steel); }
+  .taller .cash-page table { font-variant-numeric: tabular-nums; }
+</style>
