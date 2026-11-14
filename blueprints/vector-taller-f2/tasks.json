@@ -840,9 +840,10 @@
       "src/server/taller/sales.ts",
       "src/server/taller/sale-void.ts",
       "src/server/taller/refunds.ts",
+      "src/server/taller/sale-queries.ts",
       "tests/integration/cash-sales-refunds.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E4-T6",
