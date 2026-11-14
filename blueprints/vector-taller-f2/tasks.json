@@ -872,7 +872,7 @@
       "src/layouts/TallerLayout.astro",
       "tests/integration/expenses.test.ts"
     ],
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "id": "E5-T1",
