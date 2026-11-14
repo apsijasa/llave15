@@ -736,7 +736,7 @@
       "tests/integration/cash-schema.test.ts",
       "drizzle/**"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E4-T2",
