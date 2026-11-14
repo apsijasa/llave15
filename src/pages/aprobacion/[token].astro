@@ -2,11 +2,13 @@
 import { z } from "zod";
 import Base from "../../layouts/Base.astro";
 import { log } from "../../lib/log.ts";
+import { SITE } from "../../lib/site.ts";
 import { clientIp } from "../../server/api/client-ip.ts";
 import { checkRateLimit, hashIp, originForLog, recordAttempt } from "../../server/api/handlers.ts";
 import { getDb } from "../../server/db/client.ts";
 import { formatClp } from "../../server/email/templates.ts";
 import { decideApproval, viewApproval } from "../../server/taller/approvals.ts";
+import { grossOfNet, VAT_RATE_PERCENT, vatOfNet } from "../../server/taller/rules.ts";
 import { shareTokenSchema } from "../../server/taller/share-tokens.ts";
 
 export const prerender = false;
@@ -56,8 +58,8 @@ if (Astro.request.method === "POST") {
 ---
 
 <Base
-  title="Aprobar adicional — Vector Bikes"
-  description="Responde a la propuesta de trabajo adicional de Vector Bikes."
+  title={`Aprobar adicional — ${SITE.name}`}
+  description={`Responde a la propuesta de trabajo adicional de ${SITE.name}.`}
   path="/aprobacion"
   chrome="none"
   noindex
@@ -75,8 +77,14 @@ if (Astro.request.method === "POST") {
             <dl class="ticket-body">
               <div class="row"><dt>Problema</dt><dd>{approval.description}</dd></div>
               <div class="row"><dt>Recomendación</dt><dd>{approval.recommendation}</dd></div>
+              {approval.pricingMode === "neto" && <>
+                <div class="row"><dt>Precio neto</dt><dd>{formatClp(approval.priceClp)}</dd></div>
+                <div class="row"><dt>IVA ({VAT_RATE_PERCENT}%)</dt><dd>{formatClp(vatOfNet(approval.priceClp))}</dd></div>
+              </>}
             </dl>
-            <div class="ticket-total"><span class="label">Precio</span><strong>{formatClp(approval.priceClp)}</strong></div>
+            {approval.pricingMode === "neto" ?
+              <div class="ticket-total"><span class="label">Total</span><strong>{formatClp(grossOfNet(approval.priceClp))}</strong></div>
+              : <div class="ticket-total"><span class="label">Precio</span><strong>{formatClp(approval.priceClp)}</strong></div>}
             <div class="ticket-foot">
               <form method="post">
                 <button type="submit" name="decision" value="aprobar" class="btn">Aprobar</button>

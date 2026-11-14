@@ -6,6 +6,7 @@ import PageHeader from "../../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { getSiteEnv } from "../../../../lib/env.ts";
+import { SITE } from "../../../../lib/site.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
@@ -20,7 +21,7 @@ import {
   whatsappShareLink,
 } from "../../../../server/taller/approvals.ts";
 import { formatOrderNumber } from "../../../../server/taller/orders.ts";
-import { STATUS_LABELS } from "../../../../server/taller/rules.ts";
+import { grossOfNet, STATUS_LABELS, vatOfNet } from "../../../../server/taller/rules.ts";
 import type { OrderStatus } from "../../../../server/taller/rules.ts";
 import { orderDetail } from "../../../../server/taller/status.ts";
 
@@ -65,7 +66,11 @@ const fields = [
     label: "Recomendación",
     error: "La recomendación debe tener entre 5 y 500 caracteres.",
   },
-  { key: "priceClp", label: "Precio", error: "Ingresa un precio entero entre $1 y $10.000.000." },
+  {
+    key: "priceClp",
+    label: detail.order.pricingMode === "neto" ? "Precio neto" : "Precio",
+    error: "Ingresa un precio entero entre $1 y $10.000.000.",
+  },
 ] as const;
 let approvals = await listApprovals(db, user, id.data);
 let error = "";
@@ -101,7 +106,7 @@ if (Astro.request.method === "POST") {
   if (result.ok && result.token) {
     link = approvalLink(getSiteEnv().PUBLIC_SITE_URL, result.token);
     const firstName = detail.customer.name.trim().split(/\s+/)[0];
-    const message = `Hola ${firstName}, en Vector Bikes revisamos tu bicicleta y encontramos algo. Revisa y responde aquí: ${link}`;
+    const message = `Hola ${firstName}, en ${SITE.name} revisamos tu bicicleta y encontramos algo. Revisa y responde aquí: ${link}`;
     if (detail.customer.phoneE164) whatsapp = whatsappShareLink(detail.customer.phoneE164, message);
     values = {};
     approvals = await listApprovals(db, user, id.data);
@@ -123,7 +128,7 @@ const { order } = detail;
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---
 
-<TallerLayout title={`${number} · Adicional — Vector Bikes`} description="Propuestas de trabajo adicional." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Adicional — ${SITE.name}`} description="Propuestas de trabajo adicional." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={`${number} · Adicional`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="adicional" tabs={tabs} />
@@ -138,7 +143,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
         <caption>Trabajos adicionales propuestos</caption>
         <thead><tr><th scope="col">Problema</th><th scope="col">Precio</th><th scope="col">Estado</th><th scope="col">Fecha</th><th scope="col">Enlace</th></tr></thead>
         <tbody>{approvals.map((approval) => <tr>
-          <td>{approval.description}</td><td class="mono">{formatClp(approval.priceClp)}</td>
+          <td>{approval.description}</td><td class="mono">{formatClp(approval.priceClp)}{approval.pricingMode === "neto" && ` + IVA ${formatClp(vatOfNet(approval.priceClp))} = ${formatClp(grossOfNet(approval.priceClp))}`}</td>
           <td>{approval.decision ? decisionLabels[approval.decision] : "Pendiente"}</td>
           <td>{approval.createdAt.toLocaleString("es-CL", { timeZone: "America/Santiago" })}</td>
           <td>{approval.decidedAt === null && <form method="post" action={PATH}>

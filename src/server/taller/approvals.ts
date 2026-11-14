@@ -195,11 +195,19 @@ export async function listApprovals(db: AppDb, actor: SessionUser, orderId: stri
       description: workOrderApprovals.description,
       recommendation: workOrderApprovals.recommendation,
       priceClp: workOrderApprovals.priceClp,
+      pricingMode: workOrders.pricingMode,
       decision: workOrderApprovals.decision,
       decidedAt: workOrderApprovals.decidedAt,
       createdAt: workOrderApprovals.createdAt,
     })
     .from(workOrderApprovals)
+    .innerJoin(
+      workOrders,
+      and(
+        eq(workOrders.id, workOrderApprovals.workOrderId),
+        eq(workOrders.branchId, workOrderApprovals.branchId),
+      ),
+    )
     .where(
       and(
         eq(workOrderApprovals.branchId, actor.branchId),
@@ -220,9 +228,16 @@ export async function viewApproval(db: AppDb, token: string) {
       description: workOrderApprovals.description,
       recommendation: workOrderApprovals.recommendation,
       priceClp: workOrderApprovals.priceClp,
+      pricingMode: workOrders.pricingMode,
     })
     .from(workOrderApprovals)
-    .innerJoin(workOrders, eq(workOrders.id, workOrderApprovals.workOrderId))
+    .innerJoin(
+      workOrders,
+      and(
+        eq(workOrders.id, workOrderApprovals.workOrderId),
+        eq(workOrders.branchId, workOrderApprovals.branchId),
+      ),
+    )
     .innerJoin(customers, eq(customers.id, workOrders.customerId))
     .innerJoin(bikes, eq(bikes.id, workOrders.bikeId))
     .where(
@@ -243,6 +258,8 @@ export async function viewApproval(db: AppDb, token: string) {
       description: row.description,
       recommendation: row.recommendation,
       priceClp: row.priceClp,
+      // Conserva la respuesta histórica de las órdenes con precio final.
+      ...(row.pricingMode === "neto" ? { pricingMode: row.pricingMode } : {}),
     },
   } as const;
 }
