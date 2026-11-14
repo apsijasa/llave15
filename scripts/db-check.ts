@@ -6,6 +6,7 @@ import { inventoryTables } from "../src/server/db/schema-inventory.ts";
 import { orderTables } from "../src/server/db/schema-orders.ts";
 import { paymentTables } from "../src/server/db/schema-payments.ts";
 import { reportTables } from "../src/server/db/schema-reports.ts";
+import { saleTables } from "../src/server/db/schema-sales.ts";
 import { tallerTables } from "../src/server/db/schema-taller.ts";
 import { allTables } from "../src/server/db/schema.ts";
 
@@ -65,6 +66,7 @@ try {
     ...inventoryTables,
     ...orderTables,
     ...reportTables,
+    ...saleTables,
     ...paymentTables,
   ]
     .flatMap((table) =>
