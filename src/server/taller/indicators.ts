@@ -28,7 +28,6 @@ type Range = { from: string; to: string };
 type Bounds = { start: Date; end: Date };
 type StatusCount = { status: OrderStatus; label: string; count: number };
 type ServiceCount = { description: string; quantity: number; amountClp: number };
-type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const indicatorsRangeSchema: z.ZodType<Range> = z
   .object({
@@ -55,7 +54,12 @@ export type Indicators = {
   income: {
     totalClp: number;
     count: number;
-    byMethod: { method: PaymentMethod; label: string; amountClp: number; count: number }[];
+    byMethod: {
+      method: RecordablePaymentMethod;
+      label: string;
+      amountClp: number;
+      count: number;
+    }[];
   };
   payments: {
     receivedAt: Date;
@@ -113,7 +117,10 @@ async function income(
     .innerJoin(workOrders, and(eq(workOrders.id, payments.workOrderId), orderScope(actor)))
     .where(paymentScope(actor, bounds))
     .groupBy(payments.method);
-  const byMethod = PAYMENT_METHODS.map((method) => {
+  const methods: RecordablePaymentMethod[] = [...PAYMENT_METHODS];
+  if (rows.some((row) => row.method === "mercadopago" && row.count > 0))
+    methods.push("mercadopago");
+  const byMethod = methods.map((method) => {
     const row = rows.find((row) => row.method === method);
     return {
       method,

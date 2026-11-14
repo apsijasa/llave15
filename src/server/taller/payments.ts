@@ -8,24 +8,48 @@ import { workOrders } from "../db/schema-orders.ts";
 import { payments } from "../db/schema-payments.ts";
 import { recordAudit } from "./audit.ts";
 import type { AuditAction } from "./audit.ts";
-import { PAYMENT_KINDS, PAYMENT_METHODS, TERMINAL_STATUSES } from "./rules.ts";
+import { PAYMENT_KINDS, RECORDABLE_PAYMENT_METHODS, TERMINAL_STATUSES } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 
-const paymentInputSchema = z.strictObject({
-  kind: z.enum(PAYMENT_KINDS),
-  method: z.enum(PAYMENT_METHODS),
-  amountClp: z
-    .union([
-      z.number(),
-      z
-        .string()
-        .trim()
-        .regex(/^-?\d+$/),
-    ])
-    .transform(Number)
-    .pipe(z.number().int().max(2_147_483_647)),
-});
-export const paymentFormSchema = paymentInputSchema.extend({
+const clpInteger = z
+  .union([
+    z.number(),
+    z
+      .string()
+      .trim()
+      .regex(/^-?\d+$/),
+  ])
+  .transform(Number)
+  .pipe(z.number().int().max(2_147_483_647));
+const paymentInputSchema = z
+  .strictObject({
+    kind: z.enum(PAYMENT_KINDS),
+    method: z.enum(RECORDABLE_PAYMENT_METHODS),
+    amountClp: clpInteger,
+    externalId: z.string().trim().min(1).max(100).optional(),
+    feeClp: clpInteger.pipe(z.number().nonnegative()).default(0),
+  })
+  .superRefine((input, ctx) => {
+    if (input.method === "mercadopago" && !input.externalId)
+      ctx.addIssue({
+        code: "custom",
+        path: ["externalId"],
+        message: "Escribe el id de la operación.",
+      });
+    if (input.method !== "mercadopago" && input.feeClp > 0)
+      ctx.addIssue({
+        code: "custom",
+        path: ["feeClp"],
+        message: "La comisión es solo para Mercado Pago.",
+      });
+    if (input.feeClp > 0 && input.feeClp > input.amountClp)
+      ctx.addIssue({
+        code: "custom",
+        path: ["feeClp"],
+        message: "La comisión no puede superar el monto del pago.",
+      });
+  });
+export const paymentFormSchema = paymentInputSchema.safeExtend({
   amountClp: paymentInputSchema.shape.amountClp.pipe(z.number().positive()),
 });
 
@@ -117,10 +141,14 @@ async function insertPayment(
   input: z.infer<typeof paymentInputSchema>,
   now: Date,
 ) {
+  const values =
+    input.method === "mercadopago"
+      ? { ...input, netClp: input.amountClp - input.feeClp }
+      : { kind: input.kind, method: input.method, amountClp: input.amountClp };
   const [payment] = await db
     .insert(payments)
     .values({
-      ...input,
+      ...values,
       branchId: actor.branchId,
       workOrderId: orderId,
       receivedBy: actor.id,
@@ -131,7 +159,7 @@ async function insertPayment(
     .returning({ id: payments.id });
   if (!payment) throw new Error("No se pudo registrar el pago.");
   await recomputePaid(db, orderId, now);
-  await auditPayment(db, actor, orderId, "payment.recorded", input, now);
+  await auditPayment(db, actor, orderId, "payment.recorded", values, now);
   return { ok: true, paymentId: payment.id } as const;
 }
 

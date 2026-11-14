@@ -6,6 +6,7 @@ import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import SignaturePad from "../../../../components/taller/SignaturePad.tsx";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
@@ -24,8 +25,8 @@ import {
 import {
   PAYMENT_KINDS,
   PAYMENT_KIND_LABELS,
-  PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
+  RECORDABLE_PAYMENT_METHODS,
   STATUS_LABELS,
   TERMINAL_STATUSES,
   VAT_RATE_PERCENT,
@@ -50,7 +51,7 @@ if (!can(user.role, "payments.record")) return forbiddenResponse();
 Astro.response.headers.set("cache-control", "no-store");
 
 const actionSchema = z.discriminatedUnion("action", [
-  paymentFormSchema.extend({ action: z.literal("record") }),
+  paymentFormSchema.safeExtend({ action: z.literal("record") }),
   z.strictObject({ action: z.literal("void"), paymentId: z.uuid() }),
   z.strictObject({ action: z.literal("deliver"), firma: z.string(), nombre: z.string() }),
 ]);
@@ -64,7 +65,15 @@ if (Astro.request.method === "POST") {
   if (submitted.action === "void" && !can(user.role, "payments.void")) return forbiddenResponse();
   if (submitted.action === "deliver" && !can(user.role, "delivery.complete"))
     return forbiddenResponse();
-  parsedInput = actionSchema.safeParse(submitted);
+  const fields =
+    submitted.action === "record"
+      ? Object.fromEntries(
+          Object.entries(submitted).filter(
+            ([key, value]) => !["externalId", "feeClp"].includes(key) || value.trim() !== "",
+          ),
+        )
+      : submitted;
+  parsedInput = actionSchema.safeParse(fields);
   if (!parsedInput.success) {
     Astro.response.status = 422;
     error =
@@ -72,6 +81,11 @@ if (Astro.request.method === "POST") {
         ? "Escribe el nombre de quien retira."
         : "Revisa el tipo, método y monto del pago. El monto debe ser un entero mayor que cero.";
     for (const issue of parsedInput.error.issues) fieldErrors.add(String(issue.path[0]));
+    if (fieldErrors.has("externalId"))
+      error = "Escribe el id de la operación de Mercado Pago (hasta 100 caracteres).";
+    if (fieldErrors.has("feeClp"))
+      error =
+        "La comisión es solo para Mercado Pago: usa pesos enteros entre cero y el monto del pago.";
   }
 }
 const id = z.uuid().safeParse(Astro.params.id);
@@ -169,7 +183,7 @@ function invalid(field: string) {
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---
 
-<TallerLayout title={`${number} · Pagos y entrega — Vector Bikes`} description="Pagos y saldo de la orden de trabajo." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Pagos y entrega — ${SITE.name}`} description="Pagos y saldo de la orden de trabajo." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={`${number} · Pagos y entrega`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="entrega" tabs={tabs} />
@@ -188,10 +202,11 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
       <div class="scroll-x"><table class="dense">
         <caption>Pagos vigentes</caption>
         <thead><tr><th scope="col">Tipo de pago</th><th scope="col">Método</th>
-          <th scope="col">Monto</th><th scope="col">Acciones</th></tr></thead>
+          <th scope="col">Monto</th>{can(user.role, "costs.view") && <th scope="col">Comisión</th>}<th scope="col">Acciones</th></tr></thead>
         <tbody>{payments.map((payment) => <tr>
           <td>{PAYMENT_KIND_LABELS[payment.kind]}</td><td>{PAYMENT_METHOD_LABELS[payment.method]}</td>
-          <td class="mono">{formatClp(payment.amountClp)}</td><td>
+          <td class="mono">{formatClp(payment.amountClp)}</td>
+          {can(user.role, "costs.view") && <td class="mono">{"feeClp" in payment && typeof payment.feeClp === "number" ? formatClp(payment.feeClp) : ""}</td>}<td>
             {order.status !== "entregada" && can(user.role, "payments.void")
               ? <form method="post" action={PATH}>
                   <input type="hidden" name="action" value="void" />
@@ -212,13 +227,21 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
             {PAYMENT_KIND_LABELS[kind]}</label>)}
         </div></fieldset>
         <fieldset><legend>Método</legend><div class="options">
-          {PAYMENT_METHODS.map((method) => <label>
+          {RECORDABLE_PAYMENT_METHODS.map((method) => <label>
             <input name="method" type="radio" value={method} required checked={method === (submitted.action === "record" ? submitted.method : "transferencia")} aria-invalid={invalid("method")} aria-describedby={invalid("method") ? "form-error" : undefined} />
             {PAYMENT_METHOD_LABELS[method]}</label>)}
         </div></fieldset>
         <div class="field"><label for="amountClp">Monto</label>
           <input id="amountClp" name="amountClp" type="number" min="1" max={balance} step="1" required value={submitted.action === "record" ? submitted.amountClp : balance} aria-invalid={invalid("amountClp")} aria-describedby={invalid("amountClp") ? "form-error" : undefined} />
         </div>
+        <fieldset><legend>Solo Mercado Pago</legend>
+          <div class="field"><label for="externalId">Id de la operación</label>
+            <input id="externalId" name="externalId" type="text" maxlength="100" value={submitted.action === "record" ? submitted.externalId : ""} aria-invalid={invalid("externalId")} aria-describedby={invalid("externalId") ? "form-error" : undefined} />
+          </div>
+          <div class="field"><label for="feeClp">Comisión</label>
+            <input id="feeClp" name="feeClp" type="number" min="0" max={balance} step="1" value={submitted.action === "record" ? submitted.feeClp : ""} aria-invalid={invalid("feeClp")} aria-describedby={invalid("feeClp") ? "form-error" : undefined} />
+          </div>
+        </fieldset>
         <button class="btn" type="submit">Registrar pago</button>
       </div>
     </form></Card>}
