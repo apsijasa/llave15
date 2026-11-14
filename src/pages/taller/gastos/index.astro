@@ -1,0 +1,204 @@
+---
+import { DateTime } from "luxon";
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { TIMEZONE } from "../../../server/booking/rules.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { formatClp } from "../../../server/email/templates.ts";
+import { listExpenses, recordExpense, voidExpense } from "../../../server/taller/expenses.ts";
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORY_LABELS,
+  EXPENSE_METHODS,
+  PAYMENT_METHOD_LABELS,
+  TAX_DOC_TYPES,
+  TAX_DOC_TYPE_LABELS,
+} from "../../../server/taller/rules.ts";
+import { listSuppliers } from "../../../server/taller/suppliers.ts";
+
+export const prerender = false;
+const PATH = "/taller/gastos";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "expenses.record")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+
+const today = DateTime.fromJSDate(now, { zone: TIMEZONE });
+const rangeValues = {
+  from: Astro.url.searchParams.get("desde") ?? today.startOf("month").toFormat("yyyy-MM-dd"),
+  to: Astro.url.searchParams.get("hasta") ?? today.toFormat("yyyy-MM-dd"),
+};
+const rangeQuery = new URLSearchParams({ desde: rangeValues.from, hasta: rangeValues.to });
+const notice = z
+  .object({ hecho: z.enum(["record", "void"]) })
+  .safeParse(Object.fromEntries(Astro.url.searchParams));
+const success = notice.success
+  ? notice.data.hecho === "record"
+    ? "Gasto registrado."
+    : "Gasto anulado."
+  : "";
+const optional = (value: string | undefined) => (value?.trim() ? value.trim() : undefined);
+const ERRORS: Record<string, string> = {
+  cash_closed: "La caja está cerrada: ábrela en Caja antes de un gasto en efectivo.",
+  cash_session_closed: "La caja de ese gasto ya se cerró: registra un ajuste en Caja.",
+  not_found: "No se encontró el gasto o el proveedor en tu sucursal.",
+  validation_error: "Revisa los datos del gasto.",
+};
+let error = "";
+let values: Record<string, string> = {
+  expenseDate: today.toFormat("yyyy-MM-dd"),
+  method: "transferencia",
+};
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const result =
+    values.action === "void"
+      ? await voidExpense(db, user, values.expenseId ?? "", { reason: values.reason ?? "" }, now)
+      : await recordExpense(
+          db,
+          user,
+          {
+            category: values.category,
+            amountClp: Number(values.amountClp),
+            expenseDate: values.expenseDate,
+            description: values.description,
+            supplierId: optional(values.supplierId),
+            method: values.method,
+            docType: optional(values.docType),
+            docNumber: optional(values.docNumber),
+          },
+          now,
+        );
+  if (result.ok) {
+    rangeQuery.set("hecho", values.action === "void" ? "void" : "record");
+    return new Response(null, {
+      status: 303,
+      headers: { location: `${PATH}?${rangeQuery}`, "cache-control": "no-store" },
+    });
+  }
+  if (result.code === "forbidden") return forbiddenResponse();
+  Astro.response.status =
+    result.code === "validation_error" ? 422 : result.code === "not_found" ? 404 : 409;
+  error = ERRORS[result.code] ?? "No se pudo guardar el gasto.";
+}
+const rows = await listExpenses(db, user, rangeValues);
+const suppliers = can(user.role, "purchases.manage") ? await listSuppliers(db, user) : [];
+const isRecord = Astro.request.method === "POST" && values.action !== "void";
+const dateFormat = new Intl.DateTimeFormat("es-CL", { dateStyle: "short", timeZone: "UTC" });
+const total = rows.filter((row) => !row.voidedAt).reduce((sum, row) => sum + row.amountClp, 0);
+---
+
+<TallerLayout title={`Gastos — ${SITE.name}`} description="Gastos del taller." path={PATH} user={user}>
+  <div class="stack expense-page">
+    <PageHeader title="Gastos" />
+    {success && Astro.request.method === "GET" && <p role="status">{success}</p>}
+    {error && <p role="alert" id="expense-error">{error}</p>}
+    <Card title="Registrar gasto">
+      <form method="post" action={`${PATH}?${new URLSearchParams({ desde: rangeValues.from, hasta: rangeValues.to })}`} class="stack">
+        <input type="hidden" name="action" value="record" />
+        <div class="fields">
+          <div class="field"><label for="category">Categoría</label>
+            <select id="category" name="category" required aria-describedby={isRecord && error ? "expense-error" : undefined}>
+              {EXPENSE_CATEGORIES.map((category) => <option value={category} selected={values.category === category}>{EXPENSE_CATEGORY_LABELS[category]}</option>)}
+            </select>
+          </div>
+          <div class="field"><label for="amountClp">Monto neto</label>
+            <input id="amountClp" name="amountClp" type="number" min="1" max="100000000" step="1" required value={values.amountClp ?? ""} />
+          </div>
+          <div class="field"><label for="expenseDate">Fecha</label>
+            <input id="expenseDate" name="expenseDate" type="date" required value={values.expenseDate ?? ""} />
+          </div>
+          <div class="field"><label for="description">Descripción</label>
+            <input id="description" name="description" required minlength="2" maxlength="200" value={values.description ?? ""} />
+          </div>
+          <div class="field"><label for="supplierId">Proveedor (opcional)</label>
+            <select id="supplierId" name="supplierId">
+              <option value="">Sin proveedor</option>
+              {suppliers.map((supplier) => <option value={supplier.id} selected={values.supplierId === supplier.id}>{supplier.name}</option>)}
+            </select>
+          </div>
+          <div class="field"><label for="method">Medio</label>
+            <select id="method" name="method" required>
+              {EXPENSE_METHODS.map((method) => <option value={method} selected={values.method === method}>{PAYMENT_METHOD_LABELS[method]}</option>)}
+            </select>
+          </div>
+          <div class="field"><label for="docType">Documento</label>
+            <select id="docType" name="docType">
+              <option value="">Sin documento</option>
+              {TAX_DOC_TYPES.map((docType) => <option value={docType} selected={values.docType === docType}>{TAX_DOC_TYPE_LABELS[docType]}</option>)}
+            </select>
+          </div>
+          <div class="field"><label for="docNumber">Folio</label>
+            <input id="docNumber" name="docNumber" maxlength="30" value={values.docNumber ?? ""} />
+          </div>
+        </div>
+        <button type="submit" class="btn">Registrar gasto</button>
+      </form>
+    </Card>
+    <Card title="Rango de fechas">
+      <form method="get" action={PATH} class="expense-range">
+        <div class="field"><label for="desde">Desde</label><input id="desde" name="desde" type="date" value={rangeValues.from} required /></div>
+        <div class="field"><label for="hasta">Hasta</label><input id="hasta" name="hasta" type="date" value={rangeValues.to} required /></div>
+        <button type="submit" class="btn">Aplicar</button>
+      </form>
+    </Card>
+    <Card>
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Gastos del período · vigentes {formatClp(total)}</caption>
+          <thead><tr><th scope="col">Fecha</th><th scope="col">Categoría</th><th scope="col">Descripción</th><th scope="col">Proveedor</th><th scope="col">Medio</th><th scope="col">Monto neto</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead>
+          <tbody>
+            {rows.map((row) => <tr>
+              <td><time datetime={row.expenseDate}>{dateFormat.format(new Date(`${row.expenseDate}T00:00:00Z`))}</time></td>
+              <td>{EXPENSE_CATEGORY_LABELS[row.category as keyof typeof EXPENSE_CATEGORY_LABELS] ?? row.category}</td>
+              <td>{row.description}</td>
+              <td>{row.supplierName ?? "—"}</td>
+              <td>{PAYMENT_METHOD_LABELS[row.method as keyof typeof PAYMENT_METHOD_LABELS] ?? row.method}</td>
+              <td class="mono">{formatClp(row.amountClp)}</td>
+              <td>{row.voidedAt ? <span class="status status--anulada">Anulado</span> : <span class="status">Vigente</span>}</td>
+              <td>{row.voidedAt ? "—" : <form method="post" class="stack expense-void" action={`${PATH}?${new URLSearchParams({ desde: rangeValues.from, hasta: rangeValues.to })}`}>
+                <input type="hidden" name="action" value="void" />
+                <input type="hidden" name="expenseId" value={row.id} />
+                <div class="field">
+                  <label for={`reason-${row.id}`}>Motivo</label>
+                  <input id={`reason-${row.id}`} name="reason" required minlength="3" maxlength="200" />
+                </div>
+                <button type="submit" class="btn ghost" aria-label={`Anular gasto ${row.description}`}>Anular</button>
+              </form>}</td>
+            </tr>)}
+            {rows.length === 0 && <tr><td colspan="8">No hay gastos en este período.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .expense-page .expense-range { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+  .taller .expense-page .expense-void { min-width: 180px; gap: 8px; }
+  .taller .expense-page .status--anulada { border-style: dashed; }
+</style>

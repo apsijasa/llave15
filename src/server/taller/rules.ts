@@ -252,3 +252,23 @@ export const CASH_REFERENCE_LABELS = {
   sale_refund: "Devolución de venta",
   order_refund: "Devolución de orden",
 } as const;
+
+export const EXPENSE_CATEGORIES = [
+  "arriendo",
+  "sueldos",
+  "servicios",
+  "insumos",
+  "repuestos",
+  "otros",
+] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  arriendo: "Arriendo",
+  sueldos: "Sueldos",
+  servicios: "Servicios",
+  insumos: "Insumos",
+  repuestos: "Repuestos",
+  otros: "Otros",
+};
+export const EXPENSE_METHODS = ["efectivo", "transferencia", "tarjeta", "otro"] as const;
+export type ExpenseMethod = (typeof EXPENSE_METHODS)[number];
