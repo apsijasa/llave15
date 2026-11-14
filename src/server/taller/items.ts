@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -6,10 +6,13 @@ import type { AppDb } from "../db/client.ts";
 import { workOrderItems, workOrders } from "../db/schema-orders.ts";
 import { recordAudit } from "./audit.ts";
 import { getService, priceFor } from "./catalog.ts";
+import { recomputeOrderTotals } from "./order-totals.ts";
 import { getOrderHeader } from "./orders.ts";
 import type { BikeType } from "./rules.ts";
 import { TERMINAL_STATUSES } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
+
+export { recomputeOrderTotals };
 
 // Los mensajes llegan al campo del formulario de Líneas: en español y sin jerga de zod.
 const PRICE_MESSAGE = "Escribe un monto entero en pesos, entre 0 y 10.000.000.";
@@ -73,34 +76,6 @@ async function lockOrder(db: AppDb, actor: SessionUser, orderId: string) {
   if ((TERMINAL_STATUSES as readonly string[]).includes(access.order.status))
     return { ok: false, code: "invalid_status" } as const;
   return access;
-}
-
-/** Recibe la misma transacción que agrega, cambia o anula la línea. */
-export async function recomputeOrderTotals(db: AppDb, orderId: string, now: Date) {
-  const [order] = await db
-    .select({ branchId: workOrders.branchId })
-    .from(workOrders)
-    .where(eq(workOrders.id, orderId))
-    .limit(1);
-  if (!order) return;
-  const [totals] = await db
-    .select({
-      totalClp: sql<number>`coalesce(sum(quantity * unit_price_clp), 0)`.mapWith(Number),
-      estimatedMinutes: sql<number>`coalesce(sum(quantity * estimated_minutes), 0)`.mapWith(Number),
-    })
-    .from(workOrderItems)
-    .where(
-      and(
-        eq(workOrderItems.branchId, order.branchId),
-        eq(workOrderItems.workOrderId, orderId),
-        isNull(workOrderItems.voidedAt),
-      ),
-    );
-  if (!totals) throw new Error("No se pudieron calcular los totales.");
-  await db
-    .update(workOrders)
-    .set({ ...totals, updatedAt: now })
-    .where(and(eq(workOrders.branchId, order.branchId), eq(workOrders.id, orderId)));
 }
 
 async function insertCatalogItem(

@@ -214,3 +214,23 @@ export const PURCHASE_DOC_TYPE_LABELS: Record<(typeof PURCHASE_DOC_TYPES)[number
   boleta: "Boleta",
   guia: "Guía de despacho",
 };
+
+export const VAT_RATE_PERCENT = 19;
+export const PRICING_MODES = ["final", "neto"] as const;
+export type PricingMode = (typeof PRICING_MODES)[number];
+export const PRICING_MODE_LABELS: Record<PricingMode, string> = {
+  final: "Precios finales",
+  neto: "Precios netos + IVA",
+};
+
+export function vatOfNet(net: number): number {
+  return Math.round((net * VAT_RATE_PERCENT) / 100);
+}
+
+export function grossOfNet(net: number): number {
+  return net + vatOfNet(net);
+}
+
+export function netOfGross(gross: number): number {
+  return Math.round((gross * 100) / (100 + VAT_RATE_PERCENT));
+}
