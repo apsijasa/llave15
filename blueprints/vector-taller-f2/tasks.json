@@ -376,7 +376,7 @@
       "src/pages/taller/ordenes/[id]/lineas.astro",
       "tests/integration/part-stock.test.ts"
     ],
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "id": "E2-T5",
