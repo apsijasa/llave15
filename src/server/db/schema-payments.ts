@@ -26,7 +26,9 @@ export const payments = pgTable(
     workOrderId: uuid("work_order_id").references(() => workOrders.id, { onDelete: "restrict" }),
     saleId: uuid("sale_id").references(() => sales.id, { onDelete: "restrict" }),
     kind: text("kind").$type<"abono" | "final">().notNull(),
-    method: text("method").$type<"transferencia" | "tarjeta" | "efectivo" | "otro">().notNull(),
+    method: text("method")
+      .$type<"transferencia" | "tarjeta" | "efectivo" | "otro" | "mercadopago">()
+      .notNull(),
     amountClp: integer("amount_clp").notNull(),
     externalId: text("external_id"),
     feeClp: integer("fee_clp").notNull().default(0),
@@ -47,7 +49,10 @@ export const payments = pgTable(
     index("idx_payments_branch_received").on(t.branchId, t.receivedAt),
     index("idx_payments_sale").on(t.saleId),
     check("payments_kind_check", sql`kind in ('abono', 'final')`),
-    check("payments_method_check", sql`method in ('transferencia', 'tarjeta', 'efectivo', 'otro')`),
+    check(
+      "payments_method_check",
+      sql`method in ('transferencia', 'tarjeta', 'efectivo', 'otro', 'mercadopago')`,
+    ),
     check("payments_amount_check", sql`amount_clp > 0`),
     check("payments_target_check", sql`num_nonnulls(work_order_id, sale_id) = 1`),
     check("payments_fee_check", sql`fee_clp >= 0 and fee_clp <= amount_clp`),

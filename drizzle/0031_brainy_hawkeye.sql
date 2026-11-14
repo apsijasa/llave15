@@ -1,0 +1,2 @@
+ALTER TABLE "payments" DROP CONSTRAINT "payments_method_check";--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_method_check" CHECK (method in ('transferencia', 'tarjeta', 'efectivo', 'otro', 'mercadopago'));

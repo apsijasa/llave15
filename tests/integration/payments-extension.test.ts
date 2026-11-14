@@ -153,7 +153,7 @@ it("exige que la venta referenciada exista", async () => {
   ).rejects.toMatchObject({ code: "23503" });
 });
 
-it.each(["cheque", "mercadopago"])("mantiene el CHECK de método: rechaza %s", async (method) => {
+it.each(["cheque"])("mantiene el CHECK de método: rechaza %s", async (method) => {
   await expect(payment({ method, external_id: "operacion-123" })).rejects.toMatchObject({
     code: "23514",
     constraint: "payments_method_check",

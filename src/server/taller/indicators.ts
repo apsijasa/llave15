@@ -22,7 +22,7 @@ import {
   STATUS_LABELS,
   TERMINAL_STATUSES,
 } from "./rules.ts";
-import type { OrderStatus } from "./rules.ts";
+import type { OrderStatus, RecordablePaymentMethod } from "./rules.ts";
 
 type Range = { from: string; to: string };
 type Bounds = { start: Date; end: Date };
@@ -61,7 +61,7 @@ export type Indicators = {
     receivedAt: Date;
     orderNumber: string;
     kind: "abono" | "final";
-    method: PaymentMethod;
+    method: RecordablePaymentMethod;
     amountClp: number;
     receivedByName: string;
   }[];

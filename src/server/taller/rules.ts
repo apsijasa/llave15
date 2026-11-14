@@ -159,11 +159,14 @@ export const PAYMENT_KIND_LABELS: Record<(typeof PAYMENT_KINDS)[number], string>
   final: "Pago final",
 };
 export const PAYMENT_METHODS = ["transferencia", "tarjeta", "efectivo", "otro"] as const;
-export const PAYMENT_METHOD_LABELS: Record<(typeof PAYMENT_METHODS)[number], string> = {
+export const RECORDABLE_PAYMENT_METHODS = [...PAYMENT_METHODS, "mercadopago"] as const;
+export type RecordablePaymentMethod = (typeof RECORDABLE_PAYMENT_METHODS)[number];
+export const PAYMENT_METHOD_LABELS: Record<RecordablePaymentMethod, string> = {
   transferencia: "Transferencia",
   tarjeta: "Tarjeta",
   efectivo: "Efectivo",
   otro: "Otro",
+  mercadopago: "Mercado Pago",
 };
 export const TAX_DOC_TYPES = ["boleta", "factura"] as const;
 export const TAX_DOC_TYPE_LABELS: Record<(typeof TAX_DOC_TYPES)[number], string> = {
