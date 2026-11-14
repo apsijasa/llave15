@@ -8,6 +8,7 @@ import { recordAudit } from "./audit.ts";
 import { getService, priceFor } from "./catalog.ts";
 import { recomputeOrderTotals } from "./order-totals.ts";
 import { getOrderHeader } from "./orders.ts";
+import { reverseItemStock } from "./part-stock.ts";
 import type { BikeType } from "./rules.ts";
 import { TERMINAL_STATUSES } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
@@ -326,6 +327,7 @@ export async function voidItem(db: AppDb, actor: SessionUser, itemId: string, no
       )
       .returning({ id: workOrderItems.id });
     if (changed.length > 0) {
+      await reverseItemStock(tx, actor, item, now);
       await recomputeOrderTotals(tx, item.workOrderId, now);
       await recordAudit(
         tx,
@@ -346,7 +348,7 @@ export async function voidItem(db: AppDb, actor: SessionUser, itemId: string, no
 
 export async function listItems(db: AppDb, actor: SessionUser, orderId: string) {
   if (!(await accessibleOrder(db, actor, orderId)).ok) return [];
-  return db
+  const rows = await db
     .select()
     .from(workOrderItems)
     .where(
@@ -357,4 +359,11 @@ export async function listItems(db: AppDb, actor: SessionUser, orderId: string) 
       ),
     )
     .orderBy(asc(workOrderItems.createdAt), asc(workOrderItems.id));
+  if (can(actor.role, "costs.view")) return rows;
+  // F2-D28: a cost is omitted; a null cost (free-text line) carries no data and keeps the phase-1 shape.
+  return rows.map((row) => {
+    if (row.unitCostClp === null) return row;
+    const { unitCostClp: _unitCostClp, ...visible } = row;
+    return visible;
+  });
 }

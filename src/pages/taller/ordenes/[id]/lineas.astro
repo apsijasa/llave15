@@ -1,9 +1,11 @@
 ---
 import { z } from "zod";
 import Card from "../../../../components/taller/Card.astro";
+import OrderAmounts from "../../../../components/taller/OrderAmounts.astro";
 import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
@@ -27,11 +29,14 @@ import {
   taxDocSchema,
   updateTaxDocument,
 } from "../../../../server/taller/orders.ts";
+import { addProductPartItem, productPartSchema } from "../../../../server/taller/part-stock.ts";
+import { listProducts } from "../../../../server/taller/products.ts";
 import {
   STATUS_LABELS,
   TAX_DOC_TYPES,
   TAX_DOC_TYPE_LABELS,
   TERMINAL_STATUSES,
+  VAT_RATE_PERCENT,
 } from "../../../../server/taller/rules.ts";
 import type { BikeType, OrderStatus } from "../../../../server/taller/rules.ts";
 import { orderDetail } from "../../../../server/taller/status.ts";
@@ -55,6 +60,7 @@ Astro.response.headers.set("cache-control", "no-store");
 const permissions: Record<string, Action> = {
   catalog: "items.add_catalog",
   part: "items.add_part",
+  add_product: "items.add_part",
   prices: "items.override_price",
   void: "items.void",
   tax: "tax_doc.edit",
@@ -62,6 +68,7 @@ const permissions: Record<string, Action> = {
 const actionSchema = z.discriminatedUnion("action", [
   catalogItemSchema.omit({ origin: true }).extend({ action: z.literal("catalog") }),
   partItemSchema.extend({ action: z.literal("part") }),
+  productPartSchema.extend({ action: z.literal("add_product") }),
   z.strictObject({ action: z.literal("prices") }),
   z.strictObject({ action: z.literal("void"), itemId: z.uuid() }),
   taxDocSchema.extend({ action: z.literal("tax") }),
@@ -77,11 +84,13 @@ function parseAction(submitted: Record<string, string>) {
             quantity: submitted.part_quantity,
             unitPriceClp: submitted.part_price,
           }
-        : action === "tax"
-          ? { type: submitted.type, number: submitted.number, date: submitted.date }
-          : action === "void"
-            ? { itemId: submitted.anular }
-            : {};
+        : action === "add_product"
+          ? { productId: submitted.productId, quantity: submitted.product_quantity }
+          : action === "tax"
+            ? { type: submitted.type, number: submitted.number, date: submitted.date }
+            : action === "void"
+              ? { itemId: submitted.anular }
+              : {};
   return actionSchema.safeParse({ action, ...fields });
 }
 let submitted: Record<string, string> = {};
@@ -136,7 +145,9 @@ if (Astro.request.method === "POST") {
         ? { quantity: "catalog_quantity" }
         : action === "part"
           ? { quantity: "part_quantity", unitPriceClp: "part_price" }
-          : { itemId: "anular" };
+          : action === "add_product"
+            ? { quantity: "product_quantity" }
+            : { itemId: "anular" };
     for (const issue of parsed.error.issues) {
       const key = String(issue.path[0]);
       fieldErrors[fields[key] ?? key] ??= issue.message;
@@ -160,6 +171,8 @@ if (Astro.request.method === "POST") {
     if (result.ok) {
       if (action === "catalog") result = await addCatalogItem(db, user, order.id, fields, now);
       else if (action === "part") result = await addPartItem(db, user, order.id, fields, now);
+      else if (action === "add_product")
+        result = await addProductPartItem(db, user, order.id, fields, now);
       else if (action === "tax") result = await updateTaxDocument(db, user, order.id, fields, now);
       else if (input.action === "void") result = await voidItem(db, user, input.itemId, now);
     }
@@ -179,19 +192,25 @@ if (Astro.request.method === "POST") {
         ? "No se pueden editar líneas de una orden entregada, cancelada o con trabajo rechazado."
         : result.code === "no_price"
           ? "El servicio no tiene precio para esta bicicleta."
-          : result.code === "not_found"
-            ? "No se encontró la orden o la línea."
-            : "Revisa los datos del formulario.";
+          : result.code === "out_of_stock"
+            ? "No hay stock suficiente de ese producto."
+            : result.code === "not_found"
+              ? "No se encontró la orden o la línea."
+              : "Revisa los datos del formulario.";
   }
 }
 const catalog = can(user.role, "items.add_catalog")
   ? (await listCatalog(db, user)).filter((service) => service.isActive)
+  : [];
+const products = can(user.role, "items.add_part")
+  ? (await listProducts(db, user)).filter((product) => product.isActive && product.stockQty > 0)
   : [];
 const number = formatOrderNumber(order.number);
 const editable = !(TERMINAL_STATUSES as readonly string[]).includes(order.status);
 const notices: Record<string, string> = {
   catalog: "Servicio agregado.",
   part: "Repuesto agregado.",
+  add_product: "Repuesto del inventario agregado.",
   void: "Línea anulada.",
   tax: "Documento tributario guardado.",
 };
@@ -214,7 +233,7 @@ const notice =
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---
 
-<TallerLayout title={`${number} · Líneas — Vector Bikes`} description="Líneas, precios y documento tributario de la orden." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Líneas — ${SITE.name}`} description="Líneas, precios y documento tributario de la orden." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={`${number} · Líneas`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="lineas" tabs={tabs} />
@@ -242,7 +261,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
       </table></div>
       {items.length === 0 && <p class="muted">No hay líneas registradas.</p>}
       {editable && can(user.role, "items.override_price") && <button class="btn" type="submit" name="action" value="prices">Guardar cambios</button>}
-      <p>Total para el cliente: <span class="mono">{formatClp(order.totalClp)}</span></p>
+      {order.pricingMode === "neto" ? <dl class="data"><OrderAmounts netText={formatClp(order.subtotalClp)} vatLabel={`IVA (${VAT_RATE_PERCENT}%)`} vatText={formatClp(order.vatClp)} totalLabel="Total para el cliente" totalText={formatClp(order.totalClp)} /></dl> : <p>Total para el cliente: <span class="mono">{formatClp(order.totalClp)}</span></p>}
     </Card>
     {editable && can(user.role, "items.add_catalog") && <Card>
       <fieldset><legend>Agregar servicio</legend><div class="fields">
@@ -260,6 +279,21 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
           {fieldErrors.catalog_quantity && <p id="service-quantity-error">{fieldErrors.catalog_quantity}</p>}
         </div>
       </div><button class="btn" type="submit" name="action" value="catalog">Agregar servicio</button></fieldset>
+    </Card>}
+    {editable && can(user.role, "items.add_part") && <Card>
+      <fieldset><legend>Agregar repuesto del inventario</legend><div class="fields">
+        <div class="field"><label for="productId">Producto</label>
+          <select id="productId" name="productId" aria-invalid={Boolean(fieldErrors.productId)} aria-describedby={fieldErrors.productId ? "productId-error" : undefined}>
+            <option value="">Selecciona un producto</option>
+            {products.map((product) => <option value={product.id} selected={submitted.productId === product.id}>{product.sku} · {product.name} · stock {product.stockQty} · {formatClp(product.priceClp)}</option>)}
+          </select>
+          {fieldErrors.productId && <p id="productId-error">{fieldErrors.productId}</p>}
+        </div>
+        <div class="field"><label for="product-quantity">Cantidad</label>
+          <input id="product-quantity" name="product_quantity" type="text" inputmode="numeric" value={submitted.product_quantity ?? 1} aria-invalid={Boolean(fieldErrors.product_quantity)} aria-describedby={fieldErrors.product_quantity ? "product-quantity-error" : undefined} />
+          {fieldErrors.product_quantity && <p id="product-quantity-error">{fieldErrors.product_quantity}</p>}
+        </div>
+      </div><button class="btn" type="submit" name="action" value="add_product">Agregar del inventario</button></fieldset>
     </Card>}
     {editable && can(user.role, "items.add_part") && <Card>
       <fieldset><legend>Agregar repuesto</legend><div class="fields">
