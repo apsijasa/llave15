@@ -186,3 +186,23 @@
     color: inherit;
   }
 }
+/* Con mouse el menú se compacta un 30%; con el dedo (tablet, también apaisada) conserva los 48px. */
+@media (min-width: 1024px) and (pointer: fine) {
+  .taller {
+    --aside-gap: 17px;
+  }
+  .taller .taller-group + .taller-group {
+    margin-top: 14px;
+  }
+  .taller .taller-group ul {
+    margin-top: 6px;
+  }
+  .taller .taller-group li + li {
+    margin-top: 3px;
+  }
+  .taller .taller-panel nav a {
+    min-height: 34px;
+    padding-block: 4px;
+    line-height: 1.3;
+  }
+}

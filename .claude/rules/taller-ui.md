@@ -10,7 +10,7 @@ paths:
 
 - Tablet primero: recepción, checklist, fotos, firma, orden de trabajo, control de calidad, venta de mostrador, caja y ajuste de stock se diseñan para 820×1180 en vertical y con las manos sucias; el escritorio viene después. Catálogo, usuarios, informes, compras, proveedores, gastos e indicadores son de escritorio.
 - La recepción la hace cualquier rol, también el mecánico (FASE1 decisión 5): sus pantallas no se esconden al mecánico.
-- Objetivos táctiles ≥ 48px de alto y de ancho en las pantallas de taller (botones, opciones del checklist, selects, enlaces de acción), separados al menos 8px.
+- Objetivos táctiles ≥ 48px de alto y de ancho en las pantallas de taller (botones, opciones del checklist, selects, enlaces de acción), separados al menos 8px. Única excepción: el menú lateral con mouse (`pointer: fine`, ≥ 1024px) usa opciones de 34px; con el dedo, 48px.
 - Nada que dependa de pasar el mouse por encima; nada que exija teclear párrafos: opciones tocables (`input type=radio` dentro de `label`), selects y campos cortos. Las notas son opcionales.
 - Estados de orden con forma + texto: `<span class="status status--<estado>">` con un borde propio por estado (sólido, punteado, doble, rayado con `--hatch`) y la etiqueta de `STATUS_LABELS`. Nunca solo color. Lo mismo para inventario y caja: `status--bajo` ("Bajo mínimo"), `status--sin-stock` ("Sin stock"), `status--diferencia` ("Diferencia +$1.000"), `status--anulada` ("Anulada").
 - Tablas densas con `font-variant-numeric: tabular-nums`; montos con `formatClp`; números con `formatOrderNumber` (`OT-00001`), `formatSaleNumber` (`VM-00001`) y `formatPurchaseNumber` (`OC-00001`).
