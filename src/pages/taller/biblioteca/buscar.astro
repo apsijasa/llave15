@@ -1,0 +1,139 @@
+---
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../components/taller/library/LibraryStatus.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { listFamilies, listManufacturers } from "../../../server/library/catalog.ts";
+import { LIBRARY_CATEGORIES, LIBRARY_CATEGORY_LABELS } from "../../../server/library/rules.ts";
+import type { LibraryCategory } from "../../../server/library/rules.ts";
+import { librarySearchSchema, searchLibrary } from "../../../server/library/search.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca/buscar";
+const db = getDb();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "library.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const querySchema = z.object({
+  q: librarySearchSchema.shape.q.optional(),
+  category: librarySearchSchema.shape.category,
+  manufacturerId: librarySearchSchema.shape.manufacturerId,
+  status: librarySearchSchema.shape.status,
+});
+const parsed = querySchema.safeParse({
+  q: Astro.url.searchParams.get("q") ?? undefined,
+  category: Astro.url.searchParams.get("categoria") || undefined,
+  manufacturerId: Astro.url.searchParams.get("fabricante") || undefined,
+  status: Astro.url.searchParams.get("estado") || undefined,
+});
+const query = parsed.success ? parsed.data : {};
+const result = query.q ? await searchLibrary(db, user, { ...query, q: query.q }) : null;
+if (result && !result.ok) return forbiddenResponse();
+const results = result?.ok ? result : null;
+const manufacturers = await listManufacturers(db);
+const families = !query.q && query.category ? await listFamilies(db, query.category) : [];
+const modelStates = [
+  { value: "vigente", label: "Vigente", status: "vigente" },
+  { value: "descontinuado", label: "Descontinuado", status: "desactualizado" },
+  { value: "en_revision", label: "En revisión", status: "en_revision" },
+];
+const modelGroups = [
+  { title: "Coincidencia exacta", hits: results?.exact ?? [] },
+  { title: "Modelos", hits: results?.models ?? [] },
+];
+const empty =
+  results &&
+  ![results.exact, results.models, results.articles, results.documents].some((hits) => hits.length);
+---
+
+<TallerLayout title={`Buscar en biblioteca — ${SITE.name}`} description="Busca componentes y documentación técnica." path={PATH} user={user}>
+  <div class="stack">
+    <PageHeader title="Buscar en biblioteca" />
+    <Card>
+      <form method="get" action={PATH} class="stack">
+        <fieldset>
+          <legend>Filtros</legend>
+          <div class="fields">
+            <div class="field">
+              <label for="library-q">Fabricante, modelo, código, síntoma o palabra técnica</label>
+              <input id="library-q" type="search" name="q" maxlength="120" value={query.q ?? ""} />
+            </div>
+            <div class="field">
+              <label for="library-category">Categoría</label>
+              <select id="library-category" name="categoria">
+                <option value="">Todas las categorías</option>
+                {LIBRARY_CATEGORIES.map((category) => <option value={category} selected={query.category === category}>{LIBRARY_CATEGORY_LABELS[category]}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label for="library-manufacturer">Fabricante</label>
+              <select id="library-manufacturer" name="fabricante">
+                <option value="">Todos los fabricantes</option>
+                {manufacturers.map((manufacturer) => <option value={manufacturer.id} selected={query.manufacturerId === manufacturer.id}>{manufacturer.name}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label for="library-status">Estado</label>
+              <select id="library-status" name="estado">
+                <option value="">Todos los estados</option>
+                {modelStates.map((state) => <option value={state.value} selected={query.status === state.value}>{state.label}</option>)}
+              </select>
+            </div>
+          </div>
+        </fieldset>
+        <button type="submit" class="btn">Buscar</button>
+      </form>
+    </Card>
+    {!query.q && query.category && <Card title="Familias">
+      <ul class="log">{families.map((family) => <li>{family.name} · {family.manufacturerName}</li>)}</ul>
+      {families.length === 0 && <p class="muted">Sin resultados.</p>}
+    </Card>}
+    {results && <>
+      {modelGroups.map((group) => (group.title === "Modelos" || group.hits.length > 0) && <Card title={group.title}>
+        <div class="scroll-x">
+          <table class="dense">
+            <caption>{group.title}</caption>
+            <thead><tr><th scope="col">Código</th><th scope="col">Variante/Revisión</th><th scope="col">Nombre</th><th scope="col">Fabricante</th><th scope="col">Estado</th></tr></thead>
+            <tbody>{group.hits.map((hit) => {
+              const state = modelStates.find((item) => item.value === hit.status);
+              return <tr>
+                <th scope="row"><a href={`/taller/biblioteca/componentes/${hit.variantId}`}>{hit.code}</a></th>
+                <td>{hit.variantCode} · {hit.revision || "Sin revisión"}</td>
+                <td>{hit.name}</td><td>{hit.manufacturerName}</td>
+                <td><LibraryStatus status={state?.status ?? "en_revision"} label={state?.label ?? "En revisión"} /></td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>
+      </Card>)}
+      <Card title="Artículos">
+        <ul class="log">{results.articles.map((article) => <li>
+          <strong>{article.title}</strong>
+          <p>{LIBRARY_CATEGORY_LABELS[article.category as LibraryCategory]} · Versión {article.versionNumber} · {article.publishedAt ? <time datetime={article.publishedAt.toISOString()}>{article.publishedAt.toISOString().slice(0, 10)}</time> : "Sin fecha"}</p>
+          <p>{article.summary}</p>
+        </li>)}</ul>
+      </Card>
+      <Card title="Documentos">
+        <ul class="log">{results.documents.map((document) => <li>
+          <a href={`/taller/biblioteca/documentos/${document.id}`}>{document.title}</a>
+          <p>{document.manufacturerName ?? "Sin fabricante"} · {document.language} · {document.revision || "Sin revisión"}</p>
+        </li>)}</ul>
+      </Card>
+      {empty && <p class="muted">Sin resultados.</p>}
+    </>}
+  </div>
+</TallerLayout>
+

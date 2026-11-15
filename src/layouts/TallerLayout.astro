@@ -10,7 +10,7 @@ interface Props {
   title: string;
   description: string;
   path: string;
-  user: { name: string; role: Role };
+  user: { name: string; role: Role; libraryCurator?: boolean };
 }
 
 const { title, description, path, user } = Astro.props;
@@ -38,6 +38,15 @@ const groups: { label: string; links: Link[] }[] = [
     ],
   },
   {
+    label: "Conocimiento",
+    links: [
+      { label: "Biblioteca", href: "/taller/biblioteca", action: "library.view" },
+      { label: "Asistente", href: "/taller/biblioteca/asistente", action: "library.ai" },
+      { label: "Propuestas", href: "/taller/biblioteca/propuestas", action: "library.propose" },
+      { label: "Revisión", href: "/taller/biblioteca/revision", action: "library.curate" },
+    ],
+  },
+  {
     label: "Inventario y caja",
     links: [
       { label: "Inventario", href: "/taller/inventario", action: "inventory.view" },
@@ -51,8 +60,20 @@ const groups: { label: string; links: Link[] }[] = [
 ];
 // El menú se arma en el servidor: un grupo sin enlaces permitidos no se muestra.
 const menu = groups
-  .map((group) => ({ ...group, links: group.links.filter((link) => can(user.role, link.action)) }))
+  .map((group) => ({
+    ...group,
+    links: group.links.filter(
+      (link) =>
+        can(user.role, link.action) &&
+        (link.action !== "library.curate" || user.libraryCurator === true),
+    ),
+  }))
   .filter((group) => group.links.length > 0);
+// En "Conocimiento" una subruta marca el enlace de prefijo más largo (Asistente, no Biblioteca).
+const knowledgeCurrent = groups
+  .flatMap((group) => (group.label === "Conocimiento" ? group.links : []))
+  .filter((link) => path === link.href || path.startsWith(`${link.href}/`))
+  .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 ---
 
 <Base title={title} description={description} path={path} chrome="none" noindex>
@@ -80,7 +101,7 @@ const menu = groups
                 <ul>
                   {group.links.map((link) => (
                     <li>
-                      <a href={link.href} aria-current={path === link.href ? "page" : undefined}>
+                      <a href={link.href} aria-current={path === link.href || (group.label === "Conocimiento" && knowledgeCurrent === link.href) ? "page" : undefined}>
                         {link.label}
                       </a>
                     </li>

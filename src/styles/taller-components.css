@@ -209,3 +209,81 @@
   outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
+/* Biblioteca: validación, confianza y relaciones con forma + texto. */
+.taller .status--verificado::before,
+.taller .status--oficial_confirmada::before {
+  content: "✓";
+}
+.taller .status--condicionado,
+.taller .status--condicionada,
+.taller .status--baja {
+  border-style: dotted;
+}
+.taller .status--condicionado::before,
+.taller .status--condicionada::before {
+  content: "?";
+}
+.taller .status--desactualizado {
+  border-style: dashed;
+  background: repeating-linear-gradient(135deg, var(--surface) 0 4px, var(--hatch) 4px 5px);
+}
+.taller .status--desactualizado::before {
+  content: "⌛";
+}
+.taller .status--en_revision,
+.taller .status--media,
+.taller .status--incompatible {
+  border-style: dashed;
+}
+.taller .status--en_revision::before {
+  content: "◎";
+}
+.taller .status--sin_dato_verificado,
+.taller .status--no_verificada {
+  border: 3px double var(--ink);
+}
+.taller .status--sin_dato_verificado::before,
+.taller .status--no_verificada::before {
+  content: "∅";
+}
+.taller .status--alta::before {
+  content: "●";
+}
+.taller .status--media::before {
+  content: "◐";
+}
+.taller .status--baja::before {
+  content: "○";
+}
+.taller .status--incompatible::before {
+  content: "×";
+}
+.taller .lib-categories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.taller .lib-category {
+  display: grid;
+  gap: 8px;
+  min-height: 96px;
+  min-width: 48px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+.taller .lib-category:hover {
+  border-color: var(--ink);
+}
+.taller .lib-category svg {
+  width: 28px;
+  height: 28px;
+}
+@media (min-width: 900px) {
+  .taller .lib-categories {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

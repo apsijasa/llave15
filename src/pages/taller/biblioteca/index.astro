@@ -1,0 +1,68 @@
+---
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import CategoryIcon from "../../../components/taller/library/CategoryIcon.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import type { Action } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { LIBRARY_CATEGORIES, LIBRARY_CATEGORY_LABELS } from "../../../server/library/rules.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca";
+const user = await requireAdmin(getDb(), Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "library.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const shortcuts: { label: string; href: string; action: Action }[] = [
+  { label: "Asistente", href: `${PATH}/asistente`, action: "library.ai" },
+  { label: "Compatibilidad", href: `${PATH}/compatibilidad`, action: "library.view" },
+  { label: "Herramientas", href: `${PATH}/herramientas`, action: "library.view" },
+  { label: "Propuestas", href: `${PATH}/propuestas`, action: "library.propose" },
+];
+---
+
+<TallerLayout title={`Biblioteca — ${SITE.name}`} description="Consulta técnica del taller." path={PATH} user={user}>
+  <div class="stack">
+    <PageHeader title="Biblioteca" subtitle="Componentes, procedimientos, compatibilidad y documentación verificada" />
+    <Card>
+      <form method="get" action={`${PATH}/buscar`} class="stack">
+        <div class="field">
+          <label for="library-q">Fabricante, modelo, código, síntoma o palabra técnica</label>
+          <input id="library-q" type="search" name="q" maxlength="120" />
+        </div>
+        <button type="submit" class="btn">Buscar</button>
+      </form>
+    </Card>
+    <nav aria-label="Categorías" class="lib-categories">
+      {LIBRARY_CATEGORIES.map((category) => (
+        <a class="lib-category" href={`${PATH}/buscar?categoria=${category}`}>
+          <CategoryIcon category={category} />
+          <span>{LIBRARY_CATEGORY_LABELS[category]}</span>
+        </a>
+      ))}
+    </nav>
+    <nav aria-label="Accesos rápidos" class="library-shortcuts">
+      {shortcuts.filter((link) => can(user.role, link.action)).map((link) => (
+        <a class="btn ghost" href={link.href}>{link.label}</a>
+      ))}
+    </nav>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .library-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+</style>
