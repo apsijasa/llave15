@@ -5,6 +5,9 @@ import { getDbEnv } from "../src/lib/env.ts";
 import { cashTables } from "../src/server/db/schema-cash.ts";
 import { inventoryTables } from "../src/server/db/schema-inventory.ts";
 import { libraryCatalogTables } from "../src/server/db/schema-library-catalog.ts";
+import { libraryKnowledgeTables } from "../src/server/db/schema-library-knowledge.ts";
+import { libraryPrivateTables } from "../src/server/db/schema-library-private.ts";
+import { libraryProcedureTables } from "../src/server/db/schema-library-procedures.ts";
 import { orderTables } from "../src/server/db/schema-orders.ts";
 import { paymentTables } from "../src/server/db/schema-payments.ts";
 import { reportTables } from "../src/server/db/schema-reports.ts";
@@ -72,6 +75,9 @@ try {
     ...saleTables,
     ...paymentTables,
     ...libraryCatalogTables,
+    ...libraryKnowledgeTables,
+    ...libraryProcedureTables,
+    ...libraryPrivateTables,
   ]
     .flatMap((table) =>
       Object.values(getTableColumns(table)).map(

@@ -253,6 +253,13 @@
       "when": 1794771507230,
       "tag": "0035_huge_wild_child",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794772711042,
+      "tag": "0036_careless_junta",
+      "breakpoints": true
     }
   ]
 }
