@@ -375,7 +375,7 @@
       "tests/unit/library-pii.test.ts",
       "tests/integration/library-proposals.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T2",
