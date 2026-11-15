@@ -10,8 +10,14 @@ import { workOrderItems, workOrders } from "../db/schema-orders.ts";
 import { payments } from "../db/schema-payments.ts";
 import { saleItems, sales } from "../db/schema-sales.ts";
 import { indicatorsRangeSchema } from "./indicators.ts";
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, netOfGross } from "./rules.ts";
-import type { ExpenseCategory } from "./rules.ts";
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORY_LABELS,
+  POS_PROVIDERS,
+  POS_PROVIDER_LABELS,
+  netOfGross,
+} from "./rules.ts";
+import type { ExpenseCategory, PosProvider } from "./rules.ts";
 
 type Range = { from: string; to: string };
 type Bounds = { start: Date; end: Date };
@@ -19,7 +25,7 @@ type Bounds = { start: Date; end: Date };
 export type FinanceIndicators = {
   range: Range;
   income: { grossClp: number; netClp: number; refundsClp: number };
-  mercadoPago: { grossClp: number; feeClp?: number; netClp?: number };
+  pos: { provider: PosProvider; label: string; grossClp: number }[];
   expenses: {
     totalClp: number;
     byCategory: { category: ExpenseCategory; label: string; amountClp: number }[];
@@ -80,17 +86,27 @@ async function income(db: AppDb, actor: SessionUser, bounds: Bounds) {
   };
 }
 
-async function mercadoPago(db: AppDb, actor: SessionUser, bounds: Bounds, showCosts: boolean) {
-  const [row] = await db
+/** Bruto por proveedor de POS; los pagos `mercadopago` anteriores a F2-D30 cuentan como Mercado Pago. */
+async function posByProvider(db: AppDb, actor: SessionUser, bounds: Bounds) {
+  const provider = sql<string>`case when ${payments.method} = 'mercadopago' then 'mercadopago' else ${payments.posProvider} end`;
+  const rows = await db
     .select({
+      provider,
       grossClp: sql<number>`coalesce(sum(${payments.amountClp}), 0)`.mapWith(Number),
-      feeClp: sql<number>`coalesce(sum(${payments.feeClp}), 0)`.mapWith(Number),
-      netClp: sql<number>`coalesce(sum(${payments.netClp}), 0)`.mapWith(Number),
     })
     .from(payments)
-    .where(and(paymentScope(actor, bounds), eq(payments.method, "mercadopago")));
-  const totals = row ?? { grossClp: 0, feeClp: 0, netClp: 0 };
-  return showCosts ? totals : { grossClp: totals.grossClp };
+    .where(
+      and(
+        paymentScope(actor, bounds),
+        sql`(${payments.method} = 'mercadopago' or ${payments.posProvider} is not null)`,
+      ),
+    )
+    .groupBy(provider);
+  return POS_PROVIDERS.map((key) => ({
+    provider: key,
+    label: POS_PROVIDER_LABELS[key],
+    grossClp: rows.find((row) => row.provider === key)?.grossClp ?? 0,
+  }));
 }
 
 async function expenseTotals(db: AppDb, actor: SessionUser, range: Range) {
@@ -244,9 +260,9 @@ export async function financeIndicators(
   // El inventario es el estado actual; el reloj se inyecta igual que en `workshopIndicators`.
   void now;
   const showCosts = can(actor.role, "costs.view");
-  const [incomeTotals, mp, expenseRows, lines, counter, stock] = await Promise.all([
+  const [incomeTotals, pos, expenseRows, lines, counter, stock] = await Promise.all([
     income(db, actor, bounds),
-    mercadoPago(db, actor, bounds, showCosts),
+    posByProvider(db, actor, bounds),
     expenseTotals(db, actor, parsed),
     deliveredLines(db, actor, bounds),
     paidSales(db, actor, bounds),
@@ -258,7 +274,7 @@ export async function financeIndicators(
   return {
     range: parsed,
     income: incomeTotals,
-    mercadoPago: mp,
+    pos,
     expenses: expenseRows,
     balanceClp,
     expenseRatioPct,

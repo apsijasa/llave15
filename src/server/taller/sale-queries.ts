@@ -61,6 +61,7 @@ async function saleRows(db: AppDb, actor: SessionUser, filter: ReturnType<typeof
     number: formatSaleNumber(sale.number),
     customerName,
     method: paid.find((payment) => payment.saleId === sale.id)?.method,
+    posProvider: paid.find((payment) => payment.saleId === sale.id)?.posProvider ?? null,
     items: items.filter((item) => item.saleId === sale.id).map((item) => visibleItem(actor, item)),
     payments: visiblePayments.filter((payment) => payment.saleId === sale.id),
   }));

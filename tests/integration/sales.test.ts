@@ -279,7 +279,7 @@ it("incluye venta en cliente sin órdenes y la ordena antes de pagos en el mismo
 });
 
 it("omite costos de listas y previsualización para recepción y mecánico; dueño/admin los ven", async () => {
-  await recorded({ customerId, method: "mercadopago", externalId: "MP-123", feeClp: 100 });
+  await recorded({ customerId, method: "tarjeta", posProvider: "getnet" });
   for (const role of ROLES) {
     const rows = await listSales(test.db, actors[role], RANGE);
     const history = await listCustomerSales(test.db, actors[role], customerId);
@@ -296,12 +296,13 @@ it("omite costos de listas y previsualización para recepción y mecánico; due�
         expect(JSON.stringify(value)).not.toMatch(/unitCostClp|costClp|feeClp|netClp/);
     } else {
       expect(rows[0]?.items[0]).toHaveProperty("unitCostClp", 3000);
-      expect(rows[0]?.payments[0]).toMatchObject({ feeClp: 100, netClp: 11800 });
+      expect(rows[0]?.payments[0]).toMatchObject({ posProvider: "getnet", feeClp: 0 });
+      expect(rows[0]).toMatchObject({ method: "tarjeta", posProvider: "getnet" });
     }
   }
 });
 
-it("previsualiza sin escribir y rechaza montos nulos, descuento excesivo o comisión excesiva", async () => {
+it("previsualiza sin escribir y rechaza montos nulos o descuento excesivo", async () => {
   expect(await previewSale(test.db, actors.reception, input())).toMatchObject({
     ok: true,
     subtotalClp: 10000,
@@ -313,7 +314,6 @@ it("previsualiza sin escribir y rechaza montos nulos, descuento excesivo o comis
   for (const data of [
     { discountClp: 10000, discountReason: "Descuento" },
     { discountClp: 10001, discountReason: "Descuento" },
-    { method: "mercadopago", externalId: "MP", feeClp: 11901 },
   ]) {
     expect(await createSale(test.db, actors.owner, { ...input(), ...data }, NOW)).toEqual(
       failure("invalid_amount"),
@@ -322,7 +322,7 @@ it("previsualiza sin escribir y rechaza montos nulos, descuento excesivo o comis
   await expectEmpty();
 });
 
-it("valida el formulario: líneas únicas, límites, motivo, documento y datos de Mercado Pago", async () => {
+it("valida el formulario: líneas únicas, límites, motivo, documento y proveedor del POS", async () => {
   expect(saleFormSchema.parse(input()).discountClp).toBe(0);
   for (const data of [
     { items: [] },
@@ -339,9 +339,10 @@ it("valida el formulario: líneas únicas, límites, motivo, documento y datos d
     { discountClp: 1.5 },
     { discountClp: 1 },
     { discountClp: 1, discountReason: "  " },
-    { method: "mercadopago" },
-    { feeClp: 1 },
-    { method: "mercadopago", externalId: "MP", feeClp: -1 },
+    { method: "mercadopago", externalId: "MP" },
+    { method: "tarjeta" },
+    { method: "tarjeta", posProvider: "redcompra" },
+    { posProvider: "getnet" },
     { docType: "guia" },
     { docNumber: "x".repeat(31) },
   ]) {

@@ -11,7 +11,7 @@ import { branches } from "../db/schema.ts";
 import { recordAudit } from "./audit.ts";
 import { recordCashMovement, requireOpenCashSession } from "./cash.ts";
 import type { AuditAction } from "./audit.ts";
-import { RECORDABLE_PAYMENT_METHODS, vatOfNet } from "./rules.ts";
+import { FORM_PAYMENT_METHODS, POS_PROVIDERS, vatOfNet } from "./rules.ts";
 import { formatSaleNumber, visibleItem } from "./sale-queries.ts";
 import { applyStockMovement } from "./stock.ts";
 
@@ -29,9 +29,8 @@ export const saleFormSchema = z
     customerId: z.uuid().optional(),
     discountClp: pesos.default(0),
     discountReason: z.string().trim().min(3).max(200).optional(),
-    method: z.enum(RECORDABLE_PAYMENT_METHODS),
-    externalId: z.string().trim().min(1).max(100).optional(),
-    feeClp: pesos.optional(),
+    method: z.enum(FORM_PAYMENT_METHODS),
+    posProvider: z.enum(POS_PROVIDERS).optional(),
     docType: z.enum(["boleta", "factura"]).optional(),
     docNumber: z.string().trim().max(30).optional(),
   })
@@ -39,13 +38,9 @@ export const saleFormSchema = z
     path: ["discountReason"],
     message: "Escribe el motivo del descuento.",
   })
-  .refine((data) => data.method !== "mercadopago" || Boolean(data.externalId), {
-    path: ["externalId"],
-    message: "Escribe el id de la operación.",
-  })
-  .refine((data) => data.method === "mercadopago" || data.feeClp === undefined, {
-    path: ["feeClp"],
-    message: "La comisión es solo para Mercado Pago.",
+  .refine((data) => (data.method === "tarjeta") === (data.posProvider !== undefined), {
+    path: ["posProvider"],
+    message: "Elige el proveedor del POS solo cuando pagas con POS.",
   });
 type SaleInput = z.infer<typeof saleFormSchema>;
 type FailureCode =
@@ -114,12 +109,7 @@ async function calculateSale(db: AppDb, actor: SessionUser, input: SaleInput, lo
     items.reduce((sum, item) => sum + item.quantity * item.unitPriceClp, 0) - input.discountClp;
   const vatClp = vatOfNet(subtotalClp);
   const totalClp = subtotalClp + vatClp;
-  if (
-    subtotalClp < 0 ||
-    totalClp <= 0 ||
-    totalClp > 2_147_483_647 ||
-    (input.feeClp ?? 0) > totalClp
-  )
+  if (subtotalClp < 0 || totalClp <= 0 || totalClp > 2_147_483_647)
     throw new SaleFailure("invalid_amount");
   return { items, subtotalClp, vatClp, totalClp };
 }
@@ -199,13 +189,7 @@ async function insertSale(
     .where(eq(branches.id, actor.branchId))
     .returning({ number: sql<number>`${branches.nextSaleNumber} - 1` });
   if (!branch) throw new SaleFailure("not_found");
-  const {
-    items: _items,
-    method: _method,
-    externalId: _externalId,
-    feeClp: _feeClp,
-    ...fields
-  } = input;
+  const { items: _items, method: _method, posProvider: _posProvider, ...fields } = input;
   const [sale] = await tx
     .insert(sales)
     .values({
@@ -234,7 +218,6 @@ async function paySale(
   now: Date,
 ) {
   const { cashSessionId } = sale;
-  const feeClp = input.feeClp ?? 0;
   const [payment] = await tx
     .insert(payments)
     .values({
@@ -245,9 +228,7 @@ async function paySale(
       kind: "final",
       method: input.method,
       amountClp: sale.totalClp,
-      externalId: input.method === "mercadopago" ? input.externalId : null,
-      feeClp,
-      netClp: input.method === "mercadopago" ? sale.totalClp - feeClp : null,
+      posProvider: input.posProvider ?? null,
       receivedBy: actor.id,
       receivedAt: now,
       createdAt: now,
@@ -279,7 +260,12 @@ async function paySale(
     actor,
     sale.id,
     "payment.recorded",
-    { paymentId: payment.id, method: input.method, amountClp: sale.totalClp },
+    {
+      paymentId: payment.id,
+      method: input.method,
+      posProvider: input.posProvider ?? null,
+      amountClp: sale.totalClp,
+    },
     now,
   );
 }

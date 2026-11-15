@@ -1,0 +1,2 @@
+ALTER TABLE "payments" ADD COLUMN "pos_provider" text;--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_pos_provider_check" CHECK (pos_provider is null or (method = 'tarjeta' and pos_provider in ('transbank', 'mercadopago', 'getnet')));

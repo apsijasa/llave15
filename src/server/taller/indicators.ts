@@ -17,6 +17,7 @@ import {
 import { formatOrderNumber } from "./orders.ts";
 import {
   ORDER_STATUSES,
+  FORM_PAYMENT_METHOD_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   STATUS_LABELS,
@@ -124,7 +125,8 @@ async function income(
     const row = rows.find((row) => row.method === method);
     return {
       method,
-      label: PAYMENT_METHOD_LABELS[method],
+      label:
+        method === "tarjeta" ? FORM_PAYMENT_METHOD_LABELS.tarjeta : PAYMENT_METHOD_LABELS[method],
       amountClp: row?.amountClp ?? 0,
       count: row?.count ?? 0,
     };

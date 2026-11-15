@@ -12,7 +12,7 @@ import { TIMEZONE } from "../../../server/booking/rules.ts";
 import { getDb } from "../../../server/db/client.ts";
 import { formatClp } from "../../../server/email/templates.ts";
 import {
-  PAYMENT_METHOD_LABELS,
+  paymentMethodLabel,
   SALE_STATUSES,
   SALE_STATUS_LABELS,
 } from "../../../server/taller/rules.ts";
@@ -156,7 +156,7 @@ const dateFormat = new Intl.DateTimeFormat("es-CL", {
               <td><time datetime={sale.createdAt.toISOString()}>{dateFormat.format(sale.createdAt)}</time></td>
               <td>{sale.customerName ?? "Sin cliente"}</td>
               <td>{formatClp(sale.totalClp)}</td>
-              <td>{sale.method ? PAYMENT_METHOD_LABELS[sale.method] : "—"}</td>
+              <td>{sale.method ? paymentMethodLabel(sale.method, sale.posProvider) : "—"}</td>
               <td><span class={`status status--${sale.status}`}>{SALE_STATUS_LABELS[sale.status]}</span></td>
               <td>{canVoid && sale.status !== "anulada" ? <form method="post" class="stack sale-void" action={`${PATH}?${new URLSearchParams({ desde: rangeValues.from, hasta: rangeValues.to })}`}>
                 <input type="hidden" name="action" value="void" />

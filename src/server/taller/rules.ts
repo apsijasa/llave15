@@ -168,6 +168,28 @@ export const PAYMENT_METHOD_LABELS: Record<RecordablePaymentMethod, string> = {
   otro: "Otro",
   mercadopago: "Mercado Pago",
 };
+/** Medios que ofrecen los formularios de cobro: `tarjeta` se muestra como POS y lleva proveedor (F2-D30). */
+export const FORM_PAYMENT_METHODS = PAYMENT_METHODS;
+export type FormPaymentMethod = (typeof FORM_PAYMENT_METHODS)[number];
+export const FORM_PAYMENT_METHOD_LABELS: Record<FormPaymentMethod, string> = {
+  ...PAYMENT_METHOD_LABELS,
+  tarjeta: "POS",
+};
+export const POS_PROVIDERS = ["transbank", "mercadopago", "getnet"] as const;
+export type PosProvider = (typeof POS_PROVIDERS)[number];
+export const POS_PROVIDER_LABELS: Record<PosProvider, string> = {
+  transbank: "Transbank",
+  mercadopago: "Mercado Pago",
+  getnet: "Getnet",
+};
+/** Etiqueta de un pago registrado: "POS · Getnet" si tiene proveedor; el nombre de siempre si no. */
+export function paymentMethodLabel(
+  method: RecordablePaymentMethod,
+  posProvider?: PosProvider | null,
+): string {
+  if (posProvider) return `POS · ${POS_PROVIDER_LABELS[posProvider]}`;
+  return PAYMENT_METHOD_LABELS[method];
+}
 export const TAX_DOC_TYPES = ["boleta", "factura"] as const;
 export const TAX_DOC_TYPE_LABELS: Record<(typeof TAX_DOC_TYPES)[number], string> = {
   boleta: "Boleta",

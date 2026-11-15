@@ -25,9 +25,12 @@ import {
 import {
   PAYMENT_KINDS,
   PAYMENT_KIND_LABELS,
-  PAYMENT_METHOD_LABELS,
-  RECORDABLE_PAYMENT_METHODS,
+  FORM_PAYMENT_METHODS,
+  FORM_PAYMENT_METHOD_LABELS,
+  POS_PROVIDERS,
+  POS_PROVIDER_LABELS,
   STATUS_LABELS,
+  paymentMethodLabel,
   TERMINAL_STATUSES,
   VAT_RATE_PERCENT,
 } from "../../../../server/taller/rules.ts";
@@ -68,8 +71,10 @@ if (Astro.request.method === "POST") {
   const fields =
     submitted.action === "record"
       ? Object.fromEntries(
+          // El proveedor solo viaja con POS; con otro medio, el select se ignora.
           Object.entries(submitted).filter(
-            ([key, value]) => !["externalId", "feeClp"].includes(key) || value.trim() !== "",
+            ([key, value]) =>
+              key !== "posProvider" || (submitted.method === "tarjeta" && value.trim() !== ""),
           ),
         )
       : submitted;
@@ -81,11 +86,8 @@ if (Astro.request.method === "POST") {
         ? "Escribe el nombre de quien retira."
         : "Revisa el tipo, método y monto del pago. El monto debe ser un entero mayor que cero.";
     for (const issue of parsedInput.error.issues) fieldErrors.add(String(issue.path[0]));
-    if (fieldErrors.has("externalId"))
-      error = "Escribe el id de la operación de Mercado Pago (hasta 100 caracteres).";
-    if (fieldErrors.has("feeClp"))
-      error =
-        "La comisión es solo para Mercado Pago: usa pesos enteros entre cero y el monto del pago.";
+    if (fieldErrors.has("posProvider"))
+      error = "Elige el proveedor del POS: Transbank, Mercado Pago o Getnet.";
   }
 }
 const id = z.uuid().safeParse(Astro.params.id);
@@ -105,6 +107,10 @@ if (!detail.ok) {
 const { order, customer } = detail;
 const PATH = Astro.url.pathname;
 const payments = await listPayments(db, user, order.id);
+// La comisión solo se ingresaba con Mercado Pago antes del POS (F2-D30): la columna queda para ese historial.
+const showFees =
+  can(user.role, "costs.view") &&
+  payments.some((payment) => "feeClp" in payment && Number(payment.feeClp) > 0);
 if (parsedInput?.success) {
   const input = parsedInput.data;
   const { action, ...fields } = input;
@@ -204,11 +210,11 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
       <div class="scroll-x"><table class="dense">
         <caption>Pagos vigentes</caption>
         <thead><tr><th scope="col">Tipo de pago</th><th scope="col">Método</th>
-          <th scope="col">Monto</th>{can(user.role, "costs.view") && <th scope="col">Comisión</th>}<th scope="col">Acciones</th></tr></thead>
+          <th scope="col">Monto</th>{showFees && <th scope="col">Comisión</th>}<th scope="col">Acciones</th></tr></thead>
         <tbody>{payments.map((payment) => <tr>
-          <td>{PAYMENT_KIND_LABELS[payment.kind]}</td><td>{PAYMENT_METHOD_LABELS[payment.method]}</td>
+          <td>{PAYMENT_KIND_LABELS[payment.kind]}</td><td>{paymentMethodLabel(payment.method, payment.posProvider)}</td>
           <td class="mono">{formatClp(payment.amountClp)}</td>
-          {can(user.role, "costs.view") && <td class="mono">{"feeClp" in payment && typeof payment.feeClp === "number" ? formatClp(payment.feeClp) : ""}</td>}<td>
+          {showFees && <td class="mono">{"feeClp" in payment && typeof payment.feeClp === "number" ? formatClp(payment.feeClp) : ""}</td>}<td>
             {order.status !== "entregada" && can(user.role, "payments.void")
               ? <form method="post" action={PATH}>
                   <input type="hidden" name="action" value="void" />
@@ -229,21 +235,20 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
             {PAYMENT_KIND_LABELS[kind]}</label>)}
         </div></fieldset>
         <fieldset><legend>Método</legend><div class="options">
-          {RECORDABLE_PAYMENT_METHODS.map((method) => <label>
+          {FORM_PAYMENT_METHODS.map((method) => <label>
             <input name="method" type="radio" value={method} required checked={method === (submitted.action === "record" ? submitted.method : "transferencia")} aria-invalid={invalid("method")} aria-describedby={invalid("method") ? "form-error" : undefined} />
-            {PAYMENT_METHOD_LABELS[method]}</label>)}
+            {FORM_PAYMENT_METHOD_LABELS[method]}</label>)}
         </div></fieldset>
+        <div class="field"><label for="posProvider">Proveedor del POS</label>
+          <select id="posProvider" name="posProvider" aria-invalid={invalid("posProvider")} aria-describedby={invalid("posProvider") ? "form-error" : "pos-help"}>
+            <option value="">Elige el proveedor</option>
+            {POS_PROVIDERS.map((provider) => <option value={provider} selected={submitted.action === "record" && submitted.posProvider === provider}>{POS_PROVIDER_LABELS[provider]}</option>)}
+          </select>
+          <p id="pos-help" class="muted">Solo si el método es POS.</p>
+        </div>
         <div class="field"><label for="amountClp">Monto</label>
           <input id="amountClp" name="amountClp" type="number" min="1" max={balance} step="1" required value={submitted.action === "record" ? submitted.amountClp : balance} aria-invalid={invalid("amountClp")} aria-describedby={invalid("amountClp") ? "form-error" : undefined} />
         </div>
-        <fieldset><legend>Solo Mercado Pago</legend>
-          <div class="field"><label for="externalId">Id de la operación</label>
-            <input id="externalId" name="externalId" type="text" maxlength="100" value={submitted.action === "record" ? submitted.externalId : ""} aria-invalid={invalid("externalId")} aria-describedby={invalid("externalId") ? "form-error" : undefined} />
-          </div>
-          <div class="field"><label for="feeClp">Comisión</label>
-            <input id="feeClp" name="feeClp" type="number" min="0" max={balance} step="1" value={submitted.action === "record" ? submitted.feeClp : ""} aria-invalid={invalid("feeClp")} aria-describedby={invalid("feeClp") ? "form-error" : undefined} />
-          </div>
-        </fieldset>
         <button class="btn" type="submit">Registrar pago</button>
       </div>
     </form></Card>}

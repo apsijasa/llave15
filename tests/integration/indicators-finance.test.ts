@@ -188,7 +188,9 @@ it("descuenta las devoluciones netas del balance", async () => {
   });
 });
 
-it("Mercado Pago: bruto, comisión y neto, y sin costs.view solo el bruto", async () => {
+it("POS por proveedor: suma el bruto y cuenta Mercado Pago antiguo como Mercado Pago", async () => {
+  await pay({ workOrderId: await order(), method: "tarjeta", posProvider: "getnet" });
+  await pay({ workOrderId: await order(), method: "tarjeta", posProvider: "mercadopago" });
   await pay({
     workOrderId: await order(),
     method: "mercadopago",
@@ -196,14 +198,14 @@ it("Mercado Pago: bruto, comisión y neto, y sin costs.view solo el bruto", asyn
     feeClp: 450,
     netClp: 11450,
   });
-  expect((await indicators())?.mercadoPago).toEqual({
-    grossClp: 11900,
-    feeClp: 450,
-    netClp: 11450,
-  });
-  expect(await indicators(actors.admin)).toMatchObject({
-    mercadoPago: { grossClp: 11900, feeClp: 450, netClp: 11450 },
-  });
+  await pay({ workOrderId: await order(), method: "tarjeta" });
+  const expected = [
+    { provider: "transbank", label: "Transbank", grossClp: 0 },
+    { provider: "mercadopago", label: "Mercado Pago", grossClp: 23800 },
+    { provider: "getnet", label: "Getnet", grossClp: 11900 },
+  ];
+  expect((await indicators())?.pos).toEqual(expected);
+  expect((await indicators(actors.admin))?.pos).toEqual(expected);
 });
 
 it("mix de ingresos y margen de repuestos", async () => {
@@ -296,7 +298,11 @@ it("sin movimientos devuelve ceros sin dividir por cero", async () => {
   expect(result).toMatchObject({
     range: RANGE,
     income: { grossClp: 0, netClp: 0, refundsClp: 0 },
-    mercadoPago: { grossClp: 0, feeClp: 0, netClp: 0 },
+    pos: [
+      { provider: "transbank", label: "Transbank", grossClp: 0 },
+      { provider: "mercadopago", label: "Mercado Pago", grossClp: 0 },
+      { provider: "getnet", label: "Getnet", grossClp: 0 },
+    ],
     expenses: { totalClp: 0 },
     balanceClp: 0,
     expenseRatioPct: 0,

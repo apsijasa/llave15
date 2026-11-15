@@ -153,7 +153,7 @@ it("el dueño ve las cinco secciones de la Etapa B con montos en celdas mono", a
     "Egresos del período",
     "Balance",
     "Mix de ingresos",
-    "Mercado Pago",
+    "POS por proveedor",
     "Inventario",
   ])
     expect(html).toMatch(new RegExp(`<h2 id="[^"]+"[^>]*>${title}</h2>`));
@@ -162,9 +162,9 @@ it("el dueño ve las cinco secciones de la Etapa B con montos en celdas mono", a
   expect(cell(html, "Balance")).toBe("$12.000");
   expect(cell(html, "Gastos sobre ingresos")).toBe("40%");
   expect(cell(html, "Ventas de mostrador")).toBe("$10.000");
-  expect(cell(html, "Bruto")).toBe("$11.900");
-  expect(cell(html, "Comisión")).toBe("$450");
-  expect(cell(html, "Neto")).toBe("$11.450");
+  expect(cell(html, "Transbank")).toBe("$0");
+  expect(cell(html, "Mercado Pago")).toBe("$11.900");
+  expect(cell(html, "Getnet")).toBe("$0");
   expect(cell(html, "Productos activos")).toBe("0");
   expect(cell(html, "Valor a costo")).toBe("$0");
   expect(cell(html, "Margen de repuestos")).toBe("$0");

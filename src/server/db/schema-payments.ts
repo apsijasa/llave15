@@ -37,6 +37,7 @@ export const payments = pgTable(
     externalId: text("external_id"),
     feeClp: integer("fee_clp").notNull().default(0),
     netClp: integer("net_clp"),
+    posProvider: text("pos_provider").$type<"transbank" | "mercadopago" | "getnet">(),
     receivedBy: uuid("received_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -63,6 +64,10 @@ export const payments = pgTable(
     check("payments_fee_check", sql`fee_clp >= 0 and fee_clp <= amount_clp`),
     check("payments_net_check", sql`net_clp is null or net_clp = amount_clp - fee_clp`),
     check("payments_mercadopago_check", sql`method <> 'mercadopago' or external_id is not null`),
+    check(
+      "payments_pos_provider_check",
+      sql`pos_provider is null or (method = 'tarjeta' and pos_provider in ('transbank', 'mercadopago', 'getnet'))`,
+    ),
   ],
 );
 

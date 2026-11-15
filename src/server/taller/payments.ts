@@ -9,7 +9,7 @@ import { payments } from "../db/schema-payments.ts";
 import { recordAudit } from "./audit.ts";
 import { recordCashMovement, requireOpenCashSession, voidCashMovementFor } from "./cash.ts";
 import type { AuditAction } from "./audit.ts";
-import { PAYMENT_KINDS, RECORDABLE_PAYMENT_METHODS, TERMINAL_STATUSES } from "./rules.ts";
+import { FORM_PAYMENT_METHODS, PAYMENT_KINDS, POS_PROVIDERS, TERMINAL_STATUSES } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 
 const clpInteger = z
@@ -25,34 +25,21 @@ const clpInteger = z
 const paymentInputSchema = z
   .strictObject({
     kind: z.enum(PAYMENT_KINDS),
-    method: z.enum(RECORDABLE_PAYMENT_METHODS),
+    method: z.enum(FORM_PAYMENT_METHODS),
     amountClp: clpInteger,
-    externalId: z.string().trim().min(1).max(100).optional(),
-    feeClp: clpInteger.pipe(z.number().nonnegative()).default(0),
+    posProvider: z.enum(POS_PROVIDERS).optional(),
   })
-  .superRefine((input, ctx) => {
-    if (input.method === "mercadopago" && !input.externalId)
-      ctx.addIssue({
-        code: "custom",
-        path: ["externalId"],
-        message: "Escribe el id de la operación.",
-      });
-    if (input.method !== "mercadopago" && input.feeClp > 0)
-      ctx.addIssue({
-        code: "custom",
-        path: ["feeClp"],
-        message: "La comisión es solo para Mercado Pago.",
-      });
-    if (input.feeClp > 0 && input.feeClp > input.amountClp)
-      ctx.addIssue({
-        code: "custom",
-        path: ["feeClp"],
-        message: "La comisión no puede superar el monto del pago.",
-      });
+  .refine((input) => input.method === "tarjeta" || input.posProvider === undefined, {
+    path: ["posProvider"],
+    message: "El proveedor es solo para pagos con POS.",
   });
-export const paymentFormSchema = paymentInputSchema.safeExtend({
-  amountClp: paymentInputSchema.shape.amountClp.pipe(z.number().positive()),
-});
+/** El formulario exige monto positivo y, en POS, el proveedor (F2-D30). */
+export const paymentFormSchema = paymentInputSchema
+  .safeExtend({ amountClp: paymentInputSchema.shape.amountClp.pipe(z.number().positive()) })
+  .refine((input) => input.method !== "tarjeta" || input.posProvider !== undefined, {
+    path: ["posProvider"],
+    message: "Elige el proveedor del POS.",
+  });
 
 function orderFilter(actor: SessionUser, orderId: string) {
   return and(
@@ -152,10 +139,12 @@ async function insertPayment(
   now: Date,
   cashSessionId: string | null = null,
 ) {
-  const values =
-    input.method === "mercadopago"
-      ? { ...input, netClp: input.amountClp - input.feeClp }
-      : { kind: input.kind, method: input.method, amountClp: input.amountClp };
+  const values = {
+    kind: input.kind,
+    method: input.method,
+    amountClp: input.amountClp,
+    ...(input.posProvider ? { posProvider: input.posProvider } : {}),
+  };
   const [payment] = await db
     .insert(payments)
     .values({

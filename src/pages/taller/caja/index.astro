@@ -23,6 +23,7 @@ import { registerRefund } from "../../../server/taller/refunds.ts";
 import {
   CASH_MOVEMENT_KIND_LABELS,
   CASH_REFERENCE_LABELS,
+  FORM_PAYMENT_METHOD_LABELS,
   PAYMENT_METHOD_LABELS,
 } from "../../../server/taller/rules.ts";
 import { listUsers } from "../../../server/taller/users.ts";
@@ -221,7 +222,7 @@ const dateTimeFormat = new Intl.DateTimeFormat("es-CL", {
           <thead><tr><th scope="col">Medio</th><th scope="col">Pagos</th><th scope="col">Monto</th></tr></thead>
           <tbody>
             {otherMethods.map((row) => <tr>
-              <td>{PAYMENT_METHOD_LABELS[row.method]}</td>
+              <td>{row.method === "tarjeta" ? FORM_PAYMENT_METHOD_LABELS.tarjeta : PAYMENT_METHOD_LABELS[row.method]}</td>
               <td class="mono">{row.count}</td>
               <td class="mono">{formatClp(row.amountClp)}</td>
             </tr>)}

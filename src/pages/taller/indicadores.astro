@@ -158,12 +158,8 @@ function financeSections(data: FinanceIndicators) {
       ],
     },
     {
-      title: "Mercado Pago",
-      rows: [
-        { label: "Bruto", value: formatClp(data.mercadoPago.grossClp) },
-        ...row("Comisión", money(data.mercadoPago.feeClp)),
-        ...row("Neto", money(data.mercadoPago.netClp)),
-      ],
+      title: "POS por proveedor",
+      rows: data.pos.map((entry) => ({ label: entry.label, value: formatClp(entry.grossClp) })),
     },
     {
       title: "Inventario",

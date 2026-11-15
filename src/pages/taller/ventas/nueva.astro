@@ -12,8 +12,10 @@ import { formatClp } from "../../../server/email/templates.ts";
 import { findCustomerByPhone } from "../../../server/taller/customers.ts";
 import { listProducts } from "../../../server/taller/products.ts";
 import {
-  PAYMENT_METHOD_LABELS,
-  RECORDABLE_PAYMENT_METHODS,
+  FORM_PAYMENT_METHODS,
+  FORM_PAYMENT_METHOD_LABELS,
+  POS_PROVIDERS,
+  POS_PROVIDER_LABELS,
   VAT_RATE_PERCENT,
 } from "../../../server/taller/rules.ts";
 import { createSale, previewSale, saleFormSchema } from "../../../server/taller/sales.ts";
@@ -69,8 +71,8 @@ if (Astro.request.method === "POST") {
     discountClp: Number(values.discountClp || 0),
     discountReason: values.discountReason || undefined,
     method: values.method,
-    externalId: values.externalId || undefined,
-    feeClp: values.feeClp ? Number(values.feeClp) : undefined,
+    // El proveedor solo viaja con POS; con otro medio, el select se ignora.
+    posProvider: values.method === "tarjeta" ? values.posProvider || undefined : undefined,
     docType: values.docType || undefined,
     docNumber: values.docNumber || undefined,
   });
@@ -156,14 +158,11 @@ const textFields = [
     max: 200,
     group: "discount",
   },
-  { key: "externalId", label: "Id de la operación", type: "text", max: 100, group: "mercadopago" },
-  { key: "feeClp", label: "Comisión", type: "number", max: 2_147_483_647, group: "mercadopago" },
   { key: "docNumber", label: "Folio", type: "text", max: 30, group: "document" },
 ] as const;
 const sections = [
   { key: "customer", legend: "Cliente" },
   ...(canDiscount ? [{ key: "discount", legend: "Descuento" }] : []),
-  { key: "mercadopago", legend: "Solo Mercado Pago" },
   { key: "document", legend: "Documento de venta" },
 ];
 ---
@@ -199,16 +198,23 @@ const sections = [
         <fieldset aria-describedby={fieldErrors.method ? "method-error" : undefined}>
           <legend>Medio de pago</legend>
           <div class="options">
-            {RECORDABLE_PAYMENT_METHODS.map((method) => (
-              <label for={`method-${method}`}><input id={`method-${method}`} type="radio" name="method" value={method} checked={values.method === method} required aria-invalid={Boolean(fieldErrors.method)} aria-describedby={fieldErrors.method ? "method-error" : undefined} />{PAYMENT_METHOD_LABELS[method]}</label>
+            {FORM_PAYMENT_METHODS.map((method) => (
+              <label for={`method-${method}`}><input id={`method-${method}`} type="radio" name="method" value={method} checked={values.method === method} required aria-invalid={Boolean(fieldErrors.method)} aria-describedby={fieldErrors.method ? "method-error" : undefined} />{FORM_PAYMENT_METHOD_LABELS[method]}</label>
             ))}
           </div>
           {fieldErrors.method && <p id="method-error">Selecciona un medio de pago.</p>}
+          <div class="field">
+            <label for="posProvider">Proveedor del POS</label>
+            <select id="posProvider" name="posProvider" aria-invalid={Boolean(fieldErrors.posProvider)} aria-describedby={fieldErrors.posProvider ? "posProvider-error" : "pos-help"}>
+              <option value="">Elige el proveedor</option>
+              {POS_PROVIDERS.map((provider) => <option value={provider} selected={values.posProvider === provider}>{POS_PROVIDER_LABELS[provider]}</option>)}
+            </select>
+            {fieldErrors.posProvider ? <p id="posProvider-error">{fieldErrors.posProvider}</p> : <p id="pos-help" class="muted">Solo si el medio de pago es POS.</p>}
+          </div>
         </fieldset>
         {sections.map((section) => (
           <fieldset>
             <legend>{section.legend}</legend>
-            {section.key === "mercadopago" && <p class="muted">Completa estos campos solo al registrar un pago con Mercado Pago.</p>}
             <div class="fields">
               {section.key === "document" && <div class="field">
                 <label for="docType">Documento</label>
@@ -247,4 +253,5 @@ const sections = [
   .taller .sale-new .sale-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, 100px); gap: 8px; }
   .taller .sale-new .sale-row select { width: 100%; min-width: 48px; }
   .taller .sale-new .sale-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .taller .sale-new fieldset > .field { margin-top: 16px; }
 </style>

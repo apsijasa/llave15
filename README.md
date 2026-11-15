@@ -130,7 +130,7 @@ Espera el resultado de la subida. Si aparece **No se pudo subir la foto. Intenta
 
 ### Indicadores
 
-Dueño y administrador ven en **Indicadores** los ingresos por medio de pago, las entregas y el ticket promedio, las órdenes por estado, los servicios más pedidos, los clientes nuevos y recurrentes, la conversión de reservas y la cobertura de checklist, control e informes, para el rango de fechas que elijan (hasta un año). Desde la fase 2 suma la Etapa B: egresos, balance, mix de ingresos, Mercado Pago e inventario.
+Dueño y administrador ven en **Indicadores** los ingresos por medio de pago, las entregas y el ticket promedio, las órdenes por estado, los servicios más pedidos, los clientes nuevos y recurrentes, la conversión de reservas y la cobertura de checklist, control e informes, para el rango de fechas que elijan (hasta un año). Desde la fase 2 suma la Etapa B: egresos, balance, mix de ingresos, POS por proveedor e inventario.
 
 ### Tareas diarias y respaldos
 
@@ -142,7 +142,7 @@ Confirma en el panel **Database** de Replit que los respaldos programados de la 
 
 ## Operación de la fase 2
 
-La fase 2 agrega inventario, compras, ventas de mostrador, caja diaria, gastos, Mercado Pago como registro e indicadores financieros (`blueprints/vector-taller-f2/FASE2.md`).
+La fase 2 agrega inventario, compras, ventas de mostrador, caja diaria, gastos, cobros con POS (Transbank, Mercado Pago o Getnet) como registro e indicadores financieros (`blueprints/vector-taller-f2/FASE2.md`).
 
 ### Los dos interruptores
 
@@ -221,7 +221,7 @@ Claude nunca consulta producción.
 | 5. Sin caja abierta, el efectivo responde `cash_closed` sin escribir | `tests/integration/cash-order-payments.test.ts` (F2-28) y `cash-sales-refunds.test.ts` |
 | 6. El cierre calcula esperado y diferencia | `tests/integration/cash.test.ts` (F2-27) |
 | 7. Un gasto en efectivo descuenta de la caja; uno por transferencia no | `tests/integration/expenses.test.ts` (F2-30) |
-| 8. Mercado Pago guarda id, comisión y neto, y el neto llega a indicadores | `tests/integration/mercadopago-payments.test.ts` (F2-23) y `indicators-finance.test.ts` (F2-33) |
+| 8. Un cobro con POS guarda su proveedor (Transbank, Mercado Pago o Getnet) y el bruto llega a indicadores (F2-D30; antes, Mercado Pago con id y comisión) | `tests/integration/pos-payments.test.ts`, `indicators-finance.test.ts` y `e2e/venta-pos.spec.ts` |
 | 9. El mecánico nunca recibe costos | Omisión por rol en `products.test.ts`, `part-stock.test.ts`, `payments-extension.test.ts`, `sales.test.ts` y `e2e/inventario-ajuste.spec.ts` |
 | 10. Indicadores muestra egresos, balance y mix | `tests/integration/indicators-finance.test.ts` y `indicadores-finance-page.test.ts` (F2-34) |
 | 11. La auditoría registra ajustes, cierres, anulaciones y descuentos | `products.test.ts` (`stock.adjusted`), `cash.test.ts` (`cash.closed`), `sales.test.ts` (`sale.voided`, `sale.discounted`), `cash-sales-refunds.test.ts` (`cash.refund`) |
