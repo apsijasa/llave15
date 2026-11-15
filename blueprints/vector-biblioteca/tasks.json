@@ -33,7 +33,9 @@
     "id": "E1-T2",
     "title": "BT-02 Knowledge, procedures and private library schema",
     "epic": "01-fundacion",
-    "dependencies": ["E1-T1"],
+    "dependencies": [
+      "E1-T1"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN se leen `schema-library-knowledge.ts`, `schema-library-procedures.ts` y `schema-library-private.ts` THE SYSTEM SHALL definir las tablas de blueprint §4.2–§4.4 con sus arreglos `libraryKnowledgeTables`, `libraryProcedureTables`, `libraryPrivateTables`, cada archivo < 400 líneas",
@@ -63,7 +65,9 @@
     "id": "E1-T3",
     "title": "BT-03 Library actions, curator access and rules",
     "epic": "01-fundacion",
-    "dependencies": ["E1-T1"],
+    "dependencies": [
+      "E1-T1"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN se lee `permissions.ts` THE SYSTEM SHALL exponer 40 acciones: `library.view`, `library.ai`, `library.propose` para los cuatro roles y `library.curate` para `owner` y `admin`",
@@ -93,7 +97,10 @@
     "id": "E1-T4",
     "title": "BT-04 Content pack, idempotent import and initial seed",
     "epic": "01-fundacion",
-    "dependencies": ["E1-T2", "E1-T3"],
+    "dependencies": [
+      "E1-T2",
+      "E1-T3"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN se valida `src/data/library/pack.json` con `libraryPackSchema` THE SYSTEM SHALL aceptarlo; el paquete trae al menos 3 fabricantes, 8 familias (una por categoría), 6 modelos con variante, 4 documentos oficiales por enlace, 2 fuentes, 1 artículo publicado con versión 1 y ninguna especificación `verificado` sin documento",
@@ -122,7 +129,9 @@
     "id": "E2-T1",
     "title": "BT-05 Catalog queries and library search",
     "epic": "02-biblioteca-base",
-    "dependencies": ["E1-T4"],
+    "dependencies": [
+      "E1-T4"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN `searchLibrary` recibe `RD-M8100-SGS` THE SYSTEM SHALL devolverlo en `exact` antes que cualquier otro resultado y distinguir dos variantes con revisión distinta",
@@ -149,7 +158,9 @@
     "id": "E2-T2",
     "title": "BT-06 Library home, results page and menu group",
     "epic": "02-biblioteca-base",
-    "dependencies": ["E2-T1"],
+    "dependencies": [
+      "E2-T1"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN un usuario con sesión abre `/taller/biblioteca` THE SYSTEM SHALL mostrar un `h1` Biblioteca, el buscador con `label`, ocho tarjetas de categoría con enlace a `/taller/biblioteca/buscar?categoria=` y accesos rápidos filtrados por `can`",
@@ -179,7 +190,9 @@
     "id": "E2-T3",
     "title": "BT-07 Variant sheet with sections",
     "epic": "02-biblioteca-base",
-    "dependencies": ["E2-T2"],
+    "dependencies": [
+      "E2-T2"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN se abre `/taller/biblioteca/componentes/[id]` THE SYSTEM SHALL mostrar encabezado fabricante · familia · modelo · variante · código · generación · velocidades y secciones Resumen, Especificaciones, Compatibilidad, Procedimientos, Documentos, Historial por `?seccion=` con `aria-current`",
@@ -204,7 +217,9 @@
     "id": "E2-T4",
     "title": "BT-08 Documents access by license",
     "epic": "02-biblioteca-base",
-    "dependencies": ["E2-T3"],
+    "dependencies": [
+      "E2-T3"
+    ],
     "priority": "p1",
     "acceptance": [
       "WHEN `documentAccess` recibe un documento `enlace` THE SYSTEM SHALL devolver `mode: 'enlace'` con la URL canónica; `extracto_permitido` → `mode: 'extracto'` con los trozos; `copia_autorizada` con `storage_key` → `mode: 'visor'` con ruta `/taller/media/<key>`; nunca una URL del almacenamiento",
@@ -228,7 +243,9 @@
     "id": "E2-T5",
     "title": "BT-09 E2E seed and tablet search spec",
     "epic": "02-biblioteca-base",
-    "dependencies": ["E2-T4"],
+    "dependencies": [
+      "E2-T4"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN corre `e2e/global-setup.ts` THE SYSTEM SHALL sembrar (si existen las tablas) un fabricante, familia, modelo `RD-M8100-SGS`, variante, una especificación `sin_dato_verificado`, un documento `enlace` y un artículo publicado con los ids fijos de `SEED.library*` (edición autorizada BT-D7)",
@@ -241,14 +258,20 @@
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bt-09",
-    "files": ["e2e/fixtures.ts", "e2e/global-setup.ts", "e2e/biblioteca-busqueda.spec.ts"],
+    "files": [
+      "e2e/fixtures.ts",
+      "e2e/global-setup.ts",
+      "e2e/biblioteca-busqueda.spec.ts"
+    ],
     "status": "pending"
   },
   {
     "id": "E3-T1",
     "title": "BT-10 Step-by-step procedures",
     "epic": "03-procedimientos-compatibilidad",
-    "dependencies": ["E2-T5"],
+    "dependencies": [
+      "E2-T5"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN `procedureDetail` recibe un procedimiento publicado THE SYSTEM SHALL devolver alcance de variantes, riesgo, requisitos, pasos ordenados con herramientas, consumibles, verificación y advertencia, controles finales y torques con fuente y estado",
@@ -275,7 +298,9 @@
     "id": "E3-T2",
     "title": "BT-11 Compatibility by component set",
     "epic": "03-procedimientos-compatibilidad",
-    "dependencies": ["E3-T1"],
+    "dependencies": [
+      "E3-T1"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN `checkCompatibility` recibe un conjunto cubierto por una regla `oficial_confirmada` THE SYSTEM SHALL devolver ese veredicto con evidencia y documento; cubierto por `condicionada`, las condiciones; por `incompatible`, las restricciones",
@@ -301,7 +326,9 @@
     "id": "E3-T3",
     "title": "BT-12 Tools and specifications lookup",
     "epic": "03-procedimientos-compatibilidad",
-    "dependencies": ["E3-T2"],
+    "dependencies": [
+      "E3-T2"
+    ],
     "priority": "p1",
     "acceptance": [
       "WHEN `lookupSpecifications` recibe una variante y un tipo (`torque`) sin dato THE SYSTEM SHALL devolver una entrada `sin_dato_verificado` en lugar de omitirla",
@@ -325,7 +352,9 @@
     "id": "E4-T1",
     "title": "BT-13 Proposals: draft, submit, PII detection",
     "epic": "04-contribuciones",
-    "dependencies": ["E3-T3"],
+    "dependencies": [
+      "E3-T3"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN `detectPii` recibe un texto con teléfono, RUT, correo o patente chilena THE SYSTEM SHALL devolver un hallazgo por cada uno con su tipo",
@@ -352,7 +381,9 @@
     "id": "E4-T2",
     "title": "BT-14 Central review and versioned publication",
     "epic": "04-contribuciones",
-    "dependencies": ["E4-T1"],
+    "dependencies": [
+      "E4-T1"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN un usuario sin `canCurate` llama `reviewQueue` o `reviewProposal` THE SYSTEM SHALL devolver `forbidden` sin leer filas privadas",
@@ -379,7 +410,9 @@
     "id": "E4-T3",
     "title": "BT-15 Proposal and review screens; export",
     "epic": "04-contribuciones",
-    "dependencies": ["E4-T2"],
+    "dependencies": [
+      "E4-T2"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN un usuario abre `/taller/biblioteca/propuestas/nueva` THE SYSTEM SHALL mostrar formulario con tipo, título, contenido, fuente/evidencia y artículo o variante objetivo; el POST crea el borrador y redirige a `/[id]?hecho=creada`",
@@ -400,6 +433,7 @@
       "src/pages/taller/biblioteca/revision/index.astro",
       "src/pages/taller/biblioteca/revision/[id].astro",
       "scripts/library-export.ts",
+      "src/server/library/content-pack.ts",
       "package.json",
       "tests/integration/biblioteca-propuestas-page.test.ts",
       "tests/integration/biblioteca-revision-page.test.ts",
@@ -411,7 +445,9 @@
     "id": "E5-T1",
     "title": "BT-16 Chunk indexing and scoped retrieval",
     "epic": "05-ia",
-    "dependencies": ["E4-T3"],
+    "dependencies": [
+      "E4-T3"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN `chunkText` recibe Markdown largo THE SYSTEM SHALL devolver trozos ≤ 1200 caracteres cortados en encabezados o párrafos con `section` en metadatos",
@@ -427,6 +463,7 @@
     "files": [
       "src/server/library/chunks.ts",
       "src/server/library/retrieval.ts",
+      "scripts/library-import.ts",
       "tests/unit/library-chunks.test.ts",
       "tests/integration/library-retrieval.test.ts"
     ],
@@ -436,7 +473,9 @@
     "id": "E5-T2",
     "title": "BT-17 AI provider and assistant with citations and quotas",
     "epic": "05-ia",
-    "dependencies": ["E5-T1"],
+    "dependencies": [
+      "E5-T1"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN `getAiEnv` corre sin variables THE SYSTEM SHALL devolver `AI_PROVIDER: 'none'`; con `anthropic` sin clave SHALL lanzar `EnvError` que nombra `ANTHROPIC_API_KEY`",
@@ -464,7 +503,9 @@
     "id": "E5-T3",
     "title": "BT-18 Assistant screen and environment variables",
     "epic": "05-ia",
-    "dependencies": ["E5-T2"],
+    "dependencies": [
+      "E5-T2"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN se abre `/taller/biblioteca/asistente` THE SYSTEM SHALL mostrar el formulario de pregunta, el historial reciente de la sucursal (solo preguntas y confianza) y, tras el POST, la respuesta con tarjeta de confianza, panel de fuentes enlazadas a fichas/versiones y el supuesto/siguiente verificación",
@@ -490,7 +531,9 @@
     "id": "E6-T1",
     "title": "BT-19 Technical diagnoses and order technical context",
     "epic": "06-ordenes",
-    "dependencies": ["E5-T3"],
+    "dependencies": [
+      "E5-T3"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN se lee `schema-payments.ts` THE SYSTEM SHALL tener `bike_components.component_variant_id uuid` nullable con FK a `component_variants`; `pnpm db:generate` produce `0037_*.sql` aditiva",
@@ -520,7 +563,9 @@
     "id": "E6-T2",
     "title": "BT-20 Library tab inside the work order",
     "epic": "06-ordenes",
-    "dependencies": ["E6-T1"],
+    "dependencies": [
+      "E6-T1"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN se abre `/taller/ordenes/[id]/biblioteca` THE SYSTEM SHALL mostrar la tarjeta de contexto (bici, componentes), el formulario de pregunta al asistente con alcance `orden`, la lista de diagnósticos de la orden y un formulario 'Agregar al diagnóstico' que solo guarda tras el POST explícito",
@@ -546,7 +591,9 @@
     "id": "E6-T3",
     "title": "BT-21 Tablet spec: assistant in the order and diagnosis",
     "epic": "06-ordenes",
-    "dependencies": ["E6-T2"],
+    "dependencies": [
+      "E6-T2"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN el mecánico abre su orden `recibida` en tablet y la pestaña Biblioteca THE SYSTEM SHALL mostrar el contexto, aceptar una pregunta (modo `none`), mostrar la tarjeta de confianza y permitir 'Agregar al diagnóstico' con un toque; el diagnóstico aparece en la lista",
@@ -557,14 +604,18 @@
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bt-21",
-    "files": ["e2e/orden-biblioteca.spec.ts"],
+    "files": [
+      "e2e/orden-biblioteca.spec.ts"
+    ],
     "status": "pending"
   },
   {
     "id": "E7-T1",
     "title": "BT-22 Isolation suite and library health",
     "epic": "07-cierre",
-    "dependencies": ["E6-T3"],
+    "dependencies": [
+      "E6-T3"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN corre `tests/integration/library-isolation.test.ts` THE SYSTEM SHALL probar con dos sucursales que diagnósticos, notas, interacciones, propuestas, contexto de orden y recuperación nunca cruzan; que el curador no recibe filas privadas de otra sucursal; que una sesión revocada obtiene `null` en `requireAdmin` y 303 en las páginas",
@@ -590,7 +641,9 @@
     "id": "E7-T2",
     "title": "BT-23 Documentation, rules and publication window",
     "epic": "07-cierre",
-    "dependencies": ["E7-T1"],
+    "dependencies": [
+      "E7-T1"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN se lee `README.md` THE SYSTEM SHALL tener la sección `## Biblioteca técnica` (uso, curador, paquete, asistente, variables, chequeo) y `docs/ventanas/bt-v1.md` los pasos de publicación y reversión de `0035`–`0037`",
@@ -617,7 +670,9 @@
     "id": "E7-T3",
     "title": "BT-24 Final report",
     "epic": "07-cierre",
-    "dependencies": ["E7-T2"],
+    "dependencies": [
+      "E7-T2"
+    ],
     "priority": "p0",
     "acceptance": [
       "WHEN se lee `docs/REPORTE-BIBLIOTECA.md` THE SYSTEM SHALL seguir el formato de §16 de la especificación: componentes implementados, tabla de requisitos completo/parcial/bloqueado con archivos y pruebas, migraciones y reversión, comandos y resultados, evidencia de aislamiento, pantallas, variables y pendientes"
@@ -627,7 +682,10 @@
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bt-24",
-    "files": ["docs/REPORTE-BIBLIOTECA.md", "blueprints/vector-biblioteca/tasks.json"],
+    "files": [
+      "docs/REPORTE-BIBLIOTECA.md",
+      "blueprints/vector-biblioteca/tasks.json"
+    ],
     "status": "pending"
   }
 ]
