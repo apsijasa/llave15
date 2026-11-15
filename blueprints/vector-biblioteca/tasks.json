@@ -1,0 +1,633 @@
+[
+  {
+    "id": "E1-T1",
+    "title": "BT-01 Library catalog schema and curator flag",
+    "epic": "01-fundacion",
+    "dependencies": [],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se lee `src/server/db/schema-library-catalog.ts` THE SYSTEM SHALL definir `manufacturers`, `component_families`, `component_models`, `component_variants`, `knowledge_sources`, `technical_documents`, `technical_specifications` y `tools_consumables` con las columnas, únicos y CHECK de blueprint §4.1, sin `branch_id`, exportados en `libraryCatalogTables`",
+      "WHEN se lee `src/server/db/schema.ts` THE SYSTEM SHALL tener `users.library_curator boolean not null default false`",
+      "WHEN corre `pnpm db:generate` THE SYSTEM SHALL producir una sola migración nueva `drizzle/0035_*.sql` aditiva (solo CREATE TABLE, ALTER TABLE ADD COLUMN, CREATE INDEX)",
+      "WHEN se inserta una especificación `verificado` sin `source_document_id` THE SYSTEM SHALL rechazarla por CHECK; WHEN se inserta un documento con `storage_key` y licencia `enlace` THE SYSTEM SHALL rechazarlo por CHECK",
+      "WHEN corre `pnpm db:check` THE SYSTEM SHALL recorrer también `libraryCatalogTables` y salir 0"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-catalog-schema.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(ls drizzle/0035_*.sql | wc -l | tr -d ' ')\" = 1   # expect: exit 0",
+      "grep -Eiq 'drop (table|column)' drizzle/0035_*.sql; test $? -eq 1   # expect: exit 0 — aditiva",
+      "grep -q 'libraryCatalogTables' scripts/db-check.ts   # expect: exit 0",
+      "pnpm db:migrate && pnpm db:check   # expect: exit 0 (coordinadora)",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-01",
+    "files": [
+      "src/server/db/schema-library-catalog.ts",
+      "src/server/db/schema.ts",
+      "scripts/db-check.ts",
+      "tests/integration/library-catalog-schema.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T2",
+    "title": "BT-02 Knowledge, procedures and private library schema",
+    "epic": "01-fundacion",
+    "dependencies": ["E1-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se leen `schema-library-knowledge.ts`, `schema-library-procedures.ts` y `schema-library-private.ts` THE SYSTEM SHALL definir las tablas de blueprint §4.2–§4.4 con sus arreglos `libraryKnowledgeTables`, `libraryProcedureTables`, `libraryPrivateTables`, cada archivo < 400 líneas",
+      "WHEN se inserta una regla `oficial_confirmada` sin documento fuente THE SYSTEM SHALL rechazarla; WHEN se inserta una propuesta `published` sin `published_version_id` THE SYSTEM SHALL rechazarla; WHEN se inserta una interacción `orden` sin `work_order_id` THE SYSTEM SHALL rechazarla",
+      "WHEN se consulta `document_chunks` con `to_tsvector('spanish', text) @@ plainto_tsquery('spanish', …)` THE SYSTEM SHALL usar el índice GIN definido en el esquema (existe en la migración)",
+      "WHEN corre `pnpm db:generate` THE SYSTEM SHALL producir una sola migración `0036_*.sql` aditiva",
+      "WHEN corre `pnpm db:check` THE SYSTEM SHALL recorrer los tres arreglos nuevos y salir 0"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-schema.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(ls drizzle/0036_*.sql | wc -l | tr -d ' ')\" = 1 && grep -q 'to_tsvector' drizzle/0036_*.sql   # expect: exit 0",
+      "for f in src/server/db/schema-library-knowledge.ts src/server/db/schema-library-procedures.ts src/server/db/schema-library-private.ts; do test \"$(wc -l < $f | tr -d ' ')\" -lt 400 || exit 1; done   # expect: exit 0",
+      "pnpm db:migrate && pnpm db:check   # expect: exit 0 (coordinadora)",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-02",
+    "files": [
+      "src/server/db/schema-library-knowledge.ts",
+      "src/server/db/schema-library-procedures.ts",
+      "src/server/db/schema-library-private.ts",
+      "scripts/db-check.ts",
+      "tests/integration/library-schema.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T3",
+    "title": "BT-03 Library actions, curator access and rules",
+    "epic": "01-fundacion",
+    "dependencies": ["E1-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se lee `permissions.ts` THE SYSTEM SHALL exponer 40 acciones: `library.view`, `library.ai`, `library.propose` para los cuatro roles y `library.curate` para `owner` y `admin`",
+      "WHEN `requireAdmin` resuelve una sesión THE SYSTEM SHALL incluir `libraryCurator` (booleano) en `SessionUser`, campo opcional en el tipo",
+      "WHEN `canCurate` recibe un `owner` sin la marca THE SYSTEM SHALL devolver false; con la marca, true; un `mechanic` con la marca, false",
+      "WHEN se lee `src/server/library/rules.ts` THE SYSTEM SHALL exportar las constantes y etiquetas de blueprint §5 y `PROPOSAL_TRANSITIONS` con los ocho estados",
+      "WHEN corre `tests/unit/permissions.test.ts` (edición autorizada BT-D7) THE SYSTEM SHALL pasar con 40 acciones"
+    ],
+    "verify": [
+      "pnpm test tests/unit/permissions.test.ts tests/unit/library-rules.test.ts tests/integration/library-access.test.ts   # expect: exit 0, 0 failed",
+      "grep -c 'library\\.' src/server/auth/permissions.ts | xargs test 8 -le   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-03",
+    "files": [
+      "src/server/auth/permissions.ts",
+      "src/server/auth/admin-auth.ts",
+      "src/server/library/rules.ts",
+      "src/server/library/access.ts",
+      "tests/unit/permissions.test.ts",
+      "tests/unit/library-rules.test.ts",
+      "tests/integration/library-access.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E1-T4",
+    "title": "BT-04 Content pack, idempotent import and initial seed",
+    "epic": "01-fundacion",
+    "dependencies": ["E1-T2", "E1-T3"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se valida `src/data/library/pack.json` con `libraryPackSchema` THE SYSTEM SHALL aceptarlo; el paquete trae al menos 3 fabricantes, 8 familias (una por categoría), 6 modelos con variante, 4 documentos oficiales por enlace, 2 fuentes, 1 artículo publicado con versión 1 y ninguna especificación `verificado` sin documento",
+      "WHEN `importLibraryPack` corre dos veces con el mismo paquete THE SYSTEM SHALL dejar el mismo número de filas (idempotente por slug/code/revision) y registrar un `publication_events` `import` por artículo nuevo",
+      "WHEN corre con `dryRun: true` THE SYSTEM SHALL no escribir filas y devolver el resumen de altas",
+      "WHEN `node scripts/library-import.ts` corre con `DATABASE_URL` inalcanzable THE SYSTEM SHALL salir 2 con `No se pudo conectar`; con el paquete inválido, salir 1",
+      "WHEN se lee `package.json` THE SYSTEM SHALL tener `library:import` = `node --env-file-if-exists=.env scripts/library-import.ts`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-pack.test.ts   # expect: exit 0, 0 failed",
+      "out=\"$(DATABASE_URL=postgres://127.0.0.1:1/x node scripts/library-import.ts 2>&1)\"; test $? -eq 2 && printf '%s' \"$out\" | grep -q 'No se pudo conectar'   # expect: exit 0",
+      "pnpm library:import --dry-run && pnpm library:import && pnpm library:import   # expect: exit 0 tres veces (coordinadora)",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-04",
+    "files": [
+      "src/server/library/content-pack.ts",
+      "src/data/library/pack.json",
+      "scripts/library-import.ts",
+      "package.json",
+      "tests/integration/library-pack.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T1",
+    "title": "BT-05 Catalog queries and library search",
+    "epic": "02-biblioteca-base",
+    "dependencies": ["E1-T4"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `searchLibrary` recibe `RD-M8100-SGS` THE SYSTEM SHALL devolverlo en `exact` antes que cualquier otro resultado y distinguir dos variantes con revisión distinta",
+      "WHEN recibe `cambio trasero salta` THE SYSTEM SHALL devolver artículos y modelos por FTS `spanish` ordenados por `ts_rank` y filtrables por categoría, fabricante y estado",
+      "WHEN existe una propuesta `submitted` con ese texto THE SYSTEM SHALL no devolverla",
+      "WHEN `variantSheet` recibe una variante THE SYSTEM SHALL devolver especificaciones con `validationStatus`, `reviewedOn` y documento fuente, documentos, procedimientos, reglas de compatibilidad y versiones de artículos ligados",
+      "WHEN el actor no tiene `library.view` THE SYSTEM SHALL devolver `{ ok: false, code: 'forbidden' }`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-search.test.ts tests/integration/library-catalog.test.ts tests/unit/library-detect-code.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-05",
+    "files": [
+      "src/server/library/catalog.ts",
+      "src/server/library/search.ts",
+      "tests/integration/library-search.test.ts",
+      "tests/integration/library-catalog.test.ts",
+      "tests/unit/library-detect-code.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T2",
+    "title": "BT-06 Library home, results page and menu group",
+    "epic": "02-biblioteca-base",
+    "dependencies": ["E2-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN un usuario con sesión abre `/taller/biblioteca` THE SYSTEM SHALL mostrar un `h1` Biblioteca, el buscador con `label`, ocho tarjetas de categoría con enlace a `/taller/biblioteca/buscar?categoria=` y accesos rápidos filtrados por `can`",
+      "WHEN abre `/taller/biblioteca/buscar?q=RD-M8100-SGS` THE SYSTEM SHALL mostrar la coincidencia exacta arriba con estado, código, fabricante y revisión, y los filtros como formulario GET",
+      "WHEN no hay sesión THE SYSTEM SHALL responder 303 a `/admin/login?next=…`; sin `library.view`, 403",
+      "WHEN se lee `TallerLayout.astro` THE SYSTEM SHALL tener el grupo 'Conocimiento' con Biblioteca, Asistente, Propuestas y Revisión filtrados por acción (Revisión además por `canCurate`)",
+      "WHEN se leen los estilos nuevos THE SYSTEM SHALL usar solo tokens (`status--verificado`, `status--condicionado`, `status--desactualizado`, `status--en_revision`, `status--sin_dato_verificado`) con forma + texto"
+    ],
+    "verify": [
+      "pnpm test tests/integration/biblioteca-pages.test.ts   # expect: exit 0, 0 failed",
+      "grep -Eq '#[0-9a-fA-F]{3,6}' src/pages/taller/biblioteca/index.astro src/pages/taller/biblioteca/buscar.astro src/components/taller/library/*.astro; test $? -eq 1   # expect: exit 0 — ningún hex",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-06",
+    "files": [
+      "src/pages/taller/biblioteca/index.astro",
+      "src/pages/taller/biblioteca/buscar.astro",
+      "src/components/taller/library/CategoryIcon.astro",
+      "src/components/taller/library/LibraryStatus.astro",
+      "src/layouts/TallerLayout.astro",
+      "src/styles/taller-components.css",
+      "tests/integration/biblioteca-pages.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T3",
+    "title": "BT-07 Variant sheet with sections",
+    "epic": "02-biblioteca-base",
+    "dependencies": ["E2-T2"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se abre `/taller/biblioteca/componentes/[id]` THE SYSTEM SHALL mostrar encabezado fabricante · familia · modelo · variante · código · generación · velocidades y secciones Resumen, Especificaciones, Compatibilidad, Procedimientos, Documentos, Historial por `?seccion=` con `aria-current`",
+      "WHEN una especificación no está verificada THE SYSTEM SHALL mostrar su etiqueta de estado y fecha de revisión; cada una con su fuente enlazada",
+      "WHEN el id no existe o no es uuid THE SYSTEM SHALL responder 404",
+      "WHEN la sección es Historial THE SYSTEM SHALL listar versiones publicadas con número, fecha y revisor"
+    ],
+    "verify": [
+      "pnpm test tests/integration/biblioteca-ficha-page.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-07",
+    "files": [
+      "src/pages/taller/biblioteca/componentes/[id].astro",
+      "src/components/taller/library/LibraryTabs.astro",
+      "src/components/taller/library/SourceList.astro",
+      "tests/integration/biblioteca-ficha-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T4",
+    "title": "BT-08 Documents access by license",
+    "epic": "02-biblioteca-base",
+    "dependencies": ["E2-T3"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN `documentAccess` recibe un documento `enlace` THE SYSTEM SHALL devolver `mode: 'enlace'` con la URL canónica; `extracto_permitido` → `mode: 'extracto'` con los trozos; `copia_autorizada` con `storage_key` → `mode: 'visor'` con ruta `/taller/media/<key>`; nunca una URL del almacenamiento",
+      "WHEN se abre `/taller/biblioteca/documentos/[id]` THE SYSTEM SHALL mostrar título, fabricante, tipo, idioma, revisión, checksum, estado, licencia y la acción según el modo",
+      "WHEN el documento está `retirado` THE SYSTEM SHALL mostrarlo con etiqueta y sin enlace al original"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-documents.test.ts tests/integration/biblioteca-documento-page.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-08",
+    "files": [
+      "src/server/library/documents.ts",
+      "src/pages/taller/biblioteca/documentos/[id].astro",
+      "tests/integration/library-documents.test.ts",
+      "tests/integration/biblioteca-documento-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T5",
+    "title": "BT-09 E2E seed and tablet search spec",
+    "epic": "02-biblioteca-base",
+    "dependencies": ["E2-T4"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN corre `e2e/global-setup.ts` THE SYSTEM SHALL sembrar (si existen las tablas) un fabricante, familia, modelo `RD-M8100-SGS`, variante, una especificación `sin_dato_verificado`, un documento `enlace` y un artículo publicado con los ids fijos de `SEED.library*` (edición autorizada BT-D7)",
+      "WHEN el mecánico busca `RD-M8100-SGS` en tablet THE SYSTEM SHALL mostrar la coincidencia exacta, abrir la ficha con un toque y ver la sección Especificaciones con la etiqueta 'Sin dato verificado'",
+      "WHEN el mecánico abre una categoría desde el inicio THE SYSTEM SHALL llegar a resultados filtrados"
+    ],
+    "verify": [
+      "pnpm build && pnpm test:tablet e2e/biblioteca-busqueda.spec.ts   # expect: exit 0 (coordinadora)",
+      "git diff HEAD --name-only -- e2e | LC_ALL=C sort | tr '\\n' ' ' | grep -q 'e2e/biblioteca-busqueda.spec.ts e2e/fixtures.ts e2e/global-setup.ts'   # expect: exit 0 — solo esos tres",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-09",
+    "files": ["e2e/fixtures.ts", "e2e/global-setup.ts", "e2e/biblioteca-busqueda.spec.ts"],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T1",
+    "title": "BT-10 Step-by-step procedures",
+    "epic": "03-procedimientos-compatibilidad",
+    "dependencies": ["E2-T5"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `procedureDetail` recibe un procedimiento publicado THE SYSTEM SHALL devolver alcance de variantes, riesgo, requisitos, pasos ordenados con herramientas, consumibles, verificación y advertencia, controles finales y torques con fuente y estado",
+      "WHEN la versión del procedimiento no está publicada THE SYSTEM SHALL devolver `not_found`",
+      "WHEN se abre `/taller/biblioteca/procedimientos/[id]` THE SYSTEM SHALL mostrar la columna de pasos con comprobaciones y un panel de herramientas/torques; advertencias con `role=\"note\"` y borde destacado solo con tokens",
+      "WHEN el paquete trae un procedimiento THE SYSTEM SHALL importarlo (pasos y torques) de forma idempotente"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-procedures.test.ts tests/integration/biblioteca-procedimiento-page.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-10",
+    "files": [
+      "src/server/library/procedures.ts",
+      "src/server/library/content-pack.ts",
+      "src/data/library/pack.json",
+      "src/pages/taller/biblioteca/procedimientos/[id].astro",
+      "tests/integration/library-procedures.test.ts",
+      "tests/integration/biblioteca-procedimiento-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T2",
+    "title": "BT-11 Compatibility by component set",
+    "epic": "03-procedimientos-compatibilidad",
+    "dependencies": ["E3-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `checkCompatibility` recibe un conjunto cubierto por una regla `oficial_confirmada` THE SYSTEM SHALL devolver ese veredicto con evidencia y documento; cubierto por `condicionada`, las condiciones; por `incompatible`, las restricciones",
+      "WHEN no hay regla que cubra el conjunto THE SYSTEM SHALL devolver `no_verificada` aunque todas las variantes compartan `speeds`",
+      "WHEN una regla está `archivada` THE SYSTEM SHALL ignorarla",
+      "WHEN se abre `/taller/biblioteca/compatibilidad` THE SYSTEM SHALL ofrecer selects por rol (shifter, cambio, cassette, cadena, plato, núcleo) y el POST vuelve a renderizar el veredicto con su etiqueta y justificación"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-compatibility.test.ts tests/integration/biblioteca-compatibilidad-page.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-11",
+    "files": [
+      "src/server/library/compatibility.ts",
+      "src/pages/taller/biblioteca/compatibilidad.astro",
+      "src/data/library/pack.json",
+      "tests/integration/library-compatibility.test.ts",
+      "tests/integration/biblioteca-compatibilidad-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E3-T3",
+    "title": "BT-12 Tools and specifications lookup",
+    "epic": "03-procedimientos-compatibilidad",
+    "dependencies": ["E3-T2"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN `lookupSpecifications` recibe una variante y un tipo (`torque`) sin dato THE SYSTEM SHALL devolver una entrada `sin_dato_verificado` en lugar de omitirla",
+      "WHEN recibe una operación (texto) THE SYSTEM SHALL devolver herramientas y consumibles por FTS sobre nombre, uso y especificación",
+      "WHEN se abre `/taller/biblioteca/herramientas` THE SYSTEM SHALL mostrar tipo, código, tamaños, consumibles, torque con unidad, advertencias y la etiqueta 'Sin dato verificado' cuando corresponde"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-specifications.test.ts tests/integration/biblioteca-herramientas-page.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-12",
+    "files": [
+      "src/server/library/specifications.ts",
+      "src/pages/taller/biblioteca/herramientas.astro",
+      "tests/integration/library-specifications.test.ts",
+      "tests/integration/biblioteca-herramientas-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E4-T1",
+    "title": "BT-13 Proposals: draft, submit, PII detection",
+    "epic": "04-contribuciones",
+    "dependencies": ["E3-T3"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `detectPii` recibe un texto con teléfono, RUT, correo o patente chilena THE SYSTEM SHALL devolver un hallazgo por cada uno con su tipo",
+      "WHEN un usuario crea una propuesta THE SYSTEM SHALL guardarla `draft` con su `branch_id` y autor; `submitProposal` la pasa a `submitted`, guarda `pii_flags` y audita `proposal.submitted`",
+      "WHEN el autor edita una propuesta `in_review` o `approved` THE SYSTEM SHALL devolver `invalid_transition`; en `needs_changes` SHALL permitirlo y volver a `draft`",
+      "WHEN un usuario de otra sucursal consulta la propuesta THE SYSTEM SHALL devolver `not_found`",
+      "WHEN una propuesta está `submitted` THE SYSTEM SHALL no aparecer en `searchLibrary`"
+    ],
+    "verify": [
+      "pnpm test tests/unit/library-pii.test.ts tests/integration/library-proposals.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-13",
+    "files": [
+      "src/server/library/pii.ts",
+      "src/server/library/proposals.ts",
+      "src/server/taller/audit.ts",
+      "tests/unit/library-pii.test.ts",
+      "tests/integration/library-proposals.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E4-T2",
+    "title": "BT-14 Central review and versioned publication",
+    "epic": "04-contribuciones",
+    "dependencies": ["E4-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN un usuario sin `canCurate` llama `reviewQueue` o `reviewProposal` THE SYSTEM SHALL devolver `forbidden` sin leer filas privadas",
+      "WHEN el curador decide `needs_changes` o `rejected` THE SYSTEM SHALL guardar `proposal_reviews` con motivo y cambiar el estado; `approved` deja `approved` sin publicar",
+      "WHEN `publishProposal` corre sobre una `approved` THE SYSTEM SHALL crear la versión siguiente del artículo (o el artículo), conservar la anterior íntegra, actualizar `current_version_id`, escribir `publication_events`, marcar la propuesta `published` con `published_version_id` y reindexar en la misma transacción",
+      "WHEN la indexación lanza THE SYSTEM SHALL dejar la propuesta `approved` y ninguna versión nueva",
+      "WHEN `archiveArticle` corre THE SYSTEM SHALL dejar el artículo `archivado`, sus trozos fuera de búsqueda y un evento `archive`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-review.test.ts tests/integration/library-publish.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-14",
+    "files": [
+      "src/server/library/review.ts",
+      "src/server/library/publish.ts",
+      "src/server/library/chunks.ts",
+      "tests/integration/library-review.test.ts",
+      "tests/integration/library-publish.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E4-T3",
+    "title": "BT-15 Proposal and review screens; export",
+    "epic": "04-contribuciones",
+    "dependencies": ["E4-T2"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN un usuario abre `/taller/biblioteca/propuestas/nueva` THE SYSTEM SHALL mostrar formulario con tipo, título, contenido, fuente/evidencia y artículo o variante objetivo; el POST crea el borrador y redirige a `/[id]?hecho=creada`",
+      "WHEN abre `/taller/biblioteca/propuestas/[id]` THE SYSTEM SHALL mostrar estado, hallazgos de PII como aviso, acciones Enviar/Retirar/Editar según transición y las observaciones del curador",
+      "WHEN el curador abre `/taller/biblioteca/revision` THE SYSTEM SHALL ver la cola `submitted`/`in_review`/`approved` de todas las sucursales con solo título, tipo, fecha y marcas de PII (sin datos del taller); `/[id]` muestra el diff contra la versión vigente y botones Observaciones/Aprobar/Rechazar/Publicar",
+      "WHEN un usuario sin `canCurate` abre `/taller/biblioteca/revision` THE SYSTEM SHALL responder 403",
+      "WHEN corre `pnpm library:export` THE SYSTEM SHALL escribir un paquete válido con el contenido global publicado y ninguna fila privada"
+    ],
+    "verify": [
+      "pnpm test tests/integration/biblioteca-propuestas-page.test.ts tests/integration/biblioteca-revision-page.test.ts tests/integration/library-export.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-15",
+    "files": [
+      "src/pages/taller/biblioteca/propuestas/index.astro",
+      "src/pages/taller/biblioteca/propuestas/nueva.astro",
+      "src/pages/taller/biblioteca/propuestas/[id].astro",
+      "src/pages/taller/biblioteca/revision/index.astro",
+      "src/pages/taller/biblioteca/revision/[id].astro",
+      "scripts/library-export.ts",
+      "package.json",
+      "tests/integration/biblioteca-propuestas-page.test.ts",
+      "tests/integration/biblioteca-revision-page.test.ts",
+      "tests/integration/library-export.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E5-T1",
+    "title": "BT-16 Chunk indexing and scoped retrieval",
+    "epic": "05-ia",
+    "dependencies": ["E4-T3"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `chunkText` recibe Markdown largo THE SYSTEM SHALL devolver trozos ≤ 1200 caracteres cortados en encabezados o párrafos con `section` en metadatos",
+      "WHEN `retrieve` recibe una pregunta THE SYSTEM SHALL devolver solo trozos `global` de versiones publicadas, ordenados por exactitud de código, `ts_rank`, fuente oficial y vigencia",
+      "WHEN `retrieve` recibe `orderId` de otra sucursal o de una orden no accesible al mecánico THE SYSTEM SHALL devolver `private: null` y `code: 'forbidden'` sin exponer la existencia de la orden",
+      "WHEN la orden es accesible THE SYSTEM SHALL incluir bici, componentes, diagnósticos previos y notas del taller de esa orden"
+    ],
+    "verify": [
+      "pnpm test tests/unit/library-chunks.test.ts tests/integration/library-retrieval.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-16",
+    "files": [
+      "src/server/library/chunks.ts",
+      "src/server/library/retrieval.ts",
+      "tests/unit/library-chunks.test.ts",
+      "tests/integration/library-retrieval.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E5-T2",
+    "title": "BT-17 AI provider and assistant with citations and quotas",
+    "epic": "05-ia",
+    "dependencies": ["E5-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN `getAiEnv` corre sin variables THE SYSTEM SHALL devolver `AI_PROVIDER: 'none'`; con `anthropic` sin clave SHALL lanzar `EnvError` que nombra `ANTHROPIC_API_KEY`",
+      "WHEN el proveedor es `none` THE SYSTEM SHALL responder en modo solo fuentes: resumen extractivo de los trozos, citas y confianza `media` con evidencia o `no_verificada` sin ella",
+      "WHEN el proveedor es `anthropic` (con `fetch` falso) THE SYSTEM SHALL enviar el bloque de política como `system`, las fuentes delimitadas como datos y pedir JSON; una fuente con 'ignora las reglas' no altera el bloque de política",
+      "WHEN la respuesta del proveedor contiene un número con unidad (Nm, mm, bar, psi) ausente de las fuentes citadas THE SYSTEM SHALL bajar la confianza a `no_verificada` y marcar el supuesto",
+      "WHEN la sucursal supera `AI_DAILY_QUOTA_PER_BRANCH` o el usuario `AI_PER_USER_PER_MINUTE` THE SYSTEM SHALL devolver `quota` sin llamar al proveedor; toda interacción se guarda en `ai_interactions` con pregunta y respuesta redactadas"
+    ],
+    "verify": [
+      "pnpm test tests/unit/library-ai-env.test.ts tests/unit/library-ai-provider.test.ts tests/integration/library-assistant.test.ts   # expect: exit 0, 0 failed",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-17",
+    "files": [
+      "src/lib/env.ts",
+      "src/server/library/ai-provider.ts",
+      "src/server/library/assistant.ts",
+      "tests/unit/library-ai-env.test.ts",
+      "tests/unit/library-ai-provider.test.ts",
+      "tests/integration/library-assistant.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E5-T3",
+    "title": "BT-18 Assistant screen and environment variables",
+    "epic": "05-ia",
+    "dependencies": ["E5-T2"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se abre `/taller/biblioteca/asistente` THE SYSTEM SHALL mostrar el formulario de pregunta, el historial reciente de la sucursal (solo preguntas y confianza) y, tras el POST, la respuesta con tarjeta de confianza, panel de fuentes enlazadas a fichas/versiones y el supuesto/siguiente verificación",
+      "WHEN el proveedor devuelve `quota` THE SYSTEM SHALL mostrar un aviso `role=\"alert\"` sin llamar al proveedor",
+      "WHEN se lee `.env.example` THE SYSTEM SHALL tener `AI_PROVIDER=none`, `ANTHROPIC_API_KEY=` y `AI_MODEL=claude-sonnet-5-5` comentadas",
+      "WHEN no hay `library.ai` THE SYSTEM SHALL responder 403"
+    ],
+    "verify": [
+      "pnpm test tests/integration/biblioteca-asistente-page.test.ts   # expect: exit 0, 0 failed",
+      "grep -q 'AI_PROVIDER=none' .env.example && grep -q 'ANTHROPIC_API_KEY=' .env.example   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-18",
+    "files": [
+      "src/pages/taller/biblioteca/asistente.astro",
+      "src/components/taller/library/ConfidenceCard.astro",
+      ".env.example",
+      "tests/integration/biblioteca-asistente-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E6-T1",
+    "title": "BT-19 Technical diagnoses and order technical context",
+    "epic": "06-ordenes",
+    "dependencies": ["E5-T3"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se lee `schema-payments.ts` THE SYSTEM SHALL tener `bike_components.component_variant_id uuid` nullable con FK a `component_variants`; `pnpm db:generate` produce `0037_*.sql` aditiva",
+      "WHEN `saveDiagnosis` corre con una orden accesible THE SYSTEM SHALL guardar síntomas, inspecciones, hipótesis, referencias versionadas (ids de versión y variante existentes), `ai_interaction_id` opcional, `branch_id` y autor, y auditar `diagnosis.saved`",
+      "WHEN la orden es de otra sucursal o el mecánico no la puede ver THE SYSTEM SHALL devolver `not_found`/`forbidden` sin escribir",
+      "WHEN `confirmDiagnosis` corre THE SYSTEM SHALL fijar `confirmado`, `confirmed_by`, `confirmed_at`; nunca cambia `work_orders`",
+      "WHEN `orderTechnicalContext` corre THE SYSTEM SHALL devolver bici, componentes con su variante ligada y diagnósticos previos de esa orden; fuera de alcance, `forbidden`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-diagnoses.test.ts tests/integration/library-technical-context.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(ls drizzle/0037_*.sql | wc -l | tr -d ' ')\" = 1   # expect: exit 0",
+      "pnpm db:migrate && pnpm db:check   # expect: exit 0 (coordinadora)",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-19",
+    "files": [
+      "src/server/db/schema-payments.ts",
+      "src/server/library/diagnoses.ts",
+      "src/server/library/technical-context.ts",
+      "src/server/taller/audit.ts",
+      "tests/integration/library-diagnoses.test.ts",
+      "tests/integration/library-technical-context.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E6-T2",
+    "title": "BT-20 Library tab inside the work order",
+    "epic": "06-ordenes",
+    "dependencies": ["E6-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se abre `/taller/ordenes/[id]/biblioteca` THE SYSTEM SHALL mostrar la tarjeta de contexto (bici, componentes), el formulario de pregunta al asistente con alcance `orden`, la lista de diagnósticos de la orden y un formulario 'Agregar al diagnóstico' que solo guarda tras el POST explícito",
+      "WHEN se lee `src/lib/taller-tabs.ts` THE SYSTEM SHALL tener la pestaña Biblioteca con permiso `library.ai`",
+      "WHEN el mecánico no tiene acceso a la orden THE SYSTEM SHALL responder 403; sin sesión, 303",
+      "WHEN se guarda un diagnóstico desde la respuesta THE SYSTEM SHALL conservar las citas como referencias versionadas y redirigir con `?hecho=diagnostico`"
+    ],
+    "verify": [
+      "pnpm test tests/integration/orden-biblioteca-page.test.ts   # expect: exit 0, 0 failed",
+      "grep -q 'biblioteca' src/lib/taller-tabs.ts   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-20",
+    "files": [
+      "src/pages/taller/ordenes/[id]/biblioteca.astro",
+      "src/lib/taller-tabs.ts",
+      "src/components/taller/library/DiagnosisChecklist.astro",
+      "tests/integration/orden-biblioteca-page.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E6-T3",
+    "title": "BT-21 Tablet spec: assistant in the order and diagnosis",
+    "epic": "06-ordenes",
+    "dependencies": ["E6-T2"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN el mecánico abre su orden `recibida` en tablet y la pestaña Biblioteca THE SYSTEM SHALL mostrar el contexto, aceptar una pregunta (modo `none`), mostrar la tarjeta de confianza y permitir 'Agregar al diagnóstico' con un toque; el diagnóstico aparece en la lista",
+      "WHEN el mecánico abre la pestaña de una orden que no es suya THE SYSTEM SHALL responder 403"
+    ],
+    "verify": [
+      "pnpm build && pnpm test:tablet e2e/orden-biblioteca.spec.ts   # expect: exit 0 (coordinadora)",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-21",
+    "files": ["e2e/orden-biblioteca.spec.ts"],
+    "status": "pending"
+  },
+  {
+    "id": "E7-T1",
+    "title": "BT-22 Isolation suite and library health",
+    "epic": "07-cierre",
+    "dependencies": ["E6-T3"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN corre `tests/integration/library-isolation.test.ts` THE SYSTEM SHALL probar con dos sucursales que diagnósticos, notas, interacciones, propuestas, contexto de orden y recuperación nunca cruzan; que el curador no recibe filas privadas de otra sucursal; que una sesión revocada obtiene `null` en `requireAdmin` y 303 en las páginas",
+      "WHEN `libraryIsolationHealth` corre sobre una base sana THE SYSTEM SHALL devolver `ok: true`; con un diagnóstico cuya orden pertenece a otra sucursal, `ok: false` con el conteo",
+      "WHEN `node scripts/library-check.ts` corre con `DATABASE_URL` inalcanzable THE SYSTEM SHALL salir 2"
+    ],
+    "verify": [
+      "pnpm test tests/integration/library-isolation.test.ts tests/integration/library-health.test.ts   # expect: exit 0, 0 failed",
+      "out=\"$(DATABASE_URL=postgres://127.0.0.1:1/x node scripts/library-check.ts 2>&1)\"; test $? -eq 2   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-22",
+    "files": [
+      "src/server/library/isolation-health.ts",
+      "scripts/library-check.ts",
+      "package.json",
+      "tests/integration/library-isolation.test.ts",
+      "tests/integration/library-health.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E7-T2",
+    "title": "BT-23 Documentation, rules and publication window",
+    "epic": "07-cierre",
+    "dependencies": ["E7-T1"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se lee `README.md` THE SYSTEM SHALL tener la sección `## Biblioteca técnica` (uso, curador, paquete, asistente, variables, chequeo) y `docs/ventanas/bt-v1.md` los pasos de publicación y reversión de `0035`–`0037`",
+      "WHEN se leen `CLAUDE.md`, `AGENTS.md` y `.claude/rules/database.md` THE SYSTEM SHALL describir la cadena de esquema con los cuatro archivos nuevos, la excepción de tablas globales (BT-D1), los comandos `library:*` y las acciones nuevas",
+      "WHEN se lee `.claude/rules/library.md` THE SYSTEM SHALL fijar las reglas del módulo (alcance, inmutabilidad, IA sin escritura, proveedor inyectado, PII)"
+    ],
+    "verify": [
+      "grep -q '## Biblioteca técnica' README.md && test -f docs/ventanas/bt-v1.md && test -f .claude/rules/library.md   # expect: exit 0",
+      "grep -q 'schema-library-private' CLAUDE.md && grep -q 'schema-library-private' AGENTS.md && grep -q 'schema-library-private' .claude/rules/database.md   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-23",
+    "files": [
+      "README.md",
+      "CLAUDE.md",
+      "AGENTS.md",
+      ".claude/rules/database.md",
+      ".claude/rules/library.md",
+      "docs/ventanas/bt-v1.md"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E7-T3",
+    "title": "BT-24 Final report",
+    "epic": "07-cierre",
+    "dependencies": ["E7-T2"],
+    "priority": "p0",
+    "acceptance": [
+      "WHEN se lee `docs/REPORTE-BIBLIOTECA.md` THE SYSTEM SHALL seguir el formato de §16 de la especificación: componentes implementados, tabla de requisitos completo/parcial/bloqueado con archivos y pruebas, migraciones y reversión, comandos y resultados, evidencia de aislamiento, pantallas, variables y pendientes"
+    ],
+    "verify": [
+      "test -f docs/REPORTE-BIBLIOTECA.md && grep -q 'Migraciones' docs/REPORTE-BIBLIOTECA.md   # expect: exit 0",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bt-24",
+    "files": ["docs/REPORTE-BIBLIOTECA.md", "blueprints/vector-biblioteca/tasks.json"],
+    "status": "pending"
+  }
+]
