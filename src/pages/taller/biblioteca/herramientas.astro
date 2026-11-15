@@ -1,0 +1,140 @@
+---
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../components/taller/library/LibraryStatus.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { SPEC_KINDS, SPEC_KIND_LABELS, VALIDATION_LABELS } from "../../../server/library/rules.ts";
+import {
+  listSpecificationVariants,
+  lookupSpecifications,
+  specLookupSchema,
+} from "../../../server/library/specifications.ts";
+import type { SpecRow, ToolRow } from "../../../server/library/specifications.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca/herramientas";
+const db = getDb();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "library.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (Astro.request.method !== "GET")
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET", "cache-control": "no-store" },
+  });
+const values = {
+  operation: Astro.url.searchParams.get("operation") ?? "",
+  variantId: Astro.url.searchParams.get("variantId") ?? "",
+  kind: Astro.url.searchParams.get("kind") ?? "",
+};
+const parsed = specLookupSchema.safeParse({
+  operation: values.operation.trim() || undefined,
+  variantId: values.variantId || undefined,
+  kind: values.kind || undefined,
+});
+let error = "";
+const invalid = new Set<string>();
+let specs: SpecRow[] = [];
+let tools: ToolRow[] = [];
+if (!parsed.success) {
+  Astro.response.status = 422;
+  error = "Revisa los filtros de búsqueda.";
+  for (const issue of parsed.error.issues) invalid.add(String(issue.path[0]));
+} else {
+  const result = await lookupSpecifications(db, user, parsed.data);
+  if (result.ok) ({ specs, tools } = result);
+  else {
+    if (result.code === "forbidden") return forbiddenResponse();
+    Astro.response.status = result.code === "not_found" ? 404 : 422;
+    error =
+      result.code === "not_found"
+        ? "No se encontró la variante seleccionada."
+        : "Revisa los filtros de búsqueda.";
+  }
+}
+const variants = await listSpecificationVariants(db, user);
+const statusLabel = (status: string) =>
+  (VALIDATION_LABELS as Record<string, string>)[status] ?? status;
+---
+
+<TallerLayout title={`Herramientas y especificaciones — ${SITE.name}`} description="Consulta herramientas, consumibles y datos técnicos con su fuente." path={PATH} user={user}>
+  <div class="stack library-specifications">
+    <PageHeader title="Herramientas y especificaciones" />
+    {error && <p role="alert" id="spec-error">{error}</p>}
+    <Card>
+      <form method="get" action={PATH} class="stack">
+        <fieldset aria-describedby={error ? "spec-error" : undefined}>
+          <legend>Filtros de búsqueda</legend>
+          <div class="fields">
+            <div class="field">
+              <label for="operation">Operación o componente</label>
+              <input id="operation" type="search" name="operation" value={values.operation} minlength="2" maxlength="120" aria-invalid={invalid.has("operation")} aria-describedby={invalid.has("operation") ? "spec-error" : undefined} />
+            </div>
+            <div class="field">
+              <label for="variantId">Variante</label>
+              <select id="variantId" name="variantId" aria-invalid={invalid.has("variantId")} aria-describedby={invalid.has("variantId") ? "spec-error" : undefined}>
+                <option value="">Sin variante</option>
+                {variants.map((variant) => <option value={variant.id} selected={values.variantId === variant.id}>{variant.label}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label for="kind">Tipo de dato</label>
+              <select id="kind" name="kind" aria-invalid={invalid.has("kind")} aria-describedby={invalid.has("kind") ? "spec-error" : undefined}>
+                <option value="">Todos los tipos</option>
+                {SPEC_KINDS.map((kind) => <option value={kind} selected={values.kind === kind}>{SPEC_KIND_LABELS[kind]}</option>)}
+              </select>
+            </div>
+          </div>
+        </fieldset>
+        <button type="submit" class="btn">Buscar</button>
+      </form>
+    </Card>
+    <p role="note" class="spec-warning">Un torque, una presión o un aceite solo valen para la variante exacta y con su fuente. Si dice Sin dato verificado, consulte el manual oficial antes de ajustar.</p>
+    <Card title="Especificaciones">
+      <div class="scroll-x"><table class="dense">
+        <caption>Datos de la variante seleccionada</caption>
+        <thead><tr><th scope="col">Dato</th><th scope="col">Valor</th><th scope="col">Unidad</th><th scope="col">Tolerancia</th><th scope="col">Contexto</th><th scope="col">Estado</th><th scope="col">Fuente</th></tr></thead>
+        <tbody>{specs.map((spec) => <tr>
+          <th scope="row">{spec.label}</th><td>{spec.valueText || "—"}</td><td>{spec.unit || "—"}</td><td>{spec.tolerance || "—"}</td><td>{spec.context || "—"}</td>
+          <td><LibraryStatus status={spec.validationStatus} label={statusLabel(spec.validationStatus)} /></td>
+          <td>{spec.sourceDocument ? <a href={`/taller/biblioteca/documentos/${spec.sourceDocument.id}`}>{spec.sourceDocument.title}</a> : "Sin fuente"}</td>
+        </tr>)}</tbody>
+      </table></div>
+      {!specs.length && <p class="muted">Selecciona una variante y un tipo de dato para consultar sus especificaciones.</p>}
+    </Card>
+    <Card title="Herramientas y consumibles">
+      <div class="scroll-x"><table class="dense">
+        <caption>Resultados por operación o componente</caption>
+        <thead><tr><th scope="col">Nombre</th><th scope="col">Código</th><th scope="col">Tipo</th><th scope="col">Uso</th><th scope="col">Especificación</th><th scope="col">Restricciones</th></tr></thead>
+        <tbody>{tools.map((tool) => <tr>
+          <th scope="row">{tool.name}</th><td>{tool.code || "—"}</td><td>{tool.kind === "herramienta" ? "Herramienta" : "Consumible"}</td><td>{tool.usage || "—"}</td><td>{tool.specification || "—"}</td><td>{tool.restrictions || "—"}</td>
+        </tr>)}</tbody>
+      </table></div>
+      {!tools.length && <p class="muted">{parsed.success && parsed.data.operation ? "Sin herramientas ni consumibles para esta búsqueda." : "Ingresa una operación o componente para buscar herramientas y consumibles."}</p>}
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .library-specifications .fields { grid-template-columns: minmax(0, 1fr); }
+  .taller .library-specifications input, .taller .library-specifications select { width: 100%; min-width: 48px; min-height: 48px; }
+  .taller .library-specifications button { min-width: 48px; min-height: 48px; justify-self: start; }
+  .taller .library-specifications td, .taller .library-specifications th { overflow-wrap: anywhere; }
+  .taller .library-specifications td > a { display: inline-flex; align-items: center; min-width: 48px; min-height: 48px; }
+  .taller .spec-warning { padding: 12px; border: 1px solid var(--rule); border-inline-start: 6px double var(--ink); border-radius: 2px; background: var(--surface); }
+  @media (min-width: 700px) {
+    .taller .library-specifications .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>

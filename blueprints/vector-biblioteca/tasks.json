@@ -346,7 +346,7 @@
       "tests/integration/library-specifications.test.ts",
       "tests/integration/biblioteca-herramientas-page.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T1",
