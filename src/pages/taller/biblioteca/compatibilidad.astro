@@ -1,0 +1,149 @@
+---
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../components/taller/library/LibraryStatus.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import {
+  checkCompatibility,
+  compatibilityCheckSchema,
+  listVariantsForRole,
+} from "../../../server/library/compatibility.ts";
+import type { CompatibilityVerdict } from "../../../server/library/compatibility.ts";
+import {
+  COMPATIBILITY_LABELS,
+  COMPATIBILITY_ROLE_LABELS,
+  CONFIDENCE_LABELS,
+} from "../../../server/library/rules.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca/compatibilidad";
+const db = getDb();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "library.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+const roles = ["shifter", "cambio", "cassette", "cadena", "plato", "nucleo"] as const;
+let values: Record<string, string> = {};
+let error = "";
+const invalidRoles = new Set<string>();
+let verdict: CompatibilityVerdict | undefined;
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const members = roles
+    .filter((role) => values[role])
+    .map((role) => ({ role, variantId: values[role] }));
+  const parsed = compatibilityCheckSchema.safeParse({ members });
+  if (!parsed.success) {
+    Astro.response.status = 422;
+    error =
+      members.length < 2
+        ? "Elige al menos dos componentes."
+        : "Revisa los componentes seleccionados.";
+    for (const issue of parsed.error.issues) {
+      const index = issue.path[1];
+      if (typeof index === "number" && members[index]) invalidRoles.add(members[index].role);
+    }
+  } else {
+    const result = await checkCompatibility(db, user, parsed.data);
+    if (result.ok) verdict = result.verdict;
+    else {
+      if (result.code === "forbidden") return forbiddenResponse();
+      Astro.response.status = result.code === "not_found" ? 404 : 422;
+      error =
+        result.code === "not_found"
+          ? "No se encontró una de las variantes seleccionadas."
+          : "Revisa los componentes seleccionados.";
+    }
+  }
+}
+const choices = await Promise.all(
+  roles.map(async (role) => ({ role, variants: await listVariantsForRole(db, role) })),
+);
+const label = (labels: Record<string, string>, value: string) => labels[value] ?? value;
+---
+
+<TallerLayout title={`Compatibilidad — ${SITE.name}`} description="Comparar un conjunto de componentes con evidencia documentada." path={PATH} user={user}>
+  <div class="stack library-compatibility">
+    <PageHeader title="Compatibilidad" />
+    {error && <p role="alert" id="compatibility-error">{error}</p>}
+    <Card>
+      <form method="post" action={PATH} class="stack">
+        <fieldset aria-describedby={error ? "compatibility-error" : undefined}>
+          <legend>Conjunto a comparar</legend>
+          <div class="fields">
+            {choices.map(({ role, variants }) => <div class="field">
+              <label for={role}>{COMPATIBILITY_ROLE_LABELS[role]}</label>
+              <select id={role} name={role} aria-invalid={invalidRoles.has(role)} aria-describedby={invalidRoles.has(role) ? "compatibility-error" : undefined}>
+                <option value="">No incluir</option>
+                {variants.map((variant) => <option value={variant.id} selected={values[role] === variant.id}>{variant.label}</option>)}
+              </select>
+            </div>)}
+          </div>
+        </fieldset>
+        <button type="submit" class="btn">Comparar</button>
+      </form>
+    </Card>
+    {verdict && <Card title="Resultado">
+      <div role="status" class="stack compatibility-verdict">
+        <LibraryStatus status={verdict.relation} label={COMPATIBILITY_LABELS[verdict.relation]} />
+        <p>{verdict.explanation}</p>
+      </div>
+      <div class="scroll-x"><table class="dense">
+        <caption>Componentes comparados</caption>
+        <thead><tr><th scope="col">Rol</th><th scope="col">Código</th><th scope="col">Modelo</th><th scope="col">Velocidades</th></tr></thead>
+        <tbody>{verdict.members.map((member) => <tr>
+          <th scope="row">{label(COMPATIBILITY_ROLE_LABELS, member.role)}</th>
+          <td>{member.code}</td><td>{member.modelName}</td><td>{member.speeds ?? "Sin dato"}</td>
+        </tr>)}</tbody>
+      </table></div>
+      <div class="scroll-x"><table class="dense">
+        <caption>Reglas aplicables</caption>
+        <thead><tr><th scope="col">Relación</th><th scope="col">Certeza</th><th scope="col">Evidencia</th><th scope="col">Condiciones/restricciones</th><th scope="col">Fuente</th><th scope="col">Revisado</th></tr></thead>
+        <tbody>{verdict.rules.map((rule) => <tr>
+          <td><LibraryStatus status={rule.relation} label={label(COMPATIBILITY_LABELS, rule.relation)} /></td>
+          <td>{label(CONFIDENCE_LABELS, rule.certainty)}</td><td>{rule.evidence}</td>
+          <td>{rule.conditions && <p>Condiciones: {rule.conditions}</p>}{rule.restrictions && <p>Restricciones: {rule.restrictions}</p>}{!rule.conditions && !rule.restrictions && "—"}</td>
+          <td>{rule.sourceDocument ? <a href={`/taller/biblioteca/documentos/${rule.sourceDocument.id}`}>{rule.sourceDocument.title}</a> : "Sin fuente"}</td>
+          <td>{rule.reviewedOn ? <time datetime={rule.reviewedOn}>{rule.reviewedOn}</time> : "Sin fecha"}</td>
+        </tr>)}</tbody>
+      </table></div>
+      {!verdict.rules.length && <p>Sin reglas aplicables registradas.</p>}
+      {verdict.uncovered.length > 0 && <div>
+        <p>Sin evidencia para:</p>
+        <ul class="log">{verdict.members.filter((member) => verdict.uncovered.includes(member.variantId)).map((member) => <li>{member.code} — {member.modelName}</li>)}</ul>
+      </div>}
+    </Card>}
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .library-compatibility .fields { grid-template-columns: minmax(0, 1fr); }
+  .taller .library-compatibility select { width: 100%; min-width: 48px; min-height: 48px; }
+  .taller .library-compatibility button { min-width: 48px; min-height: 48px; justify-self: start; }
+  .taller .compatibility-verdict > .status { font-size: 1.125rem; justify-self: start; }
+  .taller .library-compatibility td, .taller .library-compatibility li { overflow-wrap: anywhere; }
+  .taller .library-compatibility td > a { display: inline-flex; align-items: center; min-width: 48px; min-height: 48px; }
+  @media (min-width: 700px) {
+    .taller .library-compatibility .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>

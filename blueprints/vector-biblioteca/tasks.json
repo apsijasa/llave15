@@ -320,7 +320,7 @@
       "tests/integration/library-compatibility.test.ts",
       "tests/integration/biblioteca-compatibilidad-page.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E3-T3",
