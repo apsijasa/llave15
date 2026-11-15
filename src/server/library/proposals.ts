@@ -168,7 +168,6 @@ async function moveProposal(
   actor: SessionUser,
   id: string,
   to: ProposalStatus,
-  now: Date,
 ): Promise<
   { ok: true; proposal: Proposal } | Failure<"forbidden" | "not_found" | "invalid_transition">
 > {
@@ -190,7 +189,7 @@ export async function submitProposal(
   { ok: true; piiFlags: PiiFinding[] } | Failure<"forbidden" | "not_found" | "invalid_transition">
 > {
   return db.transaction(async (tx) => {
-    const moved = await moveProposal(tx, actor, id, "submitted", now);
+    const moved = await moveProposal(tx, actor, id, "submitted");
     if (!moved.ok) return moved;
     const { proposal } = moved;
     const piiFlags = detectPii(`${proposal.title}\n${proposal.contentMd}\n${proposal.evidence}`);
@@ -210,7 +209,7 @@ export async function withdrawProposal(
   now: Date,
 ): Promise<{ ok: true } | Failure<"forbidden" | "not_found" | "invalid_transition">> {
   return db.transaction(async (tx) => {
-    const moved = await moveProposal(tx, actor, id, "withdrawn", now);
+    const moved = await moveProposal(tx, actor, id, "withdrawn");
     if (!moved.ok) return moved;
     await tx
       .update(knowledgeProposals)

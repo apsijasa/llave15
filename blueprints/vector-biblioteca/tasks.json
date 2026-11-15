@@ -404,7 +404,7 @@
       "tests/integration/library-review.test.ts",
       "tests/integration/library-publish.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T3",
