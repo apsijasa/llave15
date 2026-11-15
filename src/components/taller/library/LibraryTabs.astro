@@ -1,0 +1,54 @@
+---
+interface Props {
+  base: string;
+  active: string;
+  tabs: readonly { key: string; label: string }[];
+}
+
+const { base, active, tabs } = Astro.props;
+---
+
+<nav class="lib-tabs" aria-label="Secciones de la ficha">
+  <ul>
+    {tabs.map((tab) => (
+      <li>
+        <a href={`${base}?seccion=${tab.key}`} aria-current={tab.key === active ? "page" : undefined}>
+          {tab.label}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<style is:global>
+  .taller .lib-tabs {
+    border-bottom: 1px solid var(--rule);
+  }
+  .taller .lib-tabs ul {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    list-style: none;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+  .taller .lib-tabs a {
+    min-height: 48px;
+    min-width: 48px;
+    border: 1px solid transparent;
+    border-radius: 2px 2px 0 0;
+    color: var(--ink-2);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .taller .lib-tabs a[aria-current="page"] {
+    border-color: var(--rule);
+    border-bottom-color: var(--surface);
+    margin-bottom: -1px;
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 600;
+  }
+</style>

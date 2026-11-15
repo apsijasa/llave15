@@ -1,0 +1,25 @@
+---
+import LibraryStatus from "./LibraryStatus.astro";
+
+interface Props {
+  items: {
+    title: string;
+    href: string | null;
+    status?: string;
+    statusLabel?: string;
+    detail?: string;
+  }[];
+}
+
+const { items } = Astro.props;
+---
+
+<ul class="log">
+  {items.map((item) => (
+    <li>
+      {item.href ? <a href={item.href} target="_blank" rel="noopener">{item.title}</a> : <span>{item.title}</span>}
+      {item.status && <LibraryStatus status={item.status} label={item.statusLabel ?? item.status} />}
+      {item.detail && <p>{item.detail}</p>}
+    </li>
+  ))}
+</ul>

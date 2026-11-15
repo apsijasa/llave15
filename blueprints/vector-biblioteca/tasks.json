@@ -211,7 +211,7 @@
       "src/components/taller/library/SourceList.astro",
       "tests/integration/biblioteca-ficha-page.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T4",

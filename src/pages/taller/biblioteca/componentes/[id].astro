@@ -1,0 +1,202 @@
+---
+import { z } from "zod";
+import Card from "../../../../components/taller/Card.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
+import LibraryTabs from "../../../../components/taller/library/LibraryTabs.astro";
+import SourceList from "../../../../components/taller/library/SourceList.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import { variantSheet } from "../../../../server/library/catalog.ts";
+import {
+  COMPATIBILITY_LABELS,
+  COMPATIBILITY_ROLE_LABELS,
+  CONFIDENCE_LABELS,
+  PROCEDURE_KIND_LABELS,
+  PROCEDURE_RISK_LABELS,
+  SPEC_KIND_LABELS,
+  VALIDATION_LABELS,
+} from "../../../../server/library/rules.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca";
+const db = getDb();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "library.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const notFound = () =>
+  new Response("Componente no encontrado.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+const id = z.uuid().safeParse(Astro.params.id);
+if (!id.success) return notFound();
+const section = z
+  .enum([
+    "resumen",
+    "especificaciones",
+    "compatibilidad",
+    "procedimientos",
+    "documentos",
+    "historial",
+  ])
+  .default("resumen")
+  .safeParse(Astro.url.searchParams.get("seccion") ?? undefined);
+const active = section.success ? section.data : "resumen";
+const result = await variantSheet(db, user, id.data);
+if (!result.ok) return result.code === "forbidden" ? forbiddenResponse() : notFound();
+const {
+  manufacturer,
+  family,
+  model,
+  variant,
+  siblings,
+  specifications,
+  compatibility,
+  procedures,
+  documents,
+  versions,
+} = result.sheet;
+const title = `${model.code}${variant.revision ? ` · rev. ${variant.revision}` : ""}`;
+const tabs = [
+  { key: "resumen", label: "Resumen" },
+  { key: "especificaciones", label: "Especificaciones" },
+  { key: "compatibilidad", label: "Compatibilidad" },
+  { key: "procedimientos", label: "Procedimientos" },
+  { key: "documentos", label: "Documentos" },
+  { key: "historial", label: "Historial" },
+];
+const label = (labels: Record<string, string>, value: string) => labels[value] ?? value;
+const modelLabels: Record<string, string> = {
+  vigente: "Vigente",
+  descontinuado: "Descontinuado",
+  en_revision: "En revisión",
+};
+const documentLabels: Record<string, string> = {
+  vigente: "Vigente",
+  desactualizado: "Desactualizado",
+  retirado: "Retirado",
+};
+const documentItems = documents.map((document) => ({
+  title: document.title,
+  href: `${PATH}/documentos/${document.id}`,
+  status: document.status === "retirado" ? "desactualizado" : document.status,
+  statusLabel: label(documentLabels, document.status),
+  detail: `${document.language} · ${document.revision || "Sin revisión"}`,
+}));
+---
+
+<TallerLayout title={`${title} — ${SITE.name}`} description="Ficha técnica de la variante." path={`${PATH}/componentes/${id.data}`} user={user}>
+  <div class="stack library-sheet">
+    <PageHeader title={title} subtitle={`${manufacturer.name} · ${family.name} · ${model.name}`}>
+      <LibraryStatus slot="actions" status={model.status === "descontinuado" ? "desactualizado" : model.status} label={label(modelLabels, model.status)} />
+    </PageHeader>
+    <LibraryTabs base={`${PATH}/componentes/${id.data}`} active={active} tabs={tabs} />
+    {active === "resumen" && <Card title="Resumen">
+      <dl class="data">
+        <dt>Tipo</dt><dd>{model.componentType}</dd>
+        <dt>Generación</dt><dd>{model.generation ?? "Sin dato"}</dd>
+        <dt>Velocidades</dt><dd>{model.speeds ?? "Sin dato"}</dd>
+        <dt>Años</dt><dd>{variant.yearFrom === null && variant.yearTo === null ? "Sin dato" : `${variant.yearFrom ?? "Sin dato"} — ${variant.yearTo ?? "Sin dato"}`}</dd>
+        <dt>Código de variante</dt><dd>{variant.code}</dd>
+        <dt>Atributos</dt><dd>
+          {Object.keys(variant.attributes).length ? <ul class="log">
+            {Object.entries(variant.attributes).map(([key, value]) => <li>{key}: {typeof value === "string" ? value : JSON.stringify(value)}</li>)}
+          </ul> : "Sin dato"}
+        </dd>
+      </dl>
+      <h3>Otras revisiones</h3>
+      <ul class="log">{siblings.map((sibling) => <li>
+        <a href={`${PATH}/componentes/${sibling.id}`}>{sibling.code} · {sibling.revision || "Sin revisión"}</a>
+      </li>)}</ul>
+      {!siblings.length && <p class="muted">No hay otras revisiones registradas.</p>}
+      <p role="note">Los valores de ajuste, torque y compatibilidad valen solo para la variante exacta y con la fuente indicada.</p>
+    </Card>}
+    {active === "especificaciones" && <Card title="Especificaciones">
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Especificaciones de la variante</caption>
+          <thead><tr>
+            <th scope="col">Tipo</th><th scope="col">Dato</th><th scope="col">Valor</th>
+            <th scope="col">Unidad</th><th scope="col">Tolerancia</th><th scope="col">Contexto</th>
+            <th scope="col">Estado</th><th scope="col">Revisado</th><th scope="col">Fuente</th>
+          </tr></thead>
+          <tbody>{specifications.map((spec) => <tr>
+            <td>{label(SPEC_KIND_LABELS, spec.kind)}</td><th scope="row">{spec.label}</th>
+            <td>{spec.valueText || "—"}</td><td>{spec.unit || "—"}</td>
+            <td>{spec.tolerance || "—"}</td><td>{spec.context || "—"}</td>
+            <td><LibraryStatus status={spec.validationStatus} label={label(VALIDATION_LABELS, spec.validationStatus)} /></td>
+            <td>{spec.reviewedOn ? <time datetime={spec.reviewedOn}>{spec.reviewedOn}</time> : "Sin fecha"}</td>
+            <td>{spec.sourceDocument ? <SourceList items={[{
+              title: spec.sourceDocument.title, href: spec.sourceDocument.canonicalUrl,
+            }]} /> : "Sin fuente"}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      {!specifications.length && <p class="muted">No hay especificaciones registradas.</p>}
+    </Card>}
+    {active === "compatibilidad" && <Card title="Compatibilidad">
+      {!compatibility.length && <p>No hay reglas de compatibilidad registradas para esta variante: estado <LibraryStatus status="no_verificada" label={COMPATIBILITY_LABELS.no_verificada} />.</p>}
+      <ul class="log">{compatibility.map((rule) => <li class="stack">
+        <div><LibraryStatus status={rule.relation} label={label(COMPATIBILITY_LABELS, rule.relation)} /></div>
+        <dl class="data">
+          <dt>Certeza</dt><dd><LibraryStatus status={rule.certainty} label={label(CONFIDENCE_LABELS, rule.certainty)} /></dd>
+          <dt>Evidencia</dt><dd>{rule.evidence}</dd>
+          <dt>Condiciones</dt><dd>{rule.conditions || "Sin condiciones registradas"}</dd>
+          <dt>Restricciones</dt><dd>{rule.restrictions || "Sin restricciones registradas"}</dd>
+        </dl>
+        <ul class="log">{rule.members.map((member) => <li>
+          {label(COMPATIBILITY_ROLE_LABELS, member.role)} · <a href={`${PATH}/componentes/${member.variantId}`}>{member.code}</a>
+        </li>)}</ul>
+      </li>)}</ul>
+    </Card>}
+    {active === "procedimientos" && <Card title="Procedimientos">
+      <ul class="log">{procedures.map((procedure) => <li>
+        <a href={`${PATH}/procedimientos/${procedure.procedureId}`}>{procedure.title}</a>
+        <p>{label(PROCEDURE_KIND_LABELS, procedure.kind)} · Riesgo {label(PROCEDURE_RISK_LABELS, procedure.risk)} · Versión {procedure.versionNumber}</p>
+      </li>)}</ul>
+      {!procedures.length && <p class="muted">No hay procedimientos registrados.</p>}
+    </Card>}
+    {active === "documentos" && <Card title="Documentos">
+      <SourceList items={documentItems} />
+      {!documents.length && <p class="muted">No hay documentos registrados.</p>}
+    </Card>}
+    {active === "historial" && <Card title="Historial">
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Versiones publicadas</caption>
+          <thead><tr><th scope="col">Versión</th><th scope="col">Artículo</th><th scope="col">Fecha</th><th scope="col">Revisor</th></tr></thead>
+          <tbody>{versions.map((version) => <tr>
+            <th scope="row">{version.number}</th><td>{version.title}</td>
+            <td>{version.publishedAt ? <time datetime={version.publishedAt.toISOString()}>{version.publishedAt.toISOString().slice(0, 10)}</time> : "Sin fecha"}</td>
+            <td>{version.reviewedByName ?? "Sin revisor"}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      {!versions.length && <p class="muted">No hay versiones publicadas.</p>}
+    </Card>}
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .library-sheet [role="note"] {
+    padding: 16px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--hatch);
+  }
+  .taller .library-sheet .log > li + li {
+    margin-block-start: 8px;
+  }
+</style>
