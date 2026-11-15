@@ -1,0 +1,275 @@
+{
+  "version": 1,
+  "generatedAt": "2026-11-15T00:00:00Z",
+  "manufacturers": [
+    {
+      "slug": "shimano",
+      "name": "Shimano",
+      "aliases": ["Shimano Inc."],
+      "officialSiteUrl": "https://si.shimano.com/"
+    },
+    {
+      "slug": "sram",
+      "name": "SRAM",
+      "aliases": ["SRAM LLC", "RockShox"],
+      "officialSiteUrl": "https://www.sram.com/"
+    },
+    {
+      "slug": "fox",
+      "name": "FOX Factory",
+      "aliases": ["Fox Racing Shox"],
+      "officialSiteUrl": "https://www.ridefox.com/"
+    }
+  ],
+  "families": [
+    {
+      "manufacturer": "shimano",
+      "slug": "deore-xt",
+      "name": "Deore XT",
+      "category": "transmision"
+    },
+    {
+      "manufacturer": "shimano",
+      "slug": "xt-brakes",
+      "name": "Deore XT Frenos",
+      "category": "frenos"
+    },
+    {
+      "manufacturer": "fox",
+      "slug": "34",
+      "name": "FOX 34",
+      "category": "suspension"
+    },
+    {
+      "manufacturer": "shimano",
+      "slug": "wh-mt",
+      "name": "WH-MT",
+      "category": "ruedas"
+    },
+    {
+      "manufacturer": "shimano",
+      "slug": "pro-components",
+      "name": "PRO",
+      "category": "direccion"
+    },
+    {
+      "manufacturer": "shimano",
+      "slug": "hollowtech-ii",
+      "name": "HOLLOWTECH II",
+      "category": "pedalier"
+    },
+    {
+      "manufacturer": "shimano",
+      "slug": "steps",
+      "name": "SHIMANO STEPS",
+      "category": "electronica"
+    },
+    {
+      "manufacturer": "shimano",
+      "slug": "tl-tools",
+      "name": "TL herramientas",
+      "category": "herramientas"
+    }
+  ],
+  "models": [
+    {
+      "family": "shimano/deore-xt",
+      "code": "RD-M8100-SGS",
+      "name": "Deore XT cambio trasero 12v",
+      "componentType": "cambio_trasero",
+      "generation": "M8100",
+      "speeds": 12
+    },
+    {
+      "family": "shimano/deore-xt",
+      "code": "CS-M8100-12",
+      "name": "Deore XT cassette 12v",
+      "componentType": "cassette",
+      "generation": "M8100",
+      "speeds": 12
+    },
+    {
+      "family": "shimano/deore-xt",
+      "code": "CN-M8100",
+      "name": "Deore XT cadena 12v",
+      "componentType": "cadena",
+      "generation": "M8100",
+      "speeds": 12
+    },
+    {
+      "family": "shimano/deore-xt",
+      "code": "SL-M8100-R",
+      "name": "Deore XT shifter derecho 12v",
+      "componentType": "shifter",
+      "generation": "M8100",
+      "speeds": 12
+    },
+    {
+      "family": "shimano/deore-xt",
+      "code": "FC-M8100-1",
+      "name": "Deore XT plato/biela 1x",
+      "componentType": "biela",
+      "generation": "M8100",
+      "speeds": null
+    },
+    {
+      "family": "shimano/xt-brakes",
+      "code": "BR-M8120",
+      "name": "Deore XT freno de disco 4 pistones",
+      "componentType": "freno_disco",
+      "generation": "M8100",
+      "speeds": null
+    }
+  ],
+  "variants": [
+    {
+      "model": "shimano/deore-xt/RD-M8100-SGS",
+      "code": "RD-M8100-SGS",
+      "revision": ""
+    },
+    {
+      "model": "shimano/deore-xt/CS-M8100-12",
+      "code": "CS-M8100-12",
+      "revision": ""
+    },
+    {
+      "model": "shimano/deore-xt/CN-M8100",
+      "code": "CN-M8100",
+      "revision": ""
+    },
+    {
+      "model": "shimano/deore-xt/SL-M8100-R",
+      "code": "SL-M8100-R",
+      "revision": ""
+    },
+    {
+      "model": "shimano/deore-xt/FC-M8100-1",
+      "code": "FC-M8100-1",
+      "revision": ""
+    },
+    {
+      "model": "shimano/xt-brakes/BR-M8120",
+      "code": "BR-M8120",
+      "revision": ""
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://si.shimano.com/",
+      "publisher": "Shimano",
+      "title": "Shimano Service Instructions",
+      "authority": "oficial",
+      "usagePolicy": "enlace"
+    },
+    {
+      "url": "https://www.sheldonbrown.com/",
+      "publisher": "Sheldon Brown",
+      "title": "Sheldon Brown",
+      "authority": "historico",
+      "usagePolicy": "enlace"
+    }
+  ],
+  "documents": [
+    {
+      "canonicalUrl": "https://si.shimano.com/#/es/search/Keyword?name=RD-M8100-SGS",
+      "revision": "",
+      "title": "RD-M8100-SGS — Service Instructions",
+      "manufacturer": "shimano",
+      "source": "https://si.shimano.com/",
+      "license": "enlace",
+      "docType": "manual",
+      "language": "en",
+      "variant": "shimano/deore-xt/RD-M8100-SGS/RD-M8100-SGS"
+    },
+    {
+      "canonicalUrl": "https://si.shimano.com/#/es/search/Keyword?name=CS-M8100-12",
+      "revision": "",
+      "title": "CS-M8100-12 — Service Instructions",
+      "manufacturer": "shimano",
+      "source": "https://si.shimano.com/",
+      "license": "enlace",
+      "docType": "manual",
+      "language": "en",
+      "variant": "shimano/deore-xt/CS-M8100-12/CS-M8100-12"
+    },
+    {
+      "canonicalUrl": "https://si.shimano.com/#/es/search/Keyword?name=BR-M8120",
+      "revision": "",
+      "title": "BR-M8120 — Service Instructions",
+      "manufacturer": "shimano",
+      "source": "https://si.shimano.com/",
+      "license": "enlace",
+      "docType": "manual",
+      "language": "en",
+      "variant": "shimano/xt-brakes/BR-M8120/BR-M8120"
+    },
+    {
+      "canonicalUrl": "https://si.shimano.com/#/es/search/Series?name=DEORE%20XT%20M8100",
+      "revision": "",
+      "title": "Serie DEORE XT M8100 — Service Instructions",
+      "manufacturer": "shimano",
+      "source": "https://si.shimano.com/",
+      "license": "enlace",
+      "docType": "manual",
+      "language": "en"
+    }
+  ],
+  "specifications": [
+    {
+      "variant": "shimano/deore-xt/RD-M8100-SGS/RD-M8100-SGS",
+      "kind": "torque",
+      "label": "Tornillo de fijación al cuadro",
+      "valueText": "",
+      "unit": "Nm",
+      "validationStatus": "sin_dato_verificado",
+      "context": "Confirmar en el manual del distribuidor (enlace en Documentos)"
+    },
+    {
+      "variant": "shimano/deore-xt/RD-M8100-SGS/RD-M8100-SGS",
+      "kind": "medida",
+      "label": "Capacidad total",
+      "valueText": "",
+      "validationStatus": "sin_dato_verificado",
+      "context": "Confirmar en el manual del distribuidor (enlace en Documentos)"
+    }
+  ],
+  "tools": [
+    {
+      "code": "TL-CN10",
+      "name": "Herramienta para pasador de cadena",
+      "kind": "herramienta",
+      "category": "transmision",
+      "manufacturer": "shimano"
+    },
+    {
+      "code": "TL-LR15",
+      "name": "Llave para anillo de cierre de cassette",
+      "kind": "herramienta",
+      "category": "transmision",
+      "manufacturer": "shimano"
+    },
+    {
+      "name": "Lubricante de cadena",
+      "kind": "consumible",
+      "category": "transmision"
+    }
+  ],
+  "articles": [
+    {
+      "slug": "transmision-12v-identificacion",
+      "title": "Cómo identificar una transmisión Shimano de 12 velocidades",
+      "category": "transmision",
+      "kind": "articulo",
+      "variants": ["shimano/deore-xt/RD-M8100-SGS/RD-M8100-SGS"],
+      "version": {
+        "number": 1,
+        "contentMd": "Busca el código grabado en cada componente y transcríbelo completo. Revisa el cuerpo del cambio, el cassette, la cadena, el mando y la biela; una etiqueta comercial por sí sola no identifica la variante.\n\nEl prefijo orienta sobre el componente: RD identifica el cambio trasero, CS el cassette, CN la cadena, SL el mando de cambios y FC la biela. Conserva los sufijos al registrar el código.\n\nLa serie M8100 permite iniciar la búsqueda en las instrucciones oficiales. En el código RD-M8100-SGS, SGS identifica la jaula larga. Confirma también la revisión del componente y del documento antes de trabajar.\n\nAbre el manual del distribuidor en Shimano Service Instructions desde los enlaces de Documentos. Confirma allí los torques y la compatibilidad de la combinación concreta; este artículo sirve para identificar códigos y no aporta valores de ajuste ni confirma combinaciones.",
+        "sources": [
+          {
+            "source": "https://si.shimano.com/"
+          }
+        ]
+      }
+    }
+  ]
+}

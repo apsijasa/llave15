@@ -123,7 +123,7 @@
       "package.json",
       "tests/integration/library-pack.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T1",
