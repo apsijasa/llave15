@@ -152,7 +152,7 @@
       "tests/integration/library-catalog.test.ts",
       "tests/unit/library-detect-code.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T2",
