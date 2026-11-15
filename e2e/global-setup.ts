@@ -164,6 +164,63 @@ async function seedOrders(sql: Sql): Promise<void> {
   await sql`update branches set next_order_number = 4 where id = ${SEED.branchId}`;
 }
 
+async function seedLibraryArticle(sql: Sql): Promise<void> {
+  await sql`
+    insert into knowledge_articles (id, slug, title, category, kind, status, created_by)
+    values (${SEED.libraryArticleId}, 'transmision-12v-identificacion',
+      'Identificación de transmisión de 12 velocidades', 'transmision', 'articulo', 'publicado', ${SEED.ownerId})
+  `;
+  await sql`
+    insert into article_versions (id, article_id, number, content_md, summary, content_hash, published_at, reviewed_by)
+    values (${SEED.libraryVersionId}, ${SEED.libraryArticleId}, 1,
+      'Identificación del cambio trasero RD-M8100-SGS de la transmisión Deore XT de 12 velocidades.',
+      'Identificación del cambio trasero Deore XT de 12 velocidades.',
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', now(), ${SEED.ownerId})
+  `;
+  await sql`
+    update knowledge_articles set current_version_id = ${SEED.libraryVersionId}
+    where id = ${SEED.libraryArticleId}
+  `;
+  await sql`
+    insert into article_variant_links (version_id, variant_id)
+    values (${SEED.libraryVersionId}, ${SEED.libraryVariantId})
+  `;
+}
+
+async function seedLibrary(sql: Sql): Promise<void> {
+  if (!(await hasTable(sql, "manufacturers")) || !(await hasTable(sql, "knowledge_articles"))) {
+    return;
+  }
+  await sql`
+    insert into manufacturers (id, slug, name)
+    values (${SEED.libraryManufacturerId}, 'shimano', 'Shimano')
+  `;
+  await sql`
+    insert into component_families (id, manufacturer_id, slug, name, category)
+    values (${SEED.libraryFamilyId}, ${SEED.libraryManufacturerId}, 'deore-xt', 'Deore XT', 'transmision')
+  `;
+  await sql`
+    insert into component_models (id, family_id, code, name, component_type, generation, speeds)
+    values (${SEED.libraryModelId}, ${SEED.libraryFamilyId}, 'RD-M8100-SGS',
+      'Cambio trasero Deore XT 12 velocidades', 'cambio_trasero', 'M8100', 12)
+  `;
+  await sql`
+    insert into component_variants (id, model_id, code, revision)
+    values (${SEED.libraryVariantId}, ${SEED.libraryModelId}, 'RD-M8100-SGS', '')
+  `;
+  await sql`
+    insert into technical_specifications (id, variant_id, kind, label, value_text, unit, validation_status)
+    values (${SEED.librarySpecId}, ${SEED.libraryVariantId}, 'torque',
+      'Tornillo de fijación al cuadro', '', 'Nm', 'sin_dato_verificado')
+  `;
+  await sql`
+    insert into technical_documents (id, manufacturer_id, variant_id, title, canonical_url, license, doc_type, language)
+    values (${SEED.libraryDocumentId}, ${SEED.libraryManufacturerId}, ${SEED.libraryVariantId},
+      'Manual Deore XT M8100', 'https://si.shimano.com/#/es/search/Series?name=DEORE%20XT%20M8100', 'enlace', 'manual', 'en')
+  `;
+  await seedLibraryArticle(sql);
+}
+
 /** Base E2E limpia y sembrada antes de cada corrida de `pnpm test:tablet`. */
 export default async function globalSetup(): Promise<void> {
   rmSync(E2E_STORAGE_DIR, { recursive: true, force: true });
@@ -183,6 +240,7 @@ export default async function globalSetup(): Promise<void> {
       await seedBookings(sql);
       await seedCatalog(sql);
       await seedOrders(sql);
+      await seedLibrary(sql);
     }
   } finally {
     await sql.end();
