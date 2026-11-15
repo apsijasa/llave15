@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { ARTICLE_KINDS, LIBRARY_CATEGORIES, SPEC_KINDS, VALIDATION_STATUSES } from "./rules.ts";
+import {
+  ARTICLE_KINDS,
+  LIBRARY_CATEGORIES,
+  PROCEDURE_KINDS,
+  PROCEDURE_RISKS,
+  SPEC_KINDS,
+  VALIDATION_STATUSES,
+} from "./rules.ts";
 
 const text = z.string().min(1);
 const key = text.regex(/^[^/@]+$/);
@@ -87,6 +94,29 @@ const toolSchema = z.strictObject({
   usage: z.string().optional(),
   restrictions: z.string().optional(),
 });
+const procedureSchema = z.strictObject({
+  title: text,
+  kind: z.enum(PROCEDURE_KINDS),
+  risk: z.enum(PROCEDURE_RISKS),
+  durationMinutes: z.int().positive().optional(),
+  prerequisites: text.optional(),
+  finalChecks: text.optional(),
+  steps: z
+    .array(
+      z.strictObject({
+        sequence: z.int().positive(),
+        action: text,
+        tools: text.optional(),
+        consumables: text.optional(),
+        verification: text.optional(),
+        warning: text.optional(),
+      }),
+    )
+    .min(1),
+  specs: z
+    .array(z.strictObject({ variant: text, kind: z.enum(SPEC_KINDS), label: text }))
+    .optional(),
+});
 const articleSchema = z.strictObject({
   slug: key,
   title: text,
@@ -95,6 +125,7 @@ const articleSchema = z.strictObject({
   language: text.optional(),
   kind: z.enum(ARTICLE_KINDS),
   variants: z.array(text).optional(),
+  procedure: procedureSchema.optional(),
   version: z.strictObject({
     number: z.literal(1),
     contentMd: text,
@@ -227,8 +258,37 @@ function uniqueKeys(pack: LibraryPack, ctx: z.RefinementCtx) {
   }
 }
 
+function procedureReferences(pack: LibraryPack, ctx: z.RefinementCtx) {
+  const check = referenceChecker(ctx);
+  const specs = new Set(
+    pack.specifications.map((r) => JSON.stringify([r.variant, r.kind, r.label])),
+  );
+  pack.articles.forEach((row, i) => {
+    const seenSteps = new Set<number>();
+    row.procedure?.steps.forEach((step, j) => {
+      if (seenSteps.has(step.sequence))
+        ctx.addIssue({
+          code: "custom",
+          path: ["articles", i, "procedure", "steps", j, "sequence"],
+          message: `${row.slug}: paso repetido`,
+        });
+      seenSteps.add(step.sequence);
+    });
+    const seenSpecs = new Set<string>();
+    row.procedure?.specs?.forEach((spec, j) => {
+      const key = JSON.stringify([spec.variant, spec.kind, spec.label]);
+      const path = ["articles", i, "procedure", "specs", j];
+      check(specs, key, path, row.slug);
+      if (seenSpecs.has(key))
+        ctx.addIssue({ code: "custom", path, message: `${row.slug}: especificación repetida` });
+      seenSpecs.add(key);
+    });
+  });
+}
+
 export const libraryPackSchema = packSchema.superRefine((pack, ctx) => {
   uniqueKeys(pack, ctx);
   catalogReferences(pack, ctx);
   knowledgeReferences(pack, ctx);
+  procedureReferences(pack, ctx);
 });

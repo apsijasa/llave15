@@ -292,7 +292,7 @@
       "tests/integration/library-procedures.test.ts",
       "tests/integration/biblioteca-procedimiento-page.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E3-T2",

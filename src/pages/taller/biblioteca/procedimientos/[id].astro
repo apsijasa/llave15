@@ -1,0 +1,137 @@
+---
+import { z } from "zod";
+import Card from "../../../../components/taller/Card.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
+import SourceList from "../../../../components/taller/library/SourceList.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import { procedureDetail, procedureSourceItems } from "../../../../server/library/procedures.ts";
+import {
+  PROCEDURE_KIND_LABELS,
+  PROCEDURE_RISK_LABELS,
+  VALIDATION_LABELS,
+} from "../../../../server/library/rules.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca";
+const db = getDb();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "library.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const notFound = () =>
+  new Response("Procedimiento no encontrado.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+const id = z.uuid().safeParse(Astro.params.id);
+if (!id.success) return notFound();
+const result = await procedureDetail(db, user, id.data);
+if (!result.ok) return result.code === "forbidden" ? forbiddenResponse() : notFound();
+const { procedure, article, version, variants, steps, specs } = result.detail;
+const sources = await procedureSourceItems(db, user, version.sources);
+const tools = [
+  ...new Set(
+    steps.map((step) => step.tools?.trim()).filter((tool): tool is string => Boolean(tool)),
+  ),
+];
+const label = (labels: Record<string, string>, value: string) => labels[value] ?? value;
+const riskLabel = `Riesgo ${label(PROCEDURE_RISK_LABELS, procedure.risk).toLocaleLowerCase("es-CL")}`;
+---
+
+<TallerLayout title={`${procedure.title} — ${SITE.name}`} description="Procedimiento técnico paso a paso." path={`${PATH}/procedimientos/${id.data}`} user={user}>
+  <div class="stack library-procedure">
+    <PageHeader title={procedure.title} subtitle={article.title}>
+      <LibraryStatus slot="actions" status={procedure.risk} label={riskLabel} />
+    </PageHeader>
+    <div class="proc-cols">
+      <div class="stack">
+        <dl class="data">
+          <dt>Tipo</dt><dd>{label(PROCEDURE_KIND_LABELS, procedure.kind)}</dd>
+          <dt>Duración indicativa</dt><dd>{procedure.durationMinutes === null ? "Sin dato" : `${procedure.durationMinutes} min`}</dd>
+          <dt>Versión</dt><dd>Versión {version.number} · {version.publishedAt ? <time datetime={version.publishedAt.toISOString()}>{version.publishedAt.toISOString().slice(0, 10)}</time> : "Sin fecha"} · {version.reviewedByName ?? "Sin revisor"}</dd>
+        </dl>
+        <Card title="Requisitos previos"><p>{procedure.prerequisites ?? "Sin requisitos previos registrados."}</p></Card>
+        <Card title="Pasos">
+          <ol class="proc-steps">
+            {steps.map((step) => <li>
+              <p>{step.action}</p>
+              {(step.tools || step.consumables || step.verification) && <dl class="data">
+                {step.tools && <><dt>Herramientas:</dt><dd>{step.tools}</dd></>}
+                {step.consumables && <><dt>Consumibles:</dt><dd>{step.consumables}</dd></>}
+                {step.verification && <><dt>Comprobación:</dt><dd>{step.verification}</dd></>}
+              </dl>}
+              {step.warning && <p role="note" class="proc-warning">{step.warning}</p>}
+            </li>)}
+          </ol>
+        </Card>
+        <Card title="Controles finales"><p>{procedure.finalChecks ?? "Sin controles finales registrados."}</p></Card>
+      </div>
+      <aside aria-label="Herramientas y torques" class="stack">
+        <Card title="Herramientas">
+          {tools.length ? <ul class="log">{tools.map((tool) => <li>{tool}</li>)}</ul> : <p>Sin herramientas registradas.</p>}
+        </Card>
+        <Card title="Torques">
+          {specs.length ? <div class="scroll-x"><table class="dense">
+            <caption>Especificaciones del procedimiento</caption>
+            <thead><tr><th scope="col">Dato</th><th scope="col">Valor</th><th scope="col">Unidad</th><th scope="col">Estado</th><th scope="col">Fuente</th></tr></thead>
+            <tbody>{specs.map((spec) => <tr>
+              <th scope="row">{spec.label}</th><td>{spec.valueText || "—"}</td><td>{spec.unit || "—"}</td>
+              <td><LibraryStatus status={spec.validationStatus} label={label(VALIDATION_LABELS, spec.validationStatus)} /></td>
+              <td>{spec.sourceDocument ? <SourceList items={[{ title: spec.sourceDocument.title, href: spec.sourceDocument.canonicalUrl }]} /> : "Sin fuente"}</td>
+            </tr>)}</tbody>
+          </table></div> : <p>Este procedimiento no tiene torques registrados: consulte el manual del fabricante.</p>}
+        </Card>
+        <Card title="Alcance">
+          {variants.length ? <ul class="log">{variants.map((variant) => <li>
+            <a href={`${PATH}/componentes/${variant.id}`}>{variant.code}{variant.revision ? ` · rev. ${variant.revision}` : ""} — {variant.modelName}</a>
+          </li>)}</ul> : <p>Sin variantes registradas.</p>}
+        </Card>
+        <Card title="Fuentes">
+          <SourceList items={sources} />
+          {!sources.length && <p>Sin fuentes registradas.</p>}
+        </Card>
+      </aside>
+    </div>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .proc-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+  }
+  .taller .proc-cols > * { min-width: 0; }
+  .taller .proc-steps { margin: 0; padding-inline-start: 24px; }
+  .taller .proc-steps > li + li { margin-block-start: 24px; }
+  .taller .proc-steps .data { margin-block-start: 12px; }
+  .taller .proc-warning {
+    margin-block-start: 12px;
+    padding: 16px;
+    border-inline-start: 6px double var(--ink);
+    border-radius: 2px;
+    background: var(--hatch);
+  }
+  .taller .library-procedure dd, .taller .library-procedure li { overflow-wrap: anywhere; }
+  .taller .library-procedure .log > li + li { margin-block-start: 8px; }
+  .taller .library-procedure .status--bajo { border-style: solid; }
+  .taller .library-procedure .status--medio { border-style: dotted; }
+  .taller .library-procedure .status--alto { border-style: dashed; }
+  .taller .library-procedure .status--critico { border: 3px double var(--ink); }
+  @media (min-width: 900px) {
+    .taller .proc-cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  }
+</style>

@@ -19,6 +19,7 @@ import {
   articleVariantLinks,
 } from "../db/schema-library-knowledge.ts";
 import { publicationEvents } from "../db/schema-library-private.ts";
+import { procedures, procedureSteps, procedureSpecs } from "../db/schema-library-procedures.ts";
 import { libraryPackSchema, variantKey } from "./content-pack-schema.ts";
 import type { LibraryPack } from "./content-pack-schema.ts";
 
@@ -236,6 +237,38 @@ async function importSpecifications(ctx: Context, pack: LibraryPack) {
     );
 }
 
+/** Solo se llama para la primera versión de un artículo recién creado. */
+async function importPackProcedure(
+  db: AppDb,
+  versionId: string,
+  input: LibraryPack["articles"][number]["procedure"],
+  specificationIds: Map<string, string>,
+  now: Date,
+) {
+  if (!input) return;
+  const { steps, specs, ...procedure } = input;
+  const timestamps = { createdAt: now, updatedAt: now };
+  const [row] = await db
+    .insert(procedures)
+    .values({ ...procedure, versionId, ...timestamps })
+    .returning({ id: procedures.id });
+  if (!row) throw new Error("No se pudo crear el procedimiento");
+  await db
+    .insert(procedureSteps)
+    .values(steps.map((step) => ({ ...step, procedureId: row.id, ...timestamps })));
+  if (specs?.length)
+    await db.insert(procedureSpecs).values(
+      specs.map((spec) => {
+        const specificationId = specificationIds.get(
+          JSON.stringify([spec.variant, spec.kind, spec.label]),
+        );
+        if (!specificationId)
+          throw new Error("Referencia no resuelta: especificación del procedimiento");
+        return { procedureId: row.id, specificationId, ...timestamps };
+      }),
+    );
+}
+
 async function importVersion(
   ctx: Context,
   articleId: string,
@@ -267,6 +300,7 @@ async function importVersion(
     .set({ currentVersionId: created.id, updatedAt: ctx.now })
     .where(eq(knowledgeArticles.id, articleId));
   await importArticleLinks(ctx, articleId, created.id, row.variants ?? [], actorId);
+  await importPackProcedure(ctx.tx, created.id, row.procedure, ctx.ids.specifications, ctx.now);
 }
 
 async function importArticleLinks(
@@ -298,7 +332,7 @@ async function importArticleLinks(
 
 async function importArticles(ctx: Context, pack: LibraryPack, actorId: string | null) {
   for (const row of pack.articles) {
-    const { variants: _variants, version: _version, ...article } = row;
+    const { variants: _variants, version: _version, procedure: _procedure, ...article } = row;
     const result = await insertMissing(
       ctx,
       "articles",

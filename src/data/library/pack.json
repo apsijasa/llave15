@@ -270,6 +270,45 @@
           }
         ]
       }
+    },
+    {
+      "slug": "cadena-12v-revision-desgaste",
+      "title": "Revisión de desgaste de cadena de 12 velocidades",
+      "category": "transmision",
+      "kind": "procedimiento",
+      "variants": ["shimano/deore-xt/CN-M8100/CN-M8100"],
+      "version": {
+        "number": 1,
+        "contentMd": "Revisar la cadena limpia con un indicador de desgaste. Comparar la lectura con el límite del manual del fabricante y registrar la medición antes de proponer un reemplazo.",
+        "sources": [{ "source": "https://www.sheldonbrown.com/" }]
+      },
+      "procedure": {
+        "title": "Revisión de desgaste de cadena de 12 velocidades",
+        "kind": "mantenimiento",
+        "risk": "bajo",
+        "durationMinutes": 10,
+        "prerequisites": "Bicicleta en el soporte, cadena limpia",
+        "finalChecks": "Registrar la medición en la orden y comparar con el límite del fabricante",
+        "steps": [
+          { "sequence": 1, "action": "Limpiar un tramo de cadena" },
+          {
+            "sequence": 2,
+            "action": "Medir con un indicador de desgaste de cadena",
+            "tools": "Indicador de desgaste de cadena"
+          },
+          {
+            "sequence": 3,
+            "action": "Comparar la lectura con el límite indicado por el fabricante de la cadena",
+            "verification": "Usar el límite del manual del fabricante; no usar un valor genérico"
+          },
+          {
+            "sequence": 4,
+            "action": "Si supera el límite, proponer reemplazo de cadena y revisar cassette y platos",
+            "warning": "Una cadena muy gastada puede saltar bajo carga en el cassette nuevo"
+          }
+        ],
+        "specs": []
+      }
     }
   ]
 }

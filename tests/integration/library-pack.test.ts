@@ -18,6 +18,7 @@ import {
   articleVariantLinks,
 } from "../../src/server/db/schema-library-knowledge.ts";
 import { publicationEvents } from "../../src/server/db/schema-library-private.ts";
+import { procedures, procedureSteps } from "../../src/server/db/schema-library-procedures.ts";
 import { branches, users } from "../../src/server/db/schema.ts";
 import { LIBRARY_CATEGORIES } from "../../src/server/library/rules.ts";
 import { createTestDb } from "../helpers/pglite.ts";
@@ -47,9 +48,9 @@ const totals = {
   documents: 4,
   specifications: 2,
   tools: 3,
-  articles: 1,
-  articleVersions: 1,
-  articleVariantLinks: 1,
+  articles: 2,
+  articleVersions: 2,
+  articleVariantLinks: 2,
   publicationEvents: 0,
 };
 let test: TestDb;
@@ -130,14 +131,20 @@ it("importa dos veces sin modificar ninguna fila existente", async () => {
   const first = await importLibraryPack(test.db, null, pack, NOW, { dryRun: false });
   expect(first).toMatchObject({ ok: true, created: totals });
   expect(await counts()).toEqual(totals);
+  const importedProcedures = await test.db.select().from(procedures);
+  const importedSteps = await test.db.select().from(procedureSteps);
+  expect(importedProcedures).toHaveLength(1);
+  expect(importedSteps).toHaveLength(4);
   const before = await snapshots();
   const second = await importLibraryPack(test.db, null, pack, NOW, { dryRun: false });
   expect(second).toMatchObject({
     ok: true,
     created: Object.fromEntries(Object.keys(totals).map((key) => [key, 0])),
-    skipped: { ...totals, publicationEvents: 1 },
+    skipped: { ...totals, publicationEvents: 2 },
   });
   expect(await snapshots()).toEqual(before);
+  expect(await test.db.select().from(procedures)).toEqual(importedProcedures);
+  expect(await test.db.select().from(procedureSteps)).toEqual(importedSteps);
 });
 
 it("omite filas por sus claves aunque cambie el contenido del paquete", async () => {
@@ -160,7 +167,7 @@ it("dryRun cuenta las altas reales y revierte todas las tablas", async () => {
   expect(await importLibraryPack(test.db, null, pack, NOW, { dryRun: true })).toMatchObject({
     ok: true,
     created: totals,
-    skipped: { publicationEvents: 1 },
+    skipped: { publicationEvents: 2 },
   });
   expect(Object.values(await counts()).every((value) => value === 0)).toBe(true);
 });
@@ -256,9 +263,12 @@ it("publica la versión inicial, hash, vínculos y evento con autor real", async
   const { pack, importLibraryPack } = await fixture();
   const actorId = await actor();
   const result = await importLibraryPack(test.db, actorId, pack, NOW, { dryRun: false });
-  expect(result).toMatchObject({ ok: true, created: { publicationEvents: 1 } });
+  expect(result).toMatchObject({ ok: true, created: { publicationEvents: 2 } });
+  expect(await test.db.select().from(articleVariantLinks)).toHaveLength(2);
+  expect(await test.db.select().from(publicationEvents)).toHaveLength(2);
   const [article] = await test.db.select().from(knowledgeArticles);
   const [version] = await test.db.select().from(articleVersions);
+  if (!version) throw new Error("Falta versión inicial");
   expect(article).toMatchObject({
     status: "publicado",
     createdBy: actorId,
@@ -273,10 +283,18 @@ it("publica la versión inicial, hash, vínculos y evento con autor real", async
     reviewedBy: actorId,
     contentHash: createHash("sha256").update(first(pack.articles).version.contentMd).digest("hex"),
   });
-  expect(await test.db.select().from(articleVariantLinks)).toMatchObject([
-    { versionId: version?.id },
-  ]);
-  expect(await test.db.select().from(publicationEvents)).toMatchObject([
+  expect(
+    await test.db
+      .select()
+      .from(articleVariantLinks)
+      .where(eq(articleVariantLinks.versionId, version.id)),
+  ).toMatchObject([{ versionId: version?.id }]);
+  expect(
+    await test.db
+      .select()
+      .from(publicationEvents)
+      .where(eq(publicationEvents.versionId, version.id)),
+  ).toMatchObject([
     {
       articleId: article?.id,
       versionId: version?.id,
@@ -295,7 +313,7 @@ it("revierte también la auditoría en dryRun y revierte ante un error de escrit
   const actorId = await actor();
   expect(await importLibraryPack(test.db, actorId, pack, NOW, { dryRun: true })).toMatchObject({
     ok: true,
-    created: { publicationEvents: 1 },
+    created: { publicationEvents: 2 },
   });
   expect(Object.values(await counts()).every((value) => value === 0)).toBe(true);
   await expect(
