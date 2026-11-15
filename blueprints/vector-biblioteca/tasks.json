@@ -237,7 +237,7 @@
       "tests/integration/library-documents.test.ts",
       "tests/integration/biblioteca-documento-page.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T5",

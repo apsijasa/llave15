@@ -1,0 +1,109 @@
+---
+import { z } from "zod";
+import Card from "../../../../components/taller/Card.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import { documentAccess } from "../../../../server/library/documents.ts";
+
+export const prerender = false;
+const db = getDb();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "library.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const notFound = () =>
+  new Response("Documento no encontrado.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+const id = z.uuid().safeParse(Astro.params.id);
+if (!id.success) return notFound();
+const result = await documentAccess(db, user, id.data);
+if (!result.ok) return result.code === "forbidden" ? forbiddenResponse() : notFound();
+const { document } = result;
+const licenseLabels: Record<string, string> = {
+  enlace: "Solo enlace",
+  extracto_permitido: "Extracto permitido",
+  copia_autorizada: "Copia autorizada",
+};
+const statusLabels: Record<string, string> = {
+  vigente: "Vigente",
+  desactualizado: "Desactualizado",
+  retirado: "Retirado",
+};
+const typeLabels: Record<string, string> = {
+  manual: "Manual",
+  despiece: "Despiece",
+  boletin: "Boletín",
+  guia: "Guía",
+  otro: "Otro",
+};
+---
+
+<TallerLayout title={`${document.title} — ${SITE.name}`} description="Documentación técnica y condiciones de acceso." path={`/taller/biblioteca/documentos/${id.data}`} user={user}>
+  <div class="stack library-document">
+    <PageHeader title={document.title} subtitle="Documento técnico" />
+    <Card title="Metadatos">
+      <dl class="data">
+        <dt>Título</dt><dd>{document.title}</dd>
+        <dt>Fabricante</dt><dd>{document.manufacturerName ?? "Sin fabricante"}</dd>
+        <dt>Fuente</dt><dd>{document.sourceTitle ?? "Sin fuente"}</dd>
+        <dt>Tipo</dt><dd>{typeLabels[document.docType] ?? document.docType}</dd>
+        <dt>Idioma</dt><dd>{document.language}</dd>
+        <dt>Revisión</dt><dd>{document.revision || "Sin revisión"}</dd>
+        <dt>Checksum</dt><dd>{document.checksum || "Sin checksum"}</dd>
+        <dt>Estado</dt><dd><LibraryStatus status={document.status === "retirado" ? "incompatible" : document.status} label={statusLabels[document.status] ?? document.status} /></dd>
+        <dt>Licencia</dt><dd>{licenseLabels[document.license] ?? document.license}</dd>
+      </dl>
+      {result.mode === "retirado" ? (
+        <p role="alert">Documento retirado por el curador: no se enlaza al original.</p>
+      ) : (
+        <a class="btn" href={result.href} target="_blank" rel="noopener">Abrir el original</a>
+      )}
+    </Card>
+    {result.mode === "extracto" && (
+      <Card title="Extractos permitidos">
+        {result.excerpts.map((excerpt) => <blockquote>{excerpt.text}</blockquote>)}
+      </Card>
+    )}
+    {result.mode === "visor" && result.mediaPath && (
+      <Card title="Copia autorizada">
+        <iframe title={document.title} src={result.mediaPath}></iframe>
+      </Card>
+    )}
+    <p role="note">La documentación pertenece a su editor; se enlaza o se extracta solo con permiso.</p>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .library-document dd {
+    overflow-wrap: anywhere;
+  }
+  .taller .library-document blockquote {
+    margin: 16px 0;
+    padding: 16px;
+    border-inline-start: 1px solid var(--rule);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .taller .library-document iframe {
+    display: block;
+    width: 100%;
+    min-height: 70vh;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--surface);
+  }
+</style>
