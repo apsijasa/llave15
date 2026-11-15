@@ -91,7 +91,7 @@
       "tests/unit/library-rules.test.ts",
       "tests/integration/library-access.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T4",

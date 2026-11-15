@@ -86,6 +86,7 @@ export type SessionUser = {
   name: string;
   role: Role;
   branchId: string;
+  libraryCurator?: boolean;
 };
 
 async function createOwner(db: AppDb, email: string, passwordHash: string, now: Date) {
@@ -223,6 +224,7 @@ export async function requireAdmin(
       name: users.name,
       role: users.role,
       branchId: users.branchId,
+      libraryCurator: users.libraryCurator,
     })
     .from(adminSessions)
     .innerJoin(users, eq(users.id, adminSessions.userId))

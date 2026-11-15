@@ -45,6 +45,10 @@ export const ACTIONS = [
   "expenses.record",
   "cash.open_close",
   "costs.view",
+  "library.view",
+  "library.ai",
+  "library.propose",
+  "library.curate",
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -87,6 +91,10 @@ const permissions: Record<Action, readonly Role[]> = {
   "expenses.record": administrators,
   "cash.open_close": staff,
   "costs.view": administrators,
+  "library.view": ROLES,
+  "library.ai": ROLES,
+  "library.propose": ROLES,
+  "library.curate": administrators,
 };
 
 export function isRole(value: unknown): value is Role {
