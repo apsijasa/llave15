@@ -197,6 +197,7 @@ export const users = pgTable(
     name: text("name").notNull(),
     role: text("role").notNull(),
     isActive: boolean("is_active").notNull().default(true),
+    libraryCurator: boolean("library_curator").notNull().default(false),
     createdBy: uuid("created_by").references((): AnyPgColumn => users.id, { onDelete: "restrict" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

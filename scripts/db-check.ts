@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { getDbEnv } from "../src/lib/env.ts";
 import { cashTables } from "../src/server/db/schema-cash.ts";
 import { inventoryTables } from "../src/server/db/schema-inventory.ts";
+import { libraryCatalogTables } from "../src/server/db/schema-library-catalog.ts";
 import { orderTables } from "../src/server/db/schema-orders.ts";
 import { paymentTables } from "../src/server/db/schema-payments.ts";
 import { reportTables } from "../src/server/db/schema-reports.ts";
@@ -70,6 +71,7 @@ try {
     ...cashTables,
     ...saleTables,
     ...paymentTables,
+    ...libraryCatalogTables,
   ]
     .flatMap((table) =>
       Object.values(getTableColumns(table)).map(

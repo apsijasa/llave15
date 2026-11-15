@@ -27,7 +27,7 @@
       "scripts/db-check.ts",
       "tests/integration/library-catalog-schema.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T2",
