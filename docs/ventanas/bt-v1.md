@@ -53,30 +53,46 @@ corepack pnpm@12.4.2 db:check
 ```
 
 ```bash
-corepack pnpm@12.4.2 library:import
-```
-
-```bash
-corepack pnpm@12.4.2 library:check
-```
-
-```bash
 rm -rf node_modules
 ```
 
+Estos comandos dejan el esquema al día en la base **de desarrollo** del workspace; al publicar, Replit copia ese esquema a producción, **pero no los datos**.
+
 Después, **Deployments → Republish**.
 
-## Después de publicar
+## Después de publicar: cargar la biblioteca en producción
 
-1. Marcar al curador central (el dueño) en la base de producción, desde la pestaña *Database* de Replit:
+`library:import` escribe en la base de `DATABASE_URL`. En la Shell del workspace esa es la de desarrollo, así que para producción se le pasa la conexión de producción solo a ese comando. La conexión se copia del panel **Database** de producción en Replit; no se guarda en ningún archivo.
+
+1. Revisar sin escribir (en la Shell del workspace, con la conexión de producción pegada entre comillas):
+
+   ```bash
+   DATABASE_URL='<conexión de producción>' corepack pnpm@12.4.2 library:import --dry-run
+   ```
+
+2. Importar de verdad (crea el contenido global y su índice; repetirlo no duplica nada):
+
+   ```bash
+   DATABASE_URL='<conexión de producción>' corepack pnpm@12.4.2 library:import
+   ```
+
+3. Revisar la salud de la biblioteca en producción (debe salir `{"ok":true,…}`):
+
+   ```bash
+   DATABASE_URL='<conexión de producción>' corepack pnpm@12.4.2 library:check
+   ```
+
+4. Marcar al curador central (el dueño) en el panel **Database** de producción:
 
    ```sql
    update users set library_curator = true where email = '<correo del dueño>';
    ```
 
-2. Entrar a `/taller/biblioteca` y buscar `RD-M8100-SGS`: debe aparecer como coincidencia exacta.
-3. Abrir `/taller/biblioteca/asistente` y hacer una pregunta: debe decir "Modo: solo fuentes" y citar el artículo importado.
-4. Opcional: para usar el modelo de lenguaje, agregar en *Secrets* `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`, y volver a publicar.
+5. Entrar a `/taller/biblioteca` y buscar `RD-M8100-SGS`: debe aparecer como coincidencia exacta.
+6. Abrir `/taller/biblioteca/asistente` y hacer una pregunta: debe decir "Modo: solo fuentes" y citar el artículo importado.
+7. Opcional: para usar el modelo de lenguaje, agregar en *Secrets* de la publicación `AI_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`, y volver a publicar.
+
+Para tener también la biblioteca en desarrollo, los mismos comandos sin `DATABASE_URL=…`.
 
 ## Reversión
 

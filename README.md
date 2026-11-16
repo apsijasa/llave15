@@ -253,6 +253,7 @@ Cualquier usuario propone conocimiento en **Propuestas** (borrador → enviada).
 - `pnpm library:import [--dry-run] [ruta]`: importa el paquete global (por defecto `src/data/library/pack.json`) sin duplicar y reconstruye el índice del asistente. Sale 0, 1 (paquete inválido) o 2 (sin conexión).
 - `pnpm library:export [ruta]`: exporta el conocimiento global publicado, para llevarlo a otra instalación. Nunca incluye propuestas, diagnósticos, notas ni consultas de ningún taller.
 - El paquete trae identificadores públicos y enlaces a manuales oficiales, **sin torques ni compatibilidades inventadas**.
+- **Ojo:** como `inventory:import`, escribe en la base de `DATABASE_URL`; en la Shell del workspace de Replit es la de **desarrollo**. Para producción se le pasa la conexión de producción solo a ese comando (`docs/ventanas/bt-v1.md`).
 
 ### Asistente: proveedor y cuotas
 
