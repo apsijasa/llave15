@@ -68,7 +68,11 @@ export type AuditAction =
   | "proposal.withdrawn"
   | "proposal.reviewed"
   | "library.published"
-  | "library.archived";
+  | "library.archived"
+  | "diagnosis.saved"
+  | "diagnosis.confirmed"
+  | "diagnosis.voided"
+  | "component.variant_linked";
 
 const sensitiveKey = /email|correo|phone|telefono|rut|token|password|clave/i;
 const uuidPattern = /\b[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}\b/i;

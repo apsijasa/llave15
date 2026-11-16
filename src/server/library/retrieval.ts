@@ -165,6 +165,7 @@ async function bikeParts(db: AppDb, actor: SessionUser, bikeId: string) {
       componentType: bikeComponents.componentType,
       brand: bikeComponents.brand,
       model: bikeComponents.model,
+      variantId: bikeComponents.componentVariantId,
     })
     .from(bikeComponents)
     .where(
@@ -176,7 +177,7 @@ async function bikeParts(db: AppDb, actor: SessionUser, bikeId: string) {
       ),
     )
     .orderBy(desc(bikeComponents.installedAt));
-  return rows.map((part) => ({ ...part, variantId: null }));
+  return rows;
 }
 
 async function orderDiagnoses(db: AppDb, actor: SessionUser, orderId: string) {

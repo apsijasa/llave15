@@ -1,0 +1,3 @@
+ALTER TABLE "bike_components" ADD COLUMN "component_variant_id" uuid;--> statement-breakpoint
+ALTER TABLE "bike_components" ADD CONSTRAINT "bike_components_component_variant_id_component_variants_id_fk" FOREIGN KEY ("component_variant_id") REFERENCES "public"."component_variants"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_bike_components_variant" ON "bike_components" USING btree ("component_variant_id");

@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { check, date, index, integer, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { cashSessions } from "./schema-cash.ts";
+import { componentVariants } from "./schema-library-catalog.ts";
 import { workOrderItems, workOrders } from "./schema-orders.ts";
 import { sales } from "./schema-sales.ts";
 import { bikes } from "./schema-taller.ts";
@@ -92,6 +93,9 @@ export const bikeComponents = pgTable(
     installedAt: date("installed_at", { mode: "string" }).notNull(),
     priceClp: integer("price_clp").notNull().default(0),
     replacedAt: date("replaced_at", { mode: "string" }),
+    componentVariantId: uuid("component_variant_id").references(() => componentVariants.id, {
+      onDelete: "restrict",
+    }),
     replacedByComponentId: uuid("replaced_by_component_id").references(
       (): AnyPgColumn => bikeComponents.id,
       { onDelete: "restrict" },
@@ -105,6 +109,7 @@ export const bikeComponents = pgTable(
   (t) => [
     index("idx_bike_components_bike_installed").on(t.bikeId, t.installedAt),
     index("idx_bike_components_order").on(t.workOrderId),
+    index("idx_bike_components_variant").on(t.componentVariantId),
     check("bike_components_price_check", sql`price_clp >= 0`),
     check(
       "bike_components_replaced_date_check",

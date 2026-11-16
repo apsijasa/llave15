@@ -557,7 +557,7 @@
       "tests/integration/library-diagnoses.test.ts",
       "tests/integration/library-technical-context.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E6-T2",
