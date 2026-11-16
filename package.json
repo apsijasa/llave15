@@ -24,6 +24,7 @@
     "reminders:send": "node --env-file-if-exists=.env scripts/reminders-send.ts",
     "library:import": "node --env-file-if-exists=.env scripts/library-import.ts",
     "library:export": "node --env-file-if-exists=.env scripts/library-export.ts",
+    "library:check": "node --env-file-if-exists=.env scripts/library-check.ts",
     "inventory:import": "node --env-file-if-exists=.env scripts/inventory-import.ts",
     "f2:check": "node --env-file-if-exists=.env scripts/f2-check.ts",
     "test:tablet": "playwright test"

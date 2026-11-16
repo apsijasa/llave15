@@ -635,7 +635,7 @@
       "tests/integration/library-isolation.test.ts",
       "tests/integration/library-health.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E7-T2",
