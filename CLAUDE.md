@@ -24,6 +24,7 @@ Sitio y reservas en línea del taller de bicicletas Vector Bikes (Av. Kennedy 76
 | Recordatorios (respaldo manual) | `pnpm reminders:send` |
 | Inventario inicial (existe desde F2-06) | `pnpm inventory:import <archivo.csv> <correo> [--dry-run]` (el CSV vive fuera del repo; sale 0/1/2) |
 | Salud de la fase 2 (existe desde F2-35) | `pnpm f2:check` (sale 0 sano, 1 umbral superado, 2 sin conexión) |
+| Biblioteca técnica | `pnpm library:import [--dry-run] [ruta]` (paquete global + índice) · `pnpm library:export [ruta]` · `pnpm library:check` (sale 0/1/2) |
 
 **Compuerta:** `pnpm gate` pasa antes de marcar cualquier tarea como hecha y antes de publicar. Antes de cada Verify, `pnpm format`.
 
@@ -62,7 +63,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 
 | Tema | Única fuente de verdad |
 |---|---|
-| Esquema | ocho archivos que importan en un solo sentido: `src/server/db/schema.ts` (base, sucursal, usuarios) ← `schema-taller.ts` (auditoría, catálogo, clientes, bicis) ← `schema-inventory.ts` (productos, movimientos de stock, proveedores, compras) ← `schema-orders.ts` (órdenes y lo que cuelga) ← `schema-reports.ts` (informe, seguimiento, avisos) ← `schema-cash.ts` (caja, gastos) ← `schema-sales.ts` (ventas) ← `schema-payments.ts` (pagos, componentes) → `pnpm db:generate` → `pnpm db:migrate` |
+| Esquema | doce archivos que importan en un solo sentido: `src/server/db/schema.ts` (base, sucursal, usuarios) ← `schema-taller.ts` (auditoría, catálogo, clientes, bicis) ← `schema-inventory.ts` (productos, movimientos de stock, proveedores, compras) ← `schema-orders.ts` (órdenes y lo que cuelga) ← `schema-reports.ts` (informe, seguimiento, avisos) ← `schema-cash.ts` (caja, gastos) ← `schema-sales.ts` (ventas) ← `schema-payments.ts` (pagos, componentes) ← `schema-library-catalog.ts` ← `schema-library-knowledge.ts` ← `schema-library-procedures.ts` ← `schema-library-private.ts` (biblioteca; las tablas globales sin `branch_id`, BT-D1) → `pnpm db:generate` → `pnpm db:migrate` |
 | Conexión | `src/server/db/client.ts` (`getDb()`, tipo `AppDb`); los módulos reciben `db` como argumento |
 | Entorno | `src/lib/env.ts` (accesores por funcionalidad); nunca `process.env` en otro lado |
 | Nombre y datos del taller | `SITE` (`src/lib/site.ts`); nunca un literal (la fase plataforma, después, lo derivará del perfil del taller) |
@@ -78,6 +79,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | Feriados | `src/data/feriados-cl.json` |
 | Tokens de diseño | `src/styles/global.css` (`:root`) |
 | Logs | `src/lib/log.ts` |
+| Biblioteca técnica | `src/server/library/**` (reglas en `library/rules.ts`, acceso en `access.ts`); decisiones en `blueprints/vector-biblioteca/BIBLIOTECA.md` |
 
 ## Reglas de código
 
@@ -137,7 +139,9 @@ Fuente: `docs/design-preview.html`. Monocromo, reglas de 1px, radio 2px, sin som
 | `E2E_DATABASE_URL` (opcional; por defecto `…/vector_bikes_e2e`) | F1-06 | `e2e/**`, `playwright.config.ts` |
 | `STORAGE_DRIVER` (`local`/`replit`), `STORAGE_LOCAL_DIR`, `STORAGE_BUCKET_ID` | F1-08 | `src/server/storage/storage.ts` |
 
-La fase 2 no agrega variables. `.env.example` se commitea y se mantiene al día. En Replit, los valores reales van en *Secrets*.
+| `AI_PROVIDER` (`none`/`anthropic`, opcional), `ANTHROPIC_API_KEY` (solo con `anthropic`), `AI_MODEL` (opcional, `claude-opus-5-5`) | BT-17 | `src/lib/env.ts` (`getAiEnv`), `src/server/library/ai-provider.ts` |
+
+La fase 2 no agrega variables; la biblioteca agrega las tres del asistente, todas opcionales. `.env.example` se commitea y se mantiene al día. En Replit, los valores reales van en *Secrets*.
 
 ## Reglas diferidas
 
@@ -150,6 +154,7 @@ La fase 2 no agrega variables. `.env.example` se commitea y se mantiene al día.
 | `.claude/rules/taller-ui.md` | `src/pages/taller/**`, `src/components/taller/**`, `src/layouts/TallerLayout.astro` |
 | `.claude/rules/taller-domain.md` | `src/server/taller/**`, `src/server/storage/**` |
 | `.claude/rules/e2e.md` | `e2e/**`, `playwright.config.ts` |
+| `.claude/rules/library.md` | `src/server/library/**`, `src/pages/taller/biblioteca/**`, `src/components/taller/library/**`, `src/data/library/**`, `scripts/library-*.ts` |
 
 ## No negociable
 

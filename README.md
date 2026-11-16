@@ -229,6 +229,41 @@ Claude nunca consulta producción.
 | 13. `pnpm gate` en verde | `pnpm gate` |
 | 14. Un mes de operación real con stock y caja sin planilla | Lo confirma el dueño; la consulta de salud da `0` en producción cada día del mes |
 
+## Biblioteca técnica
+
+Biblioteca compartida dentro de `/taller` (menú **Conocimiento**): componentes, especificaciones, procedimientos, compatibilidad, herramientas y documentación, con un asistente que cita sus fuentes. Diseño y decisiones: `blueprints/vector-biblioteca/BIBLIOTECA.md`; publicación: `docs/ventanas/bt-v1.md`.
+
+### Cómo se usa
+
+- **Buscar** (`/taller/biblioteca`): por código exacto (`RD-M8100-SGS`), fabricante, modelo, síntoma o palabra técnica, o por una de las ocho categorías. La coincidencia exacta va primero.
+- **Ficha de variante**: resumen, especificaciones con su estado y fuente, compatibilidad, procedimientos, documentos e historial de versiones. Un dato sin fuente se muestra como **Sin dato verificado**: no se ajusta con él.
+- **Procedimientos**: pasos numerados, herramientas, comprobaciones, advertencias y controles finales.
+- **Compatibilidad**: elegir el conjunto (mando, cambio, cassette, cadena, plato, núcleo). Sin evidencia documentada el resultado es **No verificada**, aunque las velocidades coincidan.
+- **Herramientas**: buscar por operación o componente; ver especificaciones por variante y tipo de dato.
+- **Documentos**: por defecto se enlaza al original del fabricante; solo una copia autorizada se ve dentro del taller.
+- **Asistente** (`/taller/biblioteca/asistente`): responde solo con fuentes de la biblioteca, con su nivel de confianza, los supuestos y la siguiente verificación. No reemplaza el manual oficial.
+- **En la orden** (pestaña **Biblioteca**): contexto de la bici y sus componentes, consulta al asistente con el contexto de esa orden y **Agregar al diagnóstico**, que guarda un borrador solo al tocarlo. "Confirmar diagnóstico" lo deja confirmado. Nada de esto cambia precios, pagos, inventario, aprobaciones ni el estado de la orden.
+
+### Propuestas y curador central
+
+Cualquier usuario propone conocimiento en **Propuestas** (borrador → enviada). El sistema marca teléfonos, RUT, correos y patentes. Solo el **curador central** revisa en **Revisión**: pide cambios, aprueba, rechaza y publica una versión nueva; la anterior queda intacta. El curador es un usuario dueño o administrador con la marca `users.library_curator`, que se activa en la base (ver `docs/ventanas/bt-v1.md`). La revisión nunca muestra datos del taller que propuso.
+
+### Paquete de contenido
+
+- `pnpm library:import [--dry-run] [ruta]`: importa el paquete global (por defecto `src/data/library/pack.json`) sin duplicar y reconstruye el índice del asistente. Sale 0, 1 (paquete inválido) o 2 (sin conexión).
+- `pnpm library:export [ruta]`: exporta el conocimiento global publicado, para llevarlo a otra instalación. Nunca incluye propuestas, diagnósticos, notas ni consultas de ningún taller.
+- El paquete trae identificadores públicos y enlaces a manuales oficiales, **sin torques ni compatibilidades inventadas**.
+
+### Asistente: proveedor y cuotas
+
+- `AI_PROVIDER=none` (por defecto): modo **solo fuentes**, sin servicio externo.
+- `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` (solo en *Secrets*): usa la Messages API con `AI_MODEL` (por defecto `claude-opus-5-5`), salida JSON y respaldo automático ante rechazos.
+- Cuotas: 200 consultas al día por sucursal y 5 por minuto por usuario. Cada consulta se guarda con la pregunta y la respuesta redactadas.
+
+### Chequeo
+
+`pnpm library:check` cuenta anomalías de aislamiento e integridad (diagnósticos, notas o consultas ligadas a otra sucursal, artículos publicados sin versión, especificaciones verificadas sin fuente, trozos huérfanos). Sale 0 sano, 1 con anomalías, 2 sin conexión.
+
 ## Publicar
 
 1. Corre `pnpm gate` en el workspace y confirma que sale 0.

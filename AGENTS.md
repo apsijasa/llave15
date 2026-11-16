@@ -20,6 +20,7 @@ Sitio y reservas en línea del taller Vector Bikes (Vitacura) y su área interna
 | Migraciones (solo base dev) | `pnpm db:generate` · `pnpm db:migrate` · `pnpm db:check` |
 | Inventario inicial (desde F2-06) | `pnpm inventory:import <archivo.csv> <correo> [--dry-run]` |
 | Salud de la fase 2 (desde F2-35) | `pnpm f2:check` |
+| Biblioteca (desde BT-04, BT-15, BT-22) | `pnpm library:import [--dry-run]` · `pnpm library:export [ruta]` · `pnpm library:check` |
 
 Orden de trabajo de la fase 2: `blueprints/vector-taller-f2/tasks.json` y `blueprints/vector-taller-f2/epics/`; cada tarea llega como un encargo `docs/encargos/F2-NN-*.md`. `blueprints/vector-taller-f1/` y `blueprints/vector-bikes/` son registros de fases terminadas y no se tocan. Todo comando se ejecuta desde la raíz del proyecto. El sandbox de Codex no tiene red ni Postgres: corre `format`, `check`, `test` y `build`; `db:migrate`, `db:check`, `test:tablet`, `smoke`, `gate` y los commits los hace la sesión coordinadora.
 
@@ -56,7 +57,7 @@ Orden de trabajo de la fase 2: `blueprints/vector-taller-f2/tasks.json` y `bluep
 
 ## Esquema
 
-El esquema vive en ocho archivos, que importan en un solo sentido: `src/server/db/schema.ts` (base, sucursal, usuarios) ← `schema-taller.ts` (auditoría, catálogo, clientes, bicis) ← `schema-inventory.ts` (productos, stock, proveedores, compras) ← `schema-orders.ts` (órdenes y lo que cuelga) ← `schema-reports.ts` (informe, seguimiento y avisos al cliente) ← `schema-cash.ts` (caja y gastos) ← `schema-sales.ts` (ventas) ← `schema-payments.ts` (pagos y componentes). Los archivos se crean en la fase 2 en el paso que los nombra. Después, `pnpm db:generate` → `pnpm db:migrate`. Cada tabla nueva va al arreglo de su archivo (`allTables`, `tallerTables`, `inventoryTables`, `orderTables`, `reportTables`, `cashTables`, `saleTables`, `paymentTables`). Detalle en `.claude/rules/database.md`.
+El esquema vive en doce archivos, que importan en un solo sentido: `src/server/db/schema.ts` (base, sucursal, usuarios) ← `schema-taller.ts` (auditoría, catálogo, clientes, bicis) ← `schema-inventory.ts` (productos, stock, proveedores, compras) ← `schema-orders.ts` (órdenes y lo que cuelga) ← `schema-reports.ts` (informe, seguimiento y avisos al cliente) ← `schema-cash.ts` (caja y gastos) ← `schema-sales.ts` (ventas) ← `schema-payments.ts` (pagos y componentes) ← `schema-library-catalog.ts` (catálogo técnico global) ← `schema-library-knowledge.ts` (artículos, versiones, índice) ← `schema-library-procedures.ts` (procedimientos, compatibilidad) ← `schema-library-private.ts` (propuestas, diagnósticos, notas, consultas al asistente). Las tablas del conocimiento global de la biblioteca no llevan `branch_id` (decisión BT-D1); las privadas sí. Después, `pnpm db:generate` → `pnpm db:migrate`. Cada tabla nueva va al arreglo de su archivo (`allTables`, `tallerTables`, `inventoryTables`, `orderTables`, `reportTables`, `cashTables`, `saleTables`, `paymentTables`, `libraryCatalogTables`, `libraryKnowledgeTables`, `libraryProcedureTables`, `libraryPrivateTables`). Detalle en `.claude/rules/database.md`.
 
 ## Reglas por carpeta
 
@@ -71,6 +72,7 @@ Antes de tocar archivos en estas rutas, leer el archivo de reglas correspondient
 | `.claude/rules/taller-ui.md` | `src/pages/taller/**`, `src/components/taller/**`, `src/layouts/TallerLayout.astro` |
 | `.claude/rules/taller-domain.md` | `src/server/taller/**`, `src/server/storage/**` |
 | `.claude/rules/e2e.md` | `e2e/**`, `playwright.config.ts` |
+| `.claude/rules/library.md` | `src/server/library/**`, `src/pages/taller/biblioteca/**`, `src/components/taller/library/**`, `src/data/library/**`, `scripts/library-*.ts` |
 
 ## Al recibir un encargo delegado
 
