@@ -334,7 +334,7 @@ it("POST muestra el enlace una vez, WhatsApp usa el primer nombre y GET no recup
   expect(response.status).toBe(200);
   expect(response.headers.get("location")).toBeNull();
   expect(response.headers.get("cache-control")).toBe("no-store");
-  expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+  expect(response.headers.get("referrer-policy")).toBe("same-origin");
   const html = await response.text();
   const token = html.match(/\/aprobacion\/([A-Za-z0-9_-]{43})/)?.[1];
   expect(token).toBeDefined();
@@ -375,7 +375,7 @@ it("la página protege sesión, permiso, origen y orden con no-store en cada res
   ]) {
     expect([403, 404]).toContain(response.status);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(response.headers.get("referrer-policy")).toBe("same-origin");
   }
   expect(await test.db.select().from(workOrderApprovals)).toEqual([]);
 });

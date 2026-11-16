@@ -26,10 +26,10 @@ import type { OrderStatus } from "../../../../server/taller/rules.ts";
 import { orderDetail } from "../../../../server/taller/status.ts";
 
 export const prerender = false;
-const headers = { "cache-control": "no-store", "referrer-policy": "no-referrer" };
+const headers = { "cache-control": "no-store", "referrer-policy": "same-origin" };
 function forbidden() {
   const response = forbiddenResponse();
-  response.headers.set("referrer-policy", "no-referrer");
+  response.headers.set("referrer-policy", "same-origin");
   return response;
 }
 const db = getDb();

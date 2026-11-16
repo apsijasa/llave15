@@ -32,10 +32,10 @@ import { STATUS_LABELS } from "../../../../server/taller/rules.ts";
 import type { OrderStatus } from "../../../../server/taller/rules.ts";
 
 export const prerender = false;
-const headers = { "cache-control": "no-store", "referrer-policy": "no-referrer" };
+const headers = { "cache-control": "no-store", "referrer-policy": "same-origin" };
 function forbidden() {
   const response = forbiddenResponse();
-  response.headers.set("referrer-policy", "no-referrer");
+  response.headers.set("referrer-policy", "same-origin");
   return response;
 }
 function notFound() {
