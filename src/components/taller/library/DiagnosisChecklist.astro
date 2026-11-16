@@ -1,0 +1,17 @@
+---
+interface Props {
+  items: readonly { key: string; label: string }[];
+  checked?: readonly string[];
+}
+const { items, checked = [] } = Astro.props;
+---
+
+<fieldset>
+  <legend>Pruebas realizadas</legend>
+  <div class="options">
+    {items.map((item) => <label>
+      <input type="checkbox" name="inspection" value={item.key} checked={checked.includes(item.key)} />
+      {item.label}
+    </label>)}
+  </div>
+</fieldset>

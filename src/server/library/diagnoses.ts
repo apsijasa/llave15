@@ -18,6 +18,8 @@ import { recordAudit } from "../taller/audit.ts";
 import type { AuditAction } from "../taller/audit.ts";
 import { TERMINAL_STATUSES } from "../taller/rules.ts";
 import { canAccessOrder } from "../taller/status.ts";
+import { describeReferences } from "./diagnosis-references.ts";
+import type { DescribedReference, Reference } from "./diagnosis-references.ts";
 import { CONFIDENCE_LEVELS } from "./rules.ts";
 
 type Failure<C extends string> = { ok: false; code: C };
@@ -86,7 +88,6 @@ export const diagnosisFormSchema = z.strictObject({
   aiInteractionId: z.preprocess(emptyToUndefined, z.uuid().optional()),
 });
 type DiagnosisInput = z.infer<typeof diagnosisFormSchema>;
-type Reference = { kind: ReferenceKind; id: string; versionNumber?: number };
 
 async function loadOrder(db: AppDb, actor: SessionUser, orderId: string) {
   if (!z.uuid().safeParse(orderId).success) return { ok: false, code: "not_found" } as const;
@@ -289,7 +290,8 @@ export async function voidDiagnosis(
   });
 }
 
-export type DiagnosisItem = typeof technicalDiagnoses.$inferSelect & {
+export type DiagnosisItem = Omit<typeof technicalDiagnoses.$inferSelect, "refs"> & {
+  refs: DescribedReference[];
   authorName: string;
   confirmedByName: string | null;
 };
@@ -320,12 +322,15 @@ export async function listDiagnoses(
       ),
     )
     .orderBy(desc(technicalDiagnoses.createdAt));
-  return {
-    ok: true,
-    items: rows.map((row) => ({
+  const items: DiagnosisItem[] = [];
+  for (const row of rows) {
+    const refs = await describeReferences(db, row.diagnosis.refs as Reference[]);
+    items.push({
       ...row.diagnosis,
+      refs,
       authorName: row.authorName,
       confirmedByName: row.confirmedByName,
-    })),
-  };
+    });
+  }
+  return { ok: true, items };
 }

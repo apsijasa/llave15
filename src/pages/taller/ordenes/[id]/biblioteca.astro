@@ -1,0 +1,341 @@
+---
+import { z } from "zod";
+import Card from "../../../../components/taller/Card.astro";
+import OrderTabs from "../../../../components/taller/OrderTabs.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import ConfidenceCard from "../../../../components/taller/library/ConfidenceCard.astro";
+import DiagnosisChecklist from "../../../../components/taller/library/DiagnosisChecklist.astro";
+import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { getAiEnv } from "../../../../lib/env.ts";
+import { SITE } from "../../../../lib/site.ts";
+import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
+import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import { noneProvider, providerFromEnv } from "../../../../server/library/ai-provider.ts";
+import type { AiProvider } from "../../../../server/library/ai-provider.ts";
+import { askAssistant, askSchema } from "../../../../server/library/assistant.ts";
+import type { AssistantResult } from "../../../../server/library/assistant.ts";
+import {
+  confirmDiagnosis,
+  diagnosisFormSchema,
+  DIAGNOSIS_INSPECTIONS,
+  listDiagnoses,
+  saveDiagnosis,
+} from "../../../../server/library/diagnoses.ts";
+import { describeReferences } from "../../../../server/library/diagnosis-references.ts";
+import { proposalTargets } from "../../../../server/library/proposals.ts";
+import { CONFIDENCE_LABELS } from "../../../../server/library/rules.ts";
+import {
+  linkComponentVariant,
+  orderTechnicalContext,
+} from "../../../../server/library/technical-context.ts";
+import { formatOrderNumber } from "../../../../server/taller/orders.ts";
+import { STATUS_LABELS } from "../../../../server/taller/rules.ts";
+import type { OrderStatus } from "../../../../server/taller/rules.ts";
+
+export const prerender = false;
+const db = getDb();
+const now = new Date();
+const PATH = Astro.url.pathname;
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(PATH + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (Astro.request.method === "POST" && !isAllowedOrigin(Astro.request)) return forbiddenResponse();
+if (!can(user.role, "library.ai")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const id = z.uuid().safeParse(Astro.params.id);
+const detail = id.success
+  ? await orderTechnicalContext(db, user, id.data)
+  : ({ ok: false, code: "not_found" } as const);
+if (!detail.ok) {
+  if (detail.code === "forbidden") return forbiddenResponse();
+  return new Response("Orden no encontrada.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+}
+const { order, bike, components } = detail.context;
+const diagnoses = await listDiagnoses(db, user, order.id);
+if (!diagnoses.ok)
+  return diagnoses.code === "forbidden"
+    ? forbiddenResponse()
+    : new Response("Orden no encontrada.", {
+        status: 404,
+        headers: { "cache-control": "no-store" },
+      });
+const mayLink = can(user.role, "components.manage");
+const variants = mayLink ? (await proposalTargets(db)).variants.slice(0, 200) : [];
+const actionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("ask"), question: askSchema.shape.question }),
+  diagnosisFormSchema.extend({ action: z.literal("save") }),
+  z.object({ action: z.literal("confirm"), diagnosisId: z.uuid() }),
+  z.object({ action: z.literal("link"), componentId: z.uuid(), variantId: z.uuid() }),
+]);
+let form: FormData | undefined;
+let error = "";
+const fieldErrors = new Set<string>();
+let question = order.requestedService;
+let answer: Extract<AssistantResult, { ok: true }> | null = null;
+let provider: AiProvider = noneProvider;
+let misconfigured = false;
+try {
+  provider = providerFromEnv(getAiEnv(), fetch);
+} catch {
+  misconfigured = true;
+}
+
+function formInput(data: FormData) {
+  const fields = Object.fromEntries(data);
+  if (fields.action !== "save") return fields;
+  const checked = data.getAll("inspection").map(String);
+  return {
+    action: "save",
+    symptoms: fields.symptoms,
+    result: fields.result,
+    aiInteractionId: fields.aiInteractionId,
+    inspections: DIAGNOSIS_INSPECTIONS.map((item) => ({
+      ...item,
+      done: checked.includes(item.key),
+    })),
+    references: data.getAll("ref").map((value) => {
+      const [kind, id, ...extra] = String(value).split(":");
+      return { kind, id: extra.length ? "" : id };
+    }),
+  };
+}
+const errors = {
+  validation_error: "Revisa los campos indicados del formulario.",
+  invalid_reference: "Una referencia o consulta no es válida para este diagnóstico.",
+  order_closed: "La orden está cerrada y no admite nuevos diagnósticos.",
+  already_confirmed: "El diagnóstico ya fue confirmado.",
+  not_found: "No se encontró el diagnóstico o componente de esta orden.",
+  invalid_variant: "Selecciona una variante válida del catálogo.",
+  quota: "Se alcanzó el límite de consultas. Intente más tarde.",
+} as const;
+if (Astro.request.method === "POST") {
+  form = await Astro.request.formData();
+  if (form.get("action") === "link" && !mayLink) return forbiddenResponse();
+  const parsed = actionSchema.safeParse(formInput(form));
+  if (!parsed.success) {
+    Astro.response.status = 422;
+    error = errors.validation_error;
+    for (const issue of parsed.error.issues) fieldErrors.add(String(issue.path[0]));
+  } else {
+    const input = parsed.data;
+    let failure: keyof typeof errors | "forbidden" | undefined;
+    if (input.action === "ask") {
+      const result = await askAssistant(
+        db,
+        user,
+        provider,
+        { question: input.question, scope: "orden", orderId: order.id },
+        now,
+      );
+      if (result.ok) answer = result;
+      else failure = result.code;
+    } else {
+      const result =
+        input.action === "save"
+          ? await saveDiagnosis(
+              db,
+              user,
+              order.id,
+              diagnosisFormSchema.parse(inputWithoutAction(input)),
+              now,
+            )
+          : input.action === "confirm"
+            ? diagnoses.items.some((item) => item.id === input.diagnosisId)
+              ? await confirmDiagnosis(db, user, input.diagnosisId, now)
+              : ({ ok: false, code: "not_found" } as const)
+            : components.some((item) => item.id === input.componentId && !item.variant)
+              ? await linkComponentVariant(db, user, input.componentId, input.variantId, now)
+              : ({ ok: false, code: "not_found" } as const);
+      if (result.ok)
+        return new Response(null, {
+          status: 303,
+          headers: {
+            location: `${PATH}?hecho=${input.action === "save" ? "diagnostico" : input.action === "confirm" ? "confirmado" : "identificado"}`,
+            "cache-control": "no-store",
+          },
+        });
+      failure = result.code;
+    }
+    if (failure) {
+      if (failure === "forbidden") return forbiddenResponse();
+      Astro.response.status =
+        failure === "not_found"
+          ? 404
+          : failure === "quota"
+            ? 429
+            : failure === "validation_error"
+              ? 422
+              : 409;
+      error = errors[failure];
+    }
+  }
+  if (form.get("action") === "ask") question = String(form.get("question") ?? "");
+}
+function inputWithoutAction(input: z.infer<typeof actionSchema>) {
+  const { action: _action, ...fields } = input;
+  return fields;
+}
+const citationKinds: Record<string, string> = {
+  article_version: "article_version",
+  specification: "variant",
+  procedure: "procedure",
+  document: "document",
+};
+const citations =
+  answer?.citations.map((citation) => ({
+    ...citation,
+    kind: citationKinds[citation.sourceKind],
+  })) ?? [];
+const notices: Record<string, string> = {
+  diagnostico: "Diagnóstico guardado.",
+  confirmado: "Diagnóstico confirmado.",
+  identificado: "Componente identificado.",
+};
+const done = Astro.url.searchParams.get("hecho") ?? "";
+const notice = Object.hasOwn(notices, done) ? notices[done] : undefined;
+const number = formatOrderNumber(order.number);
+const when = (date: Date) => date.toLocaleString("es-CL", { timeZone: "America/Santiago" });
+const attempted = form?.get("action") === "save" ? formInput(form) : undefined;
+const retainedRefs = diagnosisFormSchema.shape.references.safeParse(attempted?.references);
+const retainedDescribed = retainedRefs.success
+  ? await describeReferences(db, retainedRefs.data)
+  : [];
+const retainedInteraction = z.uuid().safeParse(attempted?.aiInteractionId);
+const saveForms = [
+  ...(answer
+    ? [
+        {
+          key: "answer",
+          title: "Agregar al diagnóstico",
+          symptoms: question,
+          citations,
+          interactionId: answer.interactionId,
+        },
+      ]
+    : []),
+  {
+    key: "manual",
+    title: retainedInteraction.success ? "Agregar al diagnóstico" : "Diagnóstico sin asistente",
+    symptoms: form?.get("action") === "save" ? String(form.get("symptoms") ?? "") : "",
+    citations: retainedDescribed.map((ref) => ({
+      kind: ref.kind,
+      sourceId: ref.id,
+      label: ref.label,
+    })),
+    interactionId: retainedInteraction.success ? retainedInteraction.data : "",
+  },
+];
+const invalid = (field: string) => (fieldErrors.has(field) ? "true" : undefined);
+---
+
+<TallerLayout title={`${number} · Biblioteca — ${SITE.name}`} description="Contexto y diagnósticos técnicos de la orden." path="/taller/ordenes" user={user}>
+  <div class="stack order-library">
+    <PageHeader title={number} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <OrderTabs orderId={order.id} active="biblioteca" tabs={ORDER_TABS.filter((tab) => can(user.role, tab.permission))} />
+    {notice && <p role="status">{notice}</p>}
+    {error && <p id="form-error" role="alert">{error}</p>}
+    <p role="note">El asistente no cambia precios, inventario, aprobaciones ni el estado de la orden. Los trabajos adicionales siguen necesitando la aprobación del cliente.</p>
+    <Card title="Contexto técnico" id="context-title">
+      <dl class="data">
+        <div><dt>Marca</dt><dd>{bike.brand}</dd></div><div><dt>Modelo</dt><dd>{bike.model}</dd></div>
+        <div><dt>Tipo</dt><dd>{bike.bikeType}</dd></div><div><dt>Año</dt><dd>{bike.year ?? "Sin registrar"}</dd></div>
+        <div><dt>Talla</dt><dd>{bike.size ?? "Sin registrar"}</dd></div>
+      </dl>
+      <div class="scroll-x"><table class="dense">
+        <caption>Componentes de la bicicleta</caption>
+        <thead><tr><th scope="col">Tipo</th><th scope="col">Marca</th><th scope="col">Modelo</th><th scope="col">Variante del catálogo</th></tr></thead>
+        <tbody>{components.map((part) => <tr>
+          <th scope="row">{part.componentType}</th><td>{part.brand}</td><td>{part.model}</td>
+          <td>{part.variant ? <a href={`/taller/biblioteca/componentes/${part.variant.id}`}>{part.variant.code} {part.variant.revision} · {part.variant.modelName}</a> : <>
+            <p>Sin identificar</p>
+            {mayLink && <form method="post" action={PATH} class="stack">
+              <input type="hidden" name="action" value="link" /><input type="hidden" name="componentId" value={part.id} />
+              <label for={`variant-${part.id}`}>Variante de {part.componentType}</label>
+              <select id={`variant-${part.id}`} name="variantId" required aria-invalid={invalid("variantId")} aria-describedby={error ? "form-error" : undefined}>
+                <option value="">Selecciona una variante</option>
+                {variants.map((variant) => <option value={variant.id}>{variant.label}</option>)}
+              </select><button class="btn ghost" type="submit">Identificar</button>
+            </form>}
+          </>}</td>
+        </tr>)}{components.length === 0 && <tr><td colspan="4">Sin componentes registrados.</td></tr>}</tbody>
+      </table></div>
+    </Card>
+    <Card title="Preguntar al asistente" id="ask-title">
+      {misconfigured && <p role="alert">El asistente funciona en modo solo fuentes: falta configurar el proveedor.</p>}
+      <p class="muted">{provider.name === "none" ? "Modo: solo fuentes" : `Modo: Anthropic · ${provider.model}`}</p>
+      <form method="post" action={PATH} class="stack">
+        <input type="hidden" name="action" value="ask" />
+        <div class="field"><label for="question">Síntoma o pregunta</label>
+          <textarea id="question" name="question" rows="3" required minlength="3" maxlength="2000" aria-invalid={invalid("question")} aria-describedby={error ? "form-error" : undefined}>{question}</textarea>
+        </div><button class="btn" type="submit">Consultar</button>
+      </form>
+      {answer && <p class="library-answer">{answer.answer}</p>}
+    </Card>
+    {answer && <>
+      <ConfidenceCard confidence={answer.confidence} label={CONFIDENCE_LABELS[answer.confidence as keyof typeof CONFIDENCE_LABELS] ?? answer.confidence} assumptions={answer.assumptions} nextCheck={answer.nextCheck} />
+      <Card title="Fuentes" id="sources-title"><ol class="log">
+        {citations.map((citation) => <li><a href={citation.href}>[{citation.ref}] {citation.label}</a></li>)}
+      </ol>{citations.length === 0 && <p>Sin fuentes verificadas para esta pregunta.</p>}</Card>
+    </>}
+    {saveForms.map((entry) => <Card title={entry.title} id={`${entry.key}-title`}>
+      <form method="post" action={PATH} class="stack" aria-label={entry.title}>
+        <input type="hidden" name="action" value="save" />
+        <input type="hidden" name="aiInteractionId" value={entry.interactionId} />
+        <div class="field"><label for={`${entry.key}-symptoms`}>Síntomas</label>
+          <textarea id={`${entry.key}-symptoms`} name="symptoms" rows="3" required minlength="3" maxlength="2000" aria-invalid={invalid("symptoms")} aria-describedby={error ? "form-error" : undefined}>{entry.symptoms}</textarea>
+        </div>
+        <DiagnosisChecklist items={DIAGNOSIS_INSPECTIONS} checked={entry.key === "manual" ? form?.getAll("inspection").map(String) : []} />
+        <div class="field"><label for={`${entry.key}-result`}>Resultado (opcional)</label>
+          <textarea id={`${entry.key}-result`} name="result" rows="3" maxlength="2000" aria-invalid={invalid("result")} aria-describedby={error ? "form-error" : undefined}>{entry.key === "manual" && form?.get("action") === "save" ? String(form.get("result") ?? "") : ""}</textarea>
+        </div>
+        {entry.citations.length > 0 && <fieldset><legend>Referencias</legend><div class="options">
+          {entry.citations.map((citation) => <label><input type="checkbox" name="ref" value={`${citation.kind}:${citation.sourceId}`} checked />{citation.label}</label>)}
+        </div></fieldset>}
+        <button class="btn" type="submit">Agregar al diagnóstico</button>
+      </form>
+    </Card>)}
+    <Card title="Diagnósticos de esta orden" id="diagnoses-title">
+      {diagnoses.items.length === 0 && <p>Todavía no hay diagnósticos.</p>}
+      {diagnoses.items.map((diagnosis) => <article class="stack library-diagnosis">
+        <LibraryStatus status={diagnosis.status} label={diagnosis.status === "confirmado" ? "Confirmado" : "Borrador"} />
+        <h3>Síntomas</h3><p class="library-answer">{diagnosis.symptoms}</p>
+        <h3>Pruebas realizadas</h3>
+        <ul class="log">{diagnosis.inspections.map((inspection) => {
+          const parsed = diagnosisFormSchema.shape.inspections.unwrap().element.safeParse(inspection);
+          return parsed.success && parsed.data.done && <li>{parsed.data.label}{parsed.data.result && ` · ${parsed.data.result}`}</li>;
+        })}</ul>
+        <p class="library-answer"><strong>Resultado: </strong>{diagnosis.result ?? "Sin resultado registrado."}</p>
+        <ul class="log">{diagnosis.refs.map((ref) => <li><a href={ref.href}>{ref.label}</a></li>)}</ul>
+        <p>{diagnosis.authorName} · <time datetime={diagnosis.createdAt.toISOString()}>{when(diagnosis.createdAt)}</time></p>
+        {diagnosis.confirmedAt && <p>Confirmado por {diagnosis.confirmedByName} · {when(diagnosis.confirmedAt)}</p>}
+        {diagnosis.status === "borrador" && <form method="post" action={PATH}>
+          <input type="hidden" name="action" value="confirm" /><input type="hidden" name="diagnosisId" value={diagnosis.id} />
+          <button class="btn ghost" type="submit">Confirmar diagnóstico</button>
+        </form>}
+      </article>)}
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .status--borrador { border: 1px dashed var(--ink); }
+  .taller .status--borrador::before { content: "○"; }
+  .taller .status--confirmado { border: 3px double var(--ink); }
+  .taller .status--confirmado::before { content: "✓"; }
+  .taller .order-library .library-answer { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .taller .order-library a { display: inline-flex; align-items: center; min-height: 48px; min-width: 48px; }
+  .taller .library-diagnosis { border-top: 1px solid var(--rule); padding-top: 16px; }
+</style>

@@ -585,7 +585,7 @@
       "src/components/taller/library/DiagnosisChecklist.astro",
       "tests/integration/orden-biblioteca-page.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E6-T3",

@@ -229,3 +229,15 @@ it("confirma una vez, lista y anula", async () => {
   expect(after.ok && after.items).toEqual([]);
   expect(await listDiagnoses(test.db, outsider, orderId)).toEqual({ ok: false, code: "not_found" });
 });
+
+it("la lista describe cada referencia con su título y un enlace, sin ids a la vista", async () => {
+  const saved = await saveDiagnosis(test.db, mechanic, orderId, INPUT(), NOW);
+  if (!saved.ok) throw new Error(saved.code);
+  const list = await listDiagnoses(test.db, mechanic, orderId);
+  if (!list.ok) throw new Error(list.code);
+  const [article, variant] = list.items[0]?.refs ?? [];
+  expect(article?.label).toMatch(/^Artículo · .+ · versión 1$/);
+  expect(article?.label).not.toContain(versionId);
+  expect(article?.href).toMatch(/^\/taller\/biblioteca\/buscar\?q=/);
+  expect(variant?.href).toBe(`/taller/biblioteca/componentes/${variantId}`);
+});

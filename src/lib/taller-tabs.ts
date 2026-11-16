@@ -13,6 +13,7 @@ export const ORDER_TABS = [
   { suffix: "control", label: "Control de calidad", permission: "orders.edit" },
   { suffix: "entrega", label: "Entrega", permission: "delivery.complete" },
   { suffix: "componentes", label: "Componentes", permission: "components.manage" },
+  { suffix: "biblioteca", label: "Biblioteca", permission: "library.ai" },
   { suffix: "informe", label: "Informe", permission: "reports.generate" },
   { suffix: "etiqueta", label: "Etiqueta", permission: "orders.edit", external: true },
 ] as const;
