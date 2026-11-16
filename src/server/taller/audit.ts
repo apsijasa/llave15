@@ -35,6 +35,7 @@ export type AuditAction =
   | "notify.ready_whatsapp"
   | "notify.received"
   | "notify.delivery_date_changed"
+  | "notify.part_added"
   | "notify.quote_sent"
   | "payment.recorded"
   | "payment.voided"

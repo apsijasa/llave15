@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
 import { SITE } from "../../lib/site.ts";
 import { TIMEZONE } from "../booking/rules.ts";
-import { grossOfNet } from "../taller/rules.ts";
+import { grossOfNet, VAT_RATE_PERCENT } from "../taller/rules.ts";
 import type { PricingMode } from "../taller/rules.ts";
 import { amountRows, pricingFromNet } from "./amounts.ts";
 import { formatClp, render } from "./templates.ts";
@@ -112,6 +112,41 @@ export function deliveryDateChangedEmail(input: {
     intro: [`Hola ${firstName},`, "Actualizamos la fecha estimada de entrega de tu bicicleta."],
     rows,
     notes: ["Si la nueva fecha no te acomoda, responde este correo."],
+    ...(input.trackingUrl
+      ? { link: { label: "Ver el estado de tu bicicleta", href: input.trackingUrl } }
+      : {}),
+  });
+}
+
+export function partAddedEmail(input: {
+  orderNumber: string;
+  customerName: string;
+  bike: string;
+  item: { description: string; quantity: number; unitPriceClp: number };
+  pricingMode: "final" | "neto";
+  subtotalClp: number;
+  vatClp: number;
+  totalClp: number;
+  trackingUrl: string | null;
+}): RenderedEmail {
+  const firstName = input.customerName.trim().split(/\s+/)[0] ?? "";
+  const rows: EmailContent["rows"] = [
+    ["Orden", input.orderNumber],
+    ["Bicicleta", input.bike],
+    [input.item.description, `${input.item.quantity} × ${formatClp(input.item.unitPriceClp)}`],
+  ];
+  if (input.pricingMode === "neto") {
+    rows.push(
+      ["Neto", formatClp(input.subtotalClp)],
+      [`IVA (${VAT_RATE_PERCENT}%)`, formatClp(input.vatClp)],
+      ["Total", formatClp(input.totalClp)],
+    );
+  } else rows.push(["Nuevo total", formatClp(input.totalClp)]);
+  return render(`Agregamos un repuesto a tu orden · ${input.orderNumber} · ${SITE.name}`, {
+    heading: "Agregamos un repuesto a tu orden",
+    intro: [`Hola ${firstName},`, "Agregamos este repuesto al trabajo de tu bicicleta."],
+    rows,
+    notes: ["Si tienes dudas sobre este repuesto, responde este correo."],
     ...(input.trackingUrl
       ? { link: { label: "Ver el estado de tu bicicleta", href: input.trackingUrl } }
       : {}),

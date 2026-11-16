@@ -30,6 +30,7 @@ import {
   updateTaxDocument,
 } from "../../../../server/taller/orders.ts";
 import { addProductPartItem, productPartSchema } from "../../../../server/taller/part-stock.ts";
+import { notifyPartAdded } from "../../../../server/taller/part-notice.ts";
 import { listProducts } from "../../../../server/taller/products.ts";
 import {
   STATUS_LABELS,
@@ -160,7 +161,7 @@ if (Astro.request.method === "POST") {
     const input = parsed.data;
     const { action, ...fields } = input;
     let updated = 0;
-    let result: { ok: boolean; code?: string } = { ok: true };
+    let result: { ok: boolean; code?: string; itemId?: string } = { ok: true };
     if (input.action === "void" && !items.some((item) => item.id === input.itemId))
       result = { ok: false, code: "not_found" };
     if (result.ok && prices.length > 0) {
@@ -176,14 +177,19 @@ if (Astro.request.method === "POST") {
       else if (action === "tax") result = await updateTaxDocument(db, user, order.id, fields, now);
       else if (input.action === "void") result = await voidItem(db, user, input.itemId, now);
     }
-    if (result.ok)
+    if (result.ok) {
+      const notified =
+        (action === "part" || action === "add_product") && result.itemId
+          ? await notifyPartAdded(db, user, order.id, result.itemId, now)
+          : false;
       return new Response(null, {
         status: 303,
         headers: {
-          location: `${PATH}?hecho=${action === "prices" ? "precios" : action}${prices.length > 0 ? `&actualizados=${updated}` : ""}`,
+          location: `${PATH}?hecho=${action === "prices" ? "precios" : action}${prices.length > 0 ? `&actualizados=${updated}` : ""}${notified ? "&avisado=1" : ""}`,
           "cache-control": "no-store",
         },
       });
+    }
     if (result.code === "forbidden") return forbiddenResponse();
     Astro.response.status =
       result.code === "not_found" ? 404 : result.code === "validation_error" ? 422 : 409;
@@ -222,13 +228,17 @@ const count = z
   .safeParse(Astro.url.searchParams.get("actualizados"));
 const done = Astro.url.searchParams.get("hecho") ?? "";
 const priceNotice = count.success && count.data > 0 ? `Precios actualizados: ${count.data}.` : "";
+const emailNotice =
+  (done === "part" || done === "add_product") && Astro.url.searchParams.get("avisado") === "1"
+    ? " Le avisamos al cliente por correo."
+    : "";
 const notice =
   done === "precios"
     ? count.success
       ? priceNotice || "No había cambios de precio."
       : undefined
     : Object.hasOwn(notices, done)
-      ? `${notices[done]}${priceNotice ? ` ${priceNotice}` : ""}`
+      ? `${notices[done]}${priceNotice ? ` ${priceNotice}` : ""}${emailNotice}`
       : undefined;
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---

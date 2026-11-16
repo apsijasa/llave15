@@ -99,6 +99,8 @@ La **fecha de entrega** se cambia en el detalle de la orden con **Guardar y avis
 
 En la orden se asigna el mecánico; un mecánico puede **Tomar orden** si está sin asignar y Recibida o en Diagnóstico. Registra el diagnóstico, cambia a los estados disponibles y usa **Galería** para las fotos de reparación y terminado. **Líneas** registra servicios y repuestos: los precios se editan en la misma tabla y se guardan todos con **Guardar cambios**; cualquier otro botón de la página guarda antes los precios editados, y un precio inválido detiene todo y se marca en su campo. **Componentes** conserva lo instalado y lo reemplazado en el historial de la bicicleta.
 
+Al agregar un repuesto, si la bici ya está en el taller y el cliente tiene correo, recibe un aviso con el repuesto y el nuevo total.
+
 Cuando las líneas estén listas, **Enviar cotización por correo** manda al cliente el presupuesto con el total y el enlace de seguimiento; se puede reenviar si cambia.
 
 ### Trabajos adicionales por WhatsApp
