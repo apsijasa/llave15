@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { getDbEnv } from "../src/lib/env.ts";
+import { reindexAll } from "../src/server/library/chunks.ts";
 import { importLibraryPack, libraryPackSchema } from "../src/server/library/content-pack.ts";
 import type { LibraryPack } from "../src/server/library/content-pack.ts";
 
@@ -51,10 +52,12 @@ async function run(pack: LibraryPack) {
     client = postgres(getDbEnv().DATABASE_URL, { max: 1, connect_timeout: 5 });
     await client`select 1`;
     connected = true;
-    const result = await importLibraryPack(drizzle({ client }), null, pack, new Date(), {
-      dryRun: args.includes("--dry-run"),
-    });
-    console.log(JSON.stringify(result));
+    const db = drizzle({ client });
+    const dryRun = args.includes("--dry-run");
+    const result = await importLibraryPack(db, null, pack, new Date(), { dryRun });
+    // El índice es derivado: se regenera completo después de importar (idempotente).
+    const chunks = result.ok && !dryRun ? await reindexAll(db) : 0;
+    console.log(JSON.stringify(result.ok ? { ...result, chunks } : result));
     process.exitCode = result.ok ? 0 : 1;
   } catch {
     // Los errores pueden incluir credenciales o contenido: solo se imprime un mensaje seguro.
