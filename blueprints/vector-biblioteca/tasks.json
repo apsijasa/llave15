@@ -497,7 +497,7 @@
       "tests/unit/library-ai-provider.test.ts",
       "tests/integration/library-assistant.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E5-T3",

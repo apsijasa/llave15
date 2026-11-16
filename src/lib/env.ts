@@ -110,7 +110,30 @@ const whatsappSchema = z
     }
   });
 
+const aiSchema = z
+  .object({
+    AI_PROVIDER: z.preprocess(absentIfEmpty, z.enum(["none", "anthropic"]).default("none")),
+    ANTHROPIC_API_KEY: z.preprocess(absentIfEmpty, z.string().min(20).optional()),
+    AI_MODEL: z.preprocess(
+      absentIfEmpty,
+      z
+        .string()
+        .regex(/^[a-z0-9.-]+$/)
+        .default("claude-opus-5-5"),
+    ),
+  })
+  .superRefine((value, ctx) => {
+    if (value.AI_PROVIDER === "anthropic" && !value.ANTHROPIC_API_KEY) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ANTHROPIC_API_KEY"],
+        message: "requerida cuando AI_PROVIDER=anthropic",
+      });
+    }
+  });
+
 export type EmailEnv = z.infer<typeof emailSchema>;
+export type AiEnv = z.infer<typeof aiSchema>;
 
 /** Paso 2 en adelante. */
 export function getDbEnv(source: EnvSource = process.env) {
@@ -169,4 +192,13 @@ export function getStorageEnv(source: EnvSource = process.env): StorageEnv {
     STORAGE_LOCAL_DIR: parsed.STORAGE_LOCAL_DIR,
     STORAGE_BUCKET_ID: parsed.STORAGE_BUCKET_ID,
   };
+}
+
+/** Asistente de la biblioteca: `none` (solo fuentes) por defecto; `anthropic` exige la clave. */
+export function getAiEnv(source: EnvSource = process.env): AiEnv {
+  return parseSource(aiSchema, {
+    AI_PROVIDER: source.AI_PROVIDER,
+    ANTHROPIC_API_KEY: source.ANTHROPIC_API_KEY,
+    AI_MODEL: source.AI_MODEL,
+  });
 }
