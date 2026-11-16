@@ -185,6 +185,15 @@ async function seedLibraryArticle(sql: Sql): Promise<void> {
     insert into article_variant_links (version_id, variant_id)
     values (${SEED.libraryVersionId}, ${SEED.libraryVariantId})
   `;
+  if (await hasTable(sql, "document_chunks")) {
+    // El índice del asistente: un trozo de la versión publicada, como lo deja reindexVersion.
+    await sql`
+      insert into document_chunks (source_kind, source_id, chunk_index, text, metadata)
+      values ('article_version', ${SEED.libraryVersionId}, 0,
+        'Identificación del cambio trasero RD-M8100-SGS de la transmisión Deore XT de 12 velocidades.',
+        ${sql.json({ slug: "transmision-12v-identificacion", title: "Identificación de transmisión de 12 velocidades", versionNumber: 1 })})
+    `;
+  }
 }
 
 async function seedLibrary(sql: Sql): Promise<void> {
