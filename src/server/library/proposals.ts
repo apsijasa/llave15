@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -274,4 +274,56 @@ export async function proposalDetail(
     .where(eq(proposalReviews.proposalId, id))
     .orderBy(desc(proposalReviews.createdAt));
   return { ok: true, proposal: row.proposal, reviews, authorName: row.authorName };
+}
+
+export type ProposalTargets = {
+  articles: { id: string; title: string }[];
+  variants: { id: string; label: string }[];
+};
+
+/** Artículos publicados y variantes para los selects del formulario de propuesta. */
+export async function proposalTargets(db: AppDb): Promise<ProposalTargets> {
+  const articles = await db
+    .select({ id: knowledgeArticles.id, title: knowledgeArticles.title })
+    .from(knowledgeArticles)
+    .where(eq(knowledgeArticles.status, "publicado"))
+    .orderBy(asc(knowledgeArticles.title))
+    .limit(200);
+  const variants = await db
+    .select({
+      id: componentVariants.id,
+      code: componentVariants.code,
+      revision: componentVariants.revision,
+    })
+    .from(componentVariants)
+    .orderBy(asc(componentVariants.code), asc(componentVariants.revision))
+    .limit(200);
+  return {
+    articles,
+    variants: variants.map((row) => ({
+      id: row.id,
+      label: row.revision ? `${row.code} · rev. ${row.revision}` : row.code,
+    })),
+  };
+}
+
+const FIELD_MESSAGES: Record<string, string> = {
+  kind: "Elige un tipo de propuesta.",
+  title: "El título debe tener entre 5 y 160 caracteres.",
+  contentMd: "El contenido debe tener entre 20 y 20.000 caracteres.",
+  evidence: "La evidencia puede tener hasta 4.000 caracteres.",
+  targetArticleId: "Elige un artículo válido.",
+  targetVariantId: "Elige una variante válida.",
+};
+
+/** Mensajes por campo para el formulario; vacío si la entrada es válida. */
+export function proposalFieldErrors(input: unknown): Record<string, string> {
+  const parsed = proposalFormSchema.safeParse(input);
+  if (parsed.success) return {};
+  const errors: Record<string, string> = {};
+  for (const issue of parsed.error.issues) {
+    const field = String(issue.path[0] ?? "");
+    errors[field] = FIELD_MESSAGES[field] ?? "Revisa este campo.";
+  }
+  return errors;
 }

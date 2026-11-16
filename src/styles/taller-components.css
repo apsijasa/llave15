@@ -287,3 +287,43 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+/* Estados de propuestas de la biblioteca: forma + texto. */
+.taller .status--submitted,
+.taller .status--in_review {
+  border-style: dashed;
+}
+.taller .status--needs_changes {
+  border-style: dotted;
+}
+.taller .status--approved {
+  border: 3px double var(--ink);
+}
+.taller .status--rejected,
+.taller .status--withdrawn {
+  border-style: dashed;
+  background: repeating-linear-gradient(135deg, var(--surface) 0 4px, var(--hatch) 4px 5px);
+}
+.taller .status--draft::before {
+  content: "✎";
+}
+.taller .status--submitted::before {
+  content: "→";
+}
+.taller .status--needs_changes::before {
+  content: "?";
+}
+.taller .status--in_review::before {
+  content: "◎";
+}
+.taller .status--approved::before {
+  content: "✓";
+}
+.taller .status--rejected::before {
+  content: "×";
+}
+.taller .status--published::before {
+  content: "◆";
+}
+.taller .status--withdrawn::before {
+  content: "⊘";
+}

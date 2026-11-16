@@ -1,0 +1,184 @@
+---
+import Card from "../../../../components/taller/Card.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { lineDiff } from "../../../../lib/line-diff.ts";
+import { SITE } from "../../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import { canCurate } from "../../../../server/library/access.ts";
+import { publishProposal } from "../../../../server/library/publish.ts";
+import { reviewDetail, reviewProposal } from "../../../../server/library/review.ts";
+import {
+  isProposalTransition,
+  LIBRARY_CATEGORIES,
+  LIBRARY_CATEGORY_LABELS,
+  PROPOSAL_KIND_LABELS,
+  PROPOSAL_LABELS,
+} from "../../../../server/library/rules.ts";
+import type { ProposalStatus } from "../../../../server/library/rules.ts";
+
+export const prerender = false;
+const BASE = "/taller/biblioteca/revision";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (Astro.request.method === "POST" && !isAllowedOrigin(Astro.request)) return forbiddenResponse();
+if (!canCurate(user)) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const id = Astro.params.id ?? "";
+const PATH = `${BASE}/${id}`;
+const notFound = () =>
+  new Response("Propuesta no encontrada.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+const MESSAGES: Record<string, string> = {
+  reason_required: "Escribe el motivo (al menos 5 caracteres) para pedir cambios o rechazar.",
+  pii_unresolved: "Confirma que revisaste los datos personales detectados antes de aprobar.",
+  invalid_transition: "La propuesta cambió de estado: esta decisión ya no está disponible.",
+  validation_error: "Revisa los datos del formulario. Una propuesta nueva necesita categoría.",
+  slug_taken: "Ese identificador ya existe: elige otro.",
+  index_failed: "No se pudo indexar: la propuesta sigue aprobada. Intenta de nuevo.",
+};
+let error = "";
+let values: Record<string, string> = {};
+if (Astro.request.method === "POST") {
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const result =
+    values.action === "publish"
+      ? await publishProposal(
+          db,
+          user,
+          id,
+          {
+            justification: values.justification ?? "",
+            slug: values.slug || undefined,
+            category: values.category || undefined,
+          },
+          now,
+        )
+      : await reviewProposal(
+          db,
+          user,
+          id,
+          {
+            decision: values.decision,
+            reason: values.reason ?? "",
+            checklist: { piiRevisada: values.piiRevisada === "si" },
+          },
+          now,
+        );
+  if (result.ok)
+    return new Response(null, {
+      status: 303,
+      headers: {
+        location:
+          values.action === "publish" ? `${BASE}?hecho=publicada` : `${PATH}?hecho=decidida`,
+        "cache-control": "no-store",
+      },
+    });
+  if (result.code === "forbidden") return forbiddenResponse();
+  if (result.code === "not_found") return notFound();
+  Astro.response.status = result.code === "invalid_transition" ? 409 : 422;
+  error = MESSAGES[result.code] ?? "No se pudo completar la acción.";
+}
+const detail = await reviewDetail(db, user, id);
+if (!detail.ok) return detail.code === "forbidden" ? forbiddenResponse() : notFound();
+const { proposal, current, reviews } = detail;
+const status = proposal.status as ProposalStatus;
+const diff = lineDiff(current?.contentMd ?? "", proposal.contentMd);
+const decisions = (["in_review", "needs_changes", "approved", "rejected"] as const).filter((to) =>
+  isProposalTransition(status, to),
+);
+const label = (labels: Record<string, string>, value: string) => labels[value] ?? value;
+const when = (date: Date) => date.toLocaleString("es-CL", { timeZone: "America/Santiago" });
+---
+
+<TallerLayout title={`Revisar propuesta — ${SITE.name}`} description="Revisión central de una propuesta." path={BASE} user={user}>
+  <div class="stack">
+    <PageHeader title={proposal.title} subtitle={label(PROPOSAL_KIND_LABELS, proposal.kind)} status={{ status, label: label(PROPOSAL_LABELS, status) }} />
+    {Astro.url.searchParams.get("hecho") === "decidida" && <p role="status">Decisión registrada.</p>}
+    {error && <p role="alert">{error}</p>}
+    {proposal.piiFlags.length > 0 && <div role="alert">
+      <p>Datos personales detectados en la propuesta:</p>
+      <ul>{proposal.piiFlags.map((flag) => <li>{flag.kind}: {flag.match}</li>)}</ul>
+    </div>}
+    <Card title={current ? `Cambios frente a la versión ${current.number}` : "Contenido propuesto (artículo nuevo)"} id="review-diff">
+      {diff ? <ol class="diff">
+        {diff.map((line) => <li class={`diff-${line.kind}`}>{line.kind === "add" ? <ins><span aria-hidden="true">+ </span>{line.text}</ins> : line.kind === "del" ? <del><span aria-hidden="true">− </span>{line.text}</del> : <span>{line.text}</span>}</li>)}
+      </ol> : <p>Diferencia demasiado grande: compare los textos completos.</p>}
+      {proposal.evidence && <p><span class="label">Evidencia</span> {proposal.evidence}</p>}
+    </Card>
+    {decisions.length > 0 && <Card title="Decisión" id="review-decision">
+      <form method="post" action={PATH} class="stack">
+        <input type="hidden" name="action" value="decide" />
+        <fieldset><legend>Decisión</legend>
+          <div class="options">
+            {decisions.map((decision, index) => <label><input type="radio" name="decision" value={decision} required checked={values.decision ? values.decision === decision : index === 0} /> {label(PROPOSAL_LABELS, decision)}</label>)}
+          </div>
+        </fieldset>
+        <div class="field"><label for="reason">Motivo u observaciones</label><textarea id="reason" name="reason" rows="3" maxlength="2000">{values.reason ?? ""}</textarea></div>
+        {proposal.piiFlags.length > 0 && <div class="options"><label><input type="checkbox" name="piiRevisada" value="si" /> Revisé los datos personales detectados</label></div>}
+        <button type="submit" class="btn">Registrar decisión</button>
+      </form>
+    </Card>}
+    {status === "approved" && <Card title="Publicar" id="review-publish">
+      <form method="post" action={PATH} class="stack">
+        <input type="hidden" name="action" value="publish" />
+        <div class="fields">
+          {!proposal.targetArticleId && <div class="field"><label for="category">Categoría</label><select id="category" name="category" required>{LIBRARY_CATEGORIES.map((category) => <option value={category} selected={values.category === category}>{LIBRARY_CATEGORY_LABELS[category]}</option>)}</select></div>}
+          {!proposal.targetArticleId && <div class="field"><label for="slug">Identificador (opcional)</label><input id="slug" name="slug" type="text" maxlength="80" pattern="[a-z0-9-]{3,80}" value={values.slug ?? ""} /></div>}
+          <div class="field"><label for="justification">Justificación</label><input id="justification" name="justification" type="text" maxlength="1000" value={values.justification ?? ""} /></div>
+        </div>
+        <button type="submit" class="btn">Publicar versión</button>
+      </form>
+    </Card>}
+    <Card title="Historial de revisión" id="review-history">
+      {reviews.length === 0 ? <p class="muted">Sin decisiones todavía.</p> : <ul class="log">
+        {reviews.map((review) => <li><LibraryStatus status={review.decision} label={label(PROPOSAL_LABELS, review.decision)} /> {review.reviewerName ?? "Curador"} · <time datetime={review.createdAt.toISOString()}>{when(review.createdAt)}</time>{review.reason && <p>{review.reason}</p>}</li>)}
+      </ul>}
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .diff {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .taller .diff ins,
+  .taller .diff del {
+    display: block;
+    padding-inline-start: 8px;
+    text-decoration: none;
+  }
+  .taller .diff ins {
+    border-inline-start: 3px solid var(--ink);
+  }
+  .taller .diff del {
+    border-inline-start: 3px dashed var(--steel);
+    color: var(--steel);
+    text-decoration: line-through;
+  }
+</style>

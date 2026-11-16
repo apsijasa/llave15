@@ -1,0 +1,55 @@
+---
+import Card from "../../../../components/taller/Card.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import { listMyProposals } from "../../../../server/library/proposals.ts";
+import { PROPOSAL_KIND_LABELS, PROPOSAL_LABELS } from "../../../../server/library/rules.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca/propuestas";
+const db = getDb();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "library.propose")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const proposals = await listMyProposals(db, user);
+const label = (labels: Record<string, string>, value: string) => labels[value] ?? value;
+const when = (date: Date | null) =>
+  date ? date.toLocaleDateString("es-CL", { timeZone: "America/Santiago" }) : "Sin enviar";
+---
+
+<TallerLayout title={`Propuestas — ${SITE.name}`} description="Propuestas de conocimiento del taller." path={PATH} user={user}>
+  <div class="stack">
+    <PageHeader title="Propuestas" subtitle="Lo que tu taller propone para la biblioteca. Solo el curador central publica.">
+      <a slot="actions" class="btn" href={`${PATH}/nueva`}>Nueva propuesta</a>
+    </PageHeader>
+    <Card>
+      <div class="scroll-x"><table class="dense">
+        <caption>Propuestas de tu taller</caption>
+        <thead><tr><th scope="col">Título</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Enviada</th><th scope="col">Autor</th></tr></thead>
+        <tbody>
+          {proposals.map((proposal) => <tr>
+            <th scope="row"><a href={`${PATH}/${proposal.id}`}>{proposal.title}</a></th>
+            <td>{label(PROPOSAL_KIND_LABELS, proposal.kind)}</td>
+            <td><LibraryStatus status={proposal.status} label={label(PROPOSAL_LABELS, proposal.status)} /></td>
+            <td>{when(proposal.submittedAt)}</td>
+            <td>{proposal.authorName}</td>
+          </tr>)}
+          {proposals.length === 0 && <tr><td colspan="5" class="muted">Tu taller todavía no tiene propuestas.</td></tr>}
+        </tbody>
+      </table></div>
+    </Card>
+  </div>
+</TallerLayout>

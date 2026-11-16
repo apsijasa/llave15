@@ -1,0 +1,57 @@
+---
+import Card from "../../../../components/taller/Card.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import { canCurate } from "../../../../server/library/access.ts";
+import { reviewQueue } from "../../../../server/library/review.ts";
+import { PROPOSAL_KIND_LABELS, PROPOSAL_LABELS } from "../../../../server/library/rules.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca/revision";
+const db = getDb();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!canCurate(user)) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const queue = await reviewQueue(db, user);
+if (!queue.ok) return forbiddenResponse();
+const label = (labels: Record<string, string>, value: string) => labels[value] ?? value;
+const when = (date: Date | null) =>
+  date ? date.toLocaleDateString("es-CL", { timeZone: "America/Santiago" }) : "Sin fecha";
+---
+
+<TallerLayout title={`Revisión central — ${SITE.name}`} description="Cola de propuestas para la biblioteca global." path={PATH} user={user}>
+  <div class="stack">
+    <PageHeader title="Revisión central" subtitle="Propuestas de todos los talleres. Solo se ve el contenido propuesto, nunca datos del taller." />
+    {Astro.url.searchParams.get("hecho") === "publicada" && <p role="status">Versión publicada e indexada.</p>}
+    <Card>
+      <div class="scroll-x"><table class="dense">
+        <caption>Propuestas por revisar</caption>
+        <thead><tr><th scope="col">Título</th><th scope="col">Tipo</th><th scope="col">Estado</th><th scope="col">Enviada</th><th scope="col">Datos personales</th><th scope="col">Corrige a</th></tr></thead>
+        <tbody>
+          {queue.items.map((item) => <tr>
+            <th scope="row"><a href={`${PATH}/${item.id}`}>{item.title}</a></th>
+            <td>{label(PROPOSAL_KIND_LABELS, item.kind)}</td>
+            <td><LibraryStatus status={item.status} label={label(PROPOSAL_LABELS, item.status)} /></td>
+            <td>{when(item.submittedAt)}</td>
+            <td>{item.piiCount > 0 ? <LibraryStatus status="no_verificada" label={`${item.piiCount} detectados`} /> : "Ninguno"}</td>
+            <td>{item.targetArticleTitle ?? "Artículo nuevo"}</td>
+          </tr>)}
+          {queue.items.length === 0 && <tr><td colspan="6" class="muted">No hay propuestas pendientes.</td></tr>}
+        </tbody>
+      </table></div>
+    </Card>
+  </div>
+</TallerLayout>

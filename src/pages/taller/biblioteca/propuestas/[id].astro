@@ -1,0 +1,157 @@
+---
+import Card from "../../../../components/taller/Card.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
+import ProposalFields from "../../../../components/taller/library/ProposalFields.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import {
+  proposalDetail,
+  proposalFieldErrors,
+  proposalTargets,
+  submitProposal,
+  updateProposal,
+  withdrawProposal,
+} from "../../../../server/library/proposals.ts";
+import {
+  isProposalTransition,
+  PROPOSAL_KIND_LABELS,
+  PROPOSAL_LABELS,
+} from "../../../../server/library/rules.ts";
+import type { ProposalStatus } from "../../../../server/library/rules.ts";
+
+export const prerender = false;
+const BASE = "/taller/biblioteca/propuestas";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (Astro.request.method === "POST" && !isAllowedOrigin(Astro.request)) return forbiddenResponse();
+if (!can(user.role, "library.propose")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const id = Astro.params.id ?? "";
+const PATH = `${BASE}/${id}`;
+const notFound = () =>
+  new Response("Propuesta no encontrada.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+let values: Record<string, string> = {};
+let errors: Record<string, string> = {};
+let error = "";
+const MESSAGES: Record<string, string> = {
+  invalid_transition: "La propuesta cambió de estado: esta acción ya no está disponible.",
+  invalid_target: "El artículo o la variante elegidos ya no existen.",
+  validation_error: "Revisa los campos marcados.",
+};
+if (Astro.request.method === "POST") {
+  const { action, ...fields } = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const result =
+    action === "submit"
+      ? await submitProposal(db, user, id, now)
+      : action === "withdraw"
+        ? await withdrawProposal(db, user, id, now)
+        : await updateProposal(db, user, id, fields, now);
+  const done = action === "submit" ? "enviada" : action === "withdraw" ? "retirada" : "guardada";
+  if (result.ok)
+    return new Response(null, {
+      status: 303,
+      headers: { location: `${PATH}?hecho=${done}`, "cache-control": "no-store" },
+    });
+  if (result.code === "forbidden") return forbiddenResponse();
+  if (result.code === "not_found") return notFound();
+  Astro.response.status = result.code === "invalid_transition" ? 409 : 422;
+  values = fields;
+  errors = result.code === "validation_error" ? proposalFieldErrors(fields) : {};
+  error = MESSAGES[result.code] ?? "No se pudo completar la acción.";
+}
+const detail = await proposalDetail(db, user, id);
+if (!detail.ok) return detail.code === "forbidden" ? forbiddenResponse() : notFound();
+const { proposal, reviews, authorName } = detail;
+const status = proposal.status as ProposalStatus;
+const isAuthor = proposal.authorId === user.id;
+const editable = isAuthor && (status === "draft" || status === "needs_changes");
+const formValues = Object.keys(values).length
+  ? values
+  : {
+      kind: proposal.kind,
+      title: proposal.title,
+      contentMd: proposal.contentMd,
+      evidence: proposal.evidence,
+      targetArticleId: proposal.targetArticleId ?? "",
+      targetVariantId: proposal.targetVariantId ?? "",
+    };
+const targets = editable ? await proposalTargets(db) : { articles: [], variants: [] };
+const DONE: Record<string, string> = {
+  creada: "Borrador creado.",
+  guardada: "Cambios guardados.",
+  enviada: "Propuesta enviada a revisión central.",
+  retirada: "Propuesta retirada.",
+};
+const done = DONE[Astro.url.searchParams.get("hecho") ?? ""];
+const label = (labels: Record<string, string>, value: string) => labels[value] ?? value;
+const when = (date: Date) => date.toLocaleString("es-CL", { timeZone: "America/Santiago" });
+---
+
+<TallerLayout title={`Propuesta — ${SITE.name}`} description="Detalle de una propuesta de conocimiento." path={BASE} user={user}>
+  <div class="stack">
+    <PageHeader title={proposal.title} subtitle={`${label(PROPOSAL_KIND_LABELS, proposal.kind)} · ${authorName}`} status={{ status, label: label(PROPOSAL_LABELS, status) }} />
+    {done && <p role="status">{done}</p>}
+    {error && <p role="alert">{error}</p>}
+    {proposal.piiFlags.length > 0 && <div role="alert">
+      <p>Se detectaron posibles datos personales. Quítelos antes de que el curador la revise:</p>
+      <ul>{proposal.piiFlags.map((flag) => <li>{flag.kind}: {flag.match}</li>)}</ul>
+    </div>}
+    <Card title="Contenido" id="proposal-content">
+      <pre class="proposal-md">{proposal.contentMd}</pre>
+      {proposal.evidence && <p><span class="label">Evidencia</span> {proposal.evidence}</p>}
+    </Card>
+    {(isAuthor && isProposalTransition(status, "submitted")) || (isAuthor && isProposalTransition(status, "withdrawn")) ? (
+      <Card title="Acciones" id="proposal-actions">
+        <div class="options">
+          {isAuthor && isProposalTransition(status, "submitted") && <form method="post" action={PATH}><input type="hidden" name="action" value="submit" /><button type="submit" class="btn">Enviar a revisión</button></form>}
+          {isAuthor && isProposalTransition(status, "withdrawn") && <form method="post" action={PATH}><input type="hidden" name="action" value="withdraw" /><button type="submit" class="btn ghost">Retirar</button></form>}
+        </div>
+      </Card>
+    ) : null}
+    {editable && <Card title="Editar" id="proposal-edit">
+      <form method="post" action={PATH} class="stack">
+        <input type="hidden" name="action" value="update" />
+        <fieldset><legend>Propuesta</legend>
+          <ProposalFields values={formValues} errors={errors} articles={targets.articles} variants={targets.variants} />
+        </fieldset>
+        <button type="submit" class="btn">Guardar cambios</button>
+      </form>
+    </Card>}
+    <Card title="Revisiones del curador" id="proposal-reviews">
+      {reviews.length === 0 ? <p class="muted">Sin revisiones todavía.</p> : <ul class="log">
+        {reviews.map((review) => <li><LibraryStatus status={review.decision} label={label(PROPOSAL_LABELS, review.decision)} /> <time datetime={review.createdAt.toISOString()}>{when(review.createdAt)}</time>{review.reason && <p>{review.reason}</p>}</li>)}
+      </ul>}
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .proposal-md {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: inherit;
+  }
+  .taller .proposal-md + p .label {
+    margin-inline-end: 8px;
+  }
+</style>

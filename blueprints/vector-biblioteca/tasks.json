@@ -439,7 +439,7 @@
       "tests/integration/biblioteca-revision-page.test.ts",
       "tests/integration/library-export.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E5-T1",

@@ -1,0 +1,72 @@
+---
+import Card from "../../../../components/taller/Card.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import ProposalFields from "../../../../components/taller/library/ProposalFields.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import {
+  createProposal,
+  proposalFieldErrors,
+  proposalTargets,
+} from "../../../../server/library/proposals.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca/propuestas";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (Astro.request.method === "POST" && !isAllowedOrigin(Astro.request)) return forbiddenResponse();
+if (!can(user.role, "library.propose")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+let values: Record<string, string> = { kind: "articulo" };
+let errors: Record<string, string> = {};
+let error = "";
+if (Astro.request.method === "POST") {
+  values = Object.fromEntries(
+    [...(await Astro.request.formData())].map(([key, value]) => [key, String(value)]),
+  );
+  const result = await createProposal(db, user, values, now);
+  if (result.ok)
+    return new Response(null, {
+      status: 303,
+      headers: { location: `${PATH}/${result.id}?hecho=creada`, "cache-control": "no-store" },
+    });
+  if (result.code === "forbidden") return forbiddenResponse();
+  Astro.response.status = 422;
+  errors = result.code === "validation_error" ? proposalFieldErrors(values) : {};
+  error =
+    result.code === "invalid_target"
+      ? "El artículo o la variante elegidos ya no existen."
+      : "Revisa los campos marcados.";
+}
+const targets = await proposalTargets(db);
+---
+
+<TallerLayout title={`Nueva propuesta — ${SITE.name}`} description="Proponer conocimiento para la biblioteca." path={PATH} user={user}>
+  <div class="stack">
+    <PageHeader title="Nueva propuesta" />
+    {error && <p role="alert">{error}</p>}
+    <p role="note" class="muted">No incluya nombres de clientes, teléfonos, patentes ni fotos de personas. Las propuestas no se publican sin revisión central.</p>
+    <Card>
+      <form method="post" action={`${PATH}/nueva`} class="stack">
+        <fieldset>
+          <legend>Propuesta</legend>
+          <ProposalFields values={values} errors={errors} articles={targets.articles} variants={targets.variants} />
+        </fieldset>
+        <button type="submit" class="btn">Guardar borrador</button>
+      </form>
+    </Card>
+  </div>
+</TallerLayout>
