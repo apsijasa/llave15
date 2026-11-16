@@ -1,0 +1,114 @@
+---
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import ConfidenceCard from "../../../components/taller/library/ConfidenceCard.astro";
+import LibraryStatus from "../../../components/taller/library/LibraryStatus.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { getAiEnv } from "../../../lib/env.ts";
+import { SITE } from "../../../lib/site.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { noneProvider, providerFromEnv } from "../../../server/library/ai-provider.ts";
+import type { AiProvider } from "../../../server/library/ai-provider.ts";
+import { askAssistant, recentInteractions } from "../../../server/library/assistant.ts";
+import type { AssistantResult } from "../../../server/library/assistant.ts";
+import { CONFIDENCE_LABELS } from "../../../server/library/rules.ts";
+
+export const prerender = false;
+const PATH = "/taller/biblioteca/asistente";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (Astro.request.method === "POST" && !isAllowedOrigin(Astro.request)) return forbiddenResponse();
+if (!can(user.role, "library.ai")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+let provider: AiProvider = noneProvider;
+let misconfigured = false;
+try {
+  provider = providerFromEnv(getAiEnv(), fetch);
+} catch {
+  misconfigured = true;
+}
+let question = "";
+let error = "";
+let answer: Extract<AssistantResult, { ok: true }> | null = null;
+if (Astro.request.method === "POST") {
+  question = String((await Astro.request.formData()).get("question") ?? "");
+  const result = await askAssistant(db, user, provider, { question, scope: "biblioteca" }, now);
+  if (result.ok) answer = result;
+  else if (result.code === "forbidden") return forbiddenResponse();
+  else {
+    Astro.response.status = result.code === "quota" ? 429 : 422;
+    error =
+      result.code === "quota"
+        ? "Se alcanzó el límite de consultas. Intente más tarde."
+        : "Escriba una pregunta de entre 3 y 2.000 caracteres.";
+  }
+}
+const recent = await recentInteractions(db, user, 10);
+const label = (value: string) =>
+  CONFIDENCE_LABELS[value as keyof typeof CONFIDENCE_LABELS] ?? value;
+const mode =
+  provider.name === "anthropic" ? `Modo: Anthropic · ${provider.model}` : "Modo: solo fuentes";
+const when = (date: Date) => date.toLocaleString("es-CL", { timeZone: "America/Santiago" });
+---
+
+<TallerLayout title={`Asistente técnico — ${SITE.name}`} description="Preguntas técnicas respondidas con fuentes de la biblioteca." path={PATH} user={user}>
+  <div class="stack">
+    <PageHeader title="Asistente técnico" subtitle="Responde con fuentes de la biblioteca. No reemplaza el manual oficial." />
+    {misconfigured && <p role="alert">El asistente funciona en modo solo fuentes: falta configurar el proveedor.</p>}
+    <p class="muted">{mode}</p>
+    {error && <p role="alert" id="question-error">{error}</p>}
+    <Card>
+      <form method="post" action={PATH} class="stack">
+        <div class="field">
+          <label for="question">Pregunta</label>
+          <textarea id="question" name="question" rows="4" required minlength="3" maxlength="2000" aria-invalid={error && Astro.response.status === 422 ? "true" : undefined} aria-describedby={error ? "question-error" : undefined}>{question}</textarea>
+        </div>
+        <button type="submit" class="btn">Preguntar</button>
+      </form>
+    </Card>
+    {answer && <>
+      <Card title="Respuesta" id="answer-title">
+        <p class="assistant-question"><span class="label">Pregunta</span> {question}</p>
+        <p class="assistant-answer">{answer.answer}</p>
+      </Card>
+      <ConfidenceCard confidence={answer.confidence} label={label(answer.confidence)} assumptions={answer.assumptions} nextCheck={answer.nextCheck} />
+      <Card title="Fuentes" id="sources-title">
+        {answer.citations.length === 0 ? <p class="muted">Sin fuentes verificadas para esta pregunta.</p> : <ol class="log">
+          {answer.citations.map((citation) => <li><a href={citation.href}>[{citation.ref}] {citation.label}</a></li>)}
+        </ol>}
+      </Card>
+    </>}
+    <Card title="Consultas recientes de tu taller" id="recent-title">
+      <div class="scroll-x"><table class="dense">
+        <caption>Últimas consultas</caption>
+        <thead><tr><th scope="col">Pregunta</th><th scope="col">Confianza</th><th scope="col">Fecha</th><th scope="col">Quién</th></tr></thead>
+        <tbody>
+          {recent.map((item) => <tr><td>{item.question}</td><td><LibraryStatus status={item.confidence} label={label(item.confidence)} /></td><td>{when(item.createdAt)}</td><td>{item.userName}</td></tr>)}
+          {recent.length === 0 && <tr><td colspan="4" class="muted">Todavía no hay consultas.</td></tr>}
+        </tbody>
+      </table></div>
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .assistant-answer {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .taller .assistant-question .label {
+    margin-inline-end: 8px;
+  }
+</style>

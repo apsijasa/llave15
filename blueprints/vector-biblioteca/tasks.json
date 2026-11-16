@@ -525,7 +525,7 @@
       ".env.example",
       "tests/integration/biblioteca-asistente-page.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E6-T1",

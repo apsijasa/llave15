@@ -1,0 +1,29 @@
+---
+import LibraryStatus from "./LibraryStatus.astro";
+
+interface Props {
+  confidence: string;
+  label: string;
+  assumptions: readonly string[];
+  nextCheck: string;
+}
+
+const { confidence, label, assumptions, nextCheck } = Astro.props;
+---
+
+<section class="card taller-card confidence-card" aria-labelledby="confidence-title">
+  <h2 id="confidence-title">Confianza</h2>
+  <LibraryStatus status={confidence} label={label} />
+  {assumptions.length > 0 && <ul class="log">{assumptions.map((item) => <li>{item}</li>)}</ul>}
+  <p><span class="label">Siguiente verificación</span> {nextCheck}</p>
+</section>
+
+<style is:global>
+  .taller .confidence-card .status {
+    justify-self: start;
+    font-size: 1.05rem;
+  }
+  .taller .confidence-card .label {
+    margin-inline-end: 8px;
+  }
+</style>
