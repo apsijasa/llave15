@@ -6,6 +6,7 @@ import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import ReceptionSteps from "../../../../components/taller/ReceptionSteps.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { SITE } from "../../../../lib/site.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
@@ -15,11 +16,11 @@ import { getDb } from "../../../../server/db/client.ts";
 import { formatClp } from "../../../../server/email/templates.ts";
 import { listCatalog } from "../../../../server/taller/catalog.ts";
 import {
-  confirmDeliveryDate,
   deliveryDateSchema,
   loadByDate,
   suggestDeliveryDate,
 } from "../../../../server/taller/delivery-date.ts";
+import { changeDeliveryDate } from "../../../../server/taller/delivery-notice.ts";
 import { addCatalogItem, catalogItemSchema, listItems } from "../../../../server/taller/items.ts";
 import {
   accessoryFormSchema,
@@ -67,6 +68,7 @@ if (!header)
     headers: { "cache-control": "no-store" },
   });
 const { order, customer, bike } = header;
+const checklistOpen = ["reservada", "recibida"].includes(order.status);
 if (
   user.role === "mechanic" &&
   order.assignedMechanicId !== user.id &&
@@ -106,14 +108,17 @@ if (Astro.request.method === "POST") {
       { result: submitted[key], note: submitted[`${key}_nota`] ?? "" },
     ]),
   );
-  const checklist = checklistFormSchema.safeParse({ ...submitted, checks });
+  const checklist =
+    checklistOpen || submitted.accion === "checklist"
+      ? checklistFormSchema.safeParse({ ...submitted, checks })
+      : null;
   const parsed = actionSchema.safeParse(submitted);
-  if (!parsed.success || !checklist.success) {
+  if (!parsed.success || (checklist && !checklist.success)) {
     Astro.response.status = 422;
     error = "Revisa los datos de la recepción.";
     const issues = [
       ...(!parsed.success ? parsed.error.issues : []),
-      ...(!checklist.success ? checklist.error.issues : []),
+      ...(checklist && !checklist.success ? checklist.error.issues : []),
     ];
     for (const issue of issues) {
       const key =
@@ -125,7 +130,7 @@ if (Astro.request.method === "POST") {
   } else {
     const input = parsed.data;
     const checklistResult =
-      Object.keys(checks).length > 0 || input.accion === "checklist"
+      checklist?.success && (Object.keys(checks).length > 0 || input.accion === "checklist")
         ? await saveChecklist(db, user, order.id, checklist.data, now)
         : ({ ok: true } as const);
     const result =
@@ -145,7 +150,7 @@ if (Astro.request.method === "POST") {
                 now,
               )
             : input.accion === "fecha"
-              ? await confirmDeliveryDate(db, user, order.id, input.date, now)
+              ? await changeDeliveryDate(db, user, order.id, input.date, now)
               : accessories.some((row) => row.id === input.accessoryId)
                 ? await voidAccessory(db, user, input.accessoryId, now)
                 : ({ ok: false, code: "not_found" } as const);
@@ -153,23 +158,29 @@ if (Astro.request.method === "POST") {
       return new Response(null, {
         status: 303,
         headers: {
-          location: `${Astro.url.pathname}?hecho=${input.accion}`,
+          location: `${Astro.url.pathname}?hecho=${input.accion}${"notified" in result && result.notified ? "&avisado=1" : ""}`,
           "cache-control": "no-store",
         },
       });
     if (result.code === "forbidden") return forbiddenResponse();
     Astro.response.status =
-      result.code === "not_found" ? 404 : result.code === "invalid_state" ? 409 : 422;
+      result.code === "not_found"
+        ? 404
+        : ["invalid_state", "invalid_status"].includes(result.code)
+          ? 409
+          : 422;
     error =
-      result.code === "invalid_state"
-        ? "El checklist solo se puede guardar en una orden reservada o recibida."
-        : result.code === "not_found"
-          ? "No se encontró la orden o el accesorio."
-          : result.code === "no_price"
-            ? "El servicio no tiene precio para este tipo de bicicleta."
-            : result.code === "invalid_date"
-              ? "La fecha de entrega debe ser hoy o posterior."
-              : "Revisa los datos de la recepción.";
+      result.code === "invalid_status"
+        ? "La orden ya está cerrada."
+        : result.code === "invalid_state"
+          ? "El checklist solo se puede guardar en una orden reservada o recibida."
+          : result.code === "not_found"
+            ? "No se encontró la orden o el accesorio."
+            : result.code === "no_price"
+              ? "El servicio no tiene precio para este tipo de bicicleta."
+              : result.code === "invalid_date"
+                ? "La fecha de entrega debe ser hoy o posterior."
+                : "Revisa los datos de la recepción.";
   }
 }
 const checks = await listIntakeChecks(db, user, order.id);
@@ -207,7 +218,7 @@ const [signature, nextReception] = receptionFinished
   : [null, null];
 ---
 
-<TallerLayout title={`${number} · Recepción — Vector Bikes`} description="Recepción de la bicicleta y datos de la orden." path="/taller/recepcion/nueva" user={user}>
+<TallerLayout title={`${number} · Recepción — ${SITE.name}`} description="Recepción de la bicicleta y datos de la orden." path="/taller/recepcion/nueva" user={user}>
   <div class="stack">
     <PageHeader title={number} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     {receptionFinished && (
@@ -324,6 +335,7 @@ const [signature, nextReception] = receptionFinished
     </Card>
     <Card id="delivery-heading" title="Fecha de entrega">
       <p class="muted">Sugerida: {suggestedDate}</p>
+      {Astro.url.searchParams.get("hecho") === "fecha" && <p role="status">Fecha de entrega guardada.{Astro.url.searchParams.get("avisado") === "1" && " Le avisamos al cliente por correo."}</p>}
       {order.deliveryDateConfirmedAt && <p role="status">Fecha confirmada: {order.estimatedDeliveryDate}</p>}
         <div class="field">
           <label for="delivery-date">Fecha de entrega</label>

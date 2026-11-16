@@ -1,11 +1,13 @@
 ---
 import { z } from "zod";
 import Card from "../../../../components/taller/Card.astro";
+import DeliveryDateCard from "../../../../components/taller/DeliveryDateCard.astro";
 import OrderAmounts from "../../../../components/taller/OrderAmounts.astro";
 import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
 import { getSiteEnv } from "../../../../lib/env.ts";
+import { SITE } from "../../../../lib/site.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { formatClp } from "../../../../server/email/templates.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
@@ -14,6 +16,8 @@ import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import type { Action } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
 import { whatsappShareLink } from "../../../../server/taller/approvals.ts";
+import { deliveryDateSchema } from "../../../../server/taller/delivery-date.ts";
+import { changeDeliveryDate } from "../../../../server/taller/delivery-notice.ts";
 import { formatOrderNumber, openWarrantyOrder } from "../../../../server/taller/orders.ts";
 import { lastQuote, sendQuote } from "../../../../server/taller/quotes.ts";
 import {
@@ -60,7 +64,7 @@ if (!id.success)
     headers: { "cache-control": "no-store" },
   });
 const PATH = `/taller/ordenes/${id.data}`;
-const actionSchema = z.enum(["status", "assign", "take", "notes", "warranty", "quote"]);
+const actionSchema = z.enum(["status", "assign", "take", "notes", "warranty", "quote", "fecha"]);
 const warrantySchema = z.object({ reason: z.string().trim().min(3).max(300) });
 const noteFields = [
   { key: "diagnosis", label: "Diagnóstico" },
@@ -75,21 +79,33 @@ if (Astro.request.method === "POST") {
   const action = form.get("action");
   const to = form.get("to");
   const permission: Action =
-    action === "quote"
-      ? "approvals.create"
-      : action === "warranty"
-        ? "warranty.open"
-        : action === "assign"
-          ? "orders.assign"
-          : action === "status" && (to === "cancelada" || to === "trabajo_rechazado")
-            ? "orders.cancel"
-            : "orders.edit";
+    action === "fecha"
+      ? "reception.perform"
+      : action === "quote"
+        ? "approvals.create"
+        : action === "warranty"
+          ? "warranty.open"
+          : action === "assign"
+            ? "orders.assign"
+            : action === "status" && (to === "cancelada" || to === "trabajo_rechazado")
+              ? "orders.cancel"
+              : "orders.edit";
   if (!can(user.role, permission) || (action === "take" && user.role !== "mechanic"))
     return forbiddenResponse();
   const parsedAction = actionSchema.safeParse(action);
   values = Object.fromEntries([...form].map(([key, value]) => [key, String(value)]));
-  let result: { ok: boolean; code?: string } = { ok: false, code: "validation_error" };
-  if (parsedAction.success && parsedAction.data === "quote") {
+  let result: { ok: boolean; code?: string; notified?: boolean } = {
+    ok: false,
+    code: "validation_error",
+  };
+  if (parsedAction.success && parsedAction.data === "fecha") {
+    const parsed = deliveryDateSchema.safeParse(form.get("date"));
+    result = parsed.success
+      ? await changeDeliveryDate(db, user, id.data, parsed.data, now)
+      : { ok: false, code: "invalid_date" };
+    if (result.code === "invalid_date")
+      fieldErrors.date = "La fecha de entrega debe ser hoy o posterior.";
+  } else if (parsedAction.success && parsedAction.data === "quote") {
     result = await sendQuote(db, user, id.data, now);
   } else if (parsedAction.success && parsedAction.data === "warranty") {
     const parsed = warrantySchema.safeParse({ reason: form.get("reason") });
@@ -132,16 +148,22 @@ if (Astro.request.method === "POST") {
     return new Response(null, {
       status: 303,
       headers: {
-        location: `${PATH}?hecho=${action === "quote" ? "cotizacion" : "guardado"}`,
+        location: `${PATH}?hecho=${action === "fecha" ? "fecha" : action === "quote" ? "cotizacion" : "guardado"}${result.notified ? "&avisado=1" : ""}`,
         "cache-control": "no-store",
       },
     });
   if (result.code === "forbidden") return forbiddenResponse();
   Astro.response.status =
-    result.code === "not_found" ? 404 : result.code === "validation_error" ? 422 : 409;
+    result.code === "not_found"
+      ? 404
+      : ["validation_error", "invalid_date"].includes(result.code ?? "")
+        ? 422
+        : 409;
   const messages: Record<string, string> = {
     not_found: "Orden no encontrada.",
     validation_error: "Revisa los datos del formulario.",
+    invalid_date: "La fecha de entrega debe ser hoy o posterior.",
+    ...(action === "fecha" ? { invalid_status: "La orden ya está cerrada." } : {}),
     no_items: "La orden no tiene líneas vigentes para cotizar.",
     no_email: "El cliente no tiene correo registrado.",
     send_failed: "No se pudo enviar el correo. Intenta de nuevo.",
@@ -215,11 +237,11 @@ const canTake =
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 const tracking = await ensureTrackingLink(db, user, order.id, getSiteEnv().PUBLIC_SITE_URL, now);
 const trackingText = tracking.ok
-  ? `Hola ${customer.name.trim().split(/\s+/)[0] ?? ""}, puedes ver el estado de tu bicicleta en Vector Bikes aquí: ${tracking.url}`
+  ? `Hola ${customer.name.trim().split(/\s+/)[0] ?? ""}, puedes ver el estado de tu bicicleta en ${SITE.name} aquí: ${tracking.url}`
   : "";
 ---
 
-<TallerLayout title={`${number} — Vector Bikes`} description="Detalle e historial de la orden de trabajo." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} — ${SITE.name}`} description="Detalle e historial de la orden de trabajo." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={number} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }}>
       {warrantyOfNumber !== null && <span class="status" slot="actions">Garantía de {formatOrderNumber(warrantyOfNumber)}</span>}
@@ -249,6 +271,7 @@ const trackingText = tracking.ok
           )}
         </dl>
       </Card>
+      {!isTerminal && can(user.role, "reception.perform") && <DeliveryDateCard action={PATH} value={values.date ?? order.estimatedDeliveryDate ?? ""} error={fieldErrors.date} saved={Astro.url.searchParams.get("hecho") === "fecha"} notified={Astro.url.searchParams.get("avisado") === "1"} />}
       <Card id="assignment-title" title="Mecánico asignado">
         <p>{mechanicName ?? "Sin asignar"}</p>
         {can(user.role, "orders.assign") && <form method="post" action={PATH}>

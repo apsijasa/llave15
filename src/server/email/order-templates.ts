@@ -89,3 +89,31 @@ export function maintenanceReminderEmail(input: {
     link: { label: "Reservar hora", href: input.bookingUrl },
   });
 }
+
+export function deliveryDateChangedEmail(input: {
+  orderNumber: string;
+  customerName: string;
+  bike: string;
+  previousDate: string | null;
+  newDate: string;
+  trackingUrl: string | null;
+}): RenderedEmail {
+  const firstName = input.customerName.trim().split(/\s+/)[0] ?? "";
+  const formatDate = (date: string) =>
+    DateTime.fromISO(date, { zone: TIMEZONE }).setLocale("es-CL").toFormat("d 'de' LLLL 'de' yyyy");
+  const rows: EmailContent["rows"] = [
+    ["Orden", input.orderNumber],
+    ["Bicicleta", input.bike],
+  ];
+  if (input.previousDate !== null) rows.push(["Fecha anterior", formatDate(input.previousDate)]);
+  rows.push(["Nueva fecha", formatDate(input.newDate)]);
+  return render(`Cambiamos la fecha de entrega · ${input.orderNumber} · ${SITE.name}`, {
+    heading: "Cambiamos la fecha de entrega",
+    intro: [`Hola ${firstName},`, "Actualizamos la fecha estimada de entrega de tu bicicleta."],
+    rows,
+    notes: ["Si la nueva fecha no te acomoda, responde este correo."],
+    ...(input.trackingUrl
+      ? { link: { label: "Ver el estado de tu bicicleta", href: input.trackingUrl } }
+      : {}),
+  });
+}

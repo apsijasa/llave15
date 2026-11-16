@@ -1,0 +1,26 @@
+---
+import Card from "./Card.astro";
+
+interface Props {
+  action: string;
+  value: string;
+  error?: string;
+  saved?: boolean;
+  notified?: boolean;
+}
+
+const { action, value, error, saved, notified } = Astro.props;
+---
+
+<Card id="delivery-title" title="Fecha de entrega">
+  <form class="stack" method="post" action={action}>
+    <input type="hidden" name="action" value="fecha" />
+    <div class="field">
+      <label for="delivery-date">Fecha de entrega</label>
+      <input id="delivery-date" type="date" name="date" value={value} aria-invalid={Boolean(error)} aria-describedby={error ? "delivery-date-error" : undefined} />
+      {error && <p id="delivery-date-error">{error}</p>}
+    </div>
+    {saved && <p role="status">Fecha de entrega guardada.{notified && " Le avisamos al cliente por correo."}</p>}
+    <button type="submit" class="btn">Guardar y avisar al cliente</button>
+  </form>
+</Card>
