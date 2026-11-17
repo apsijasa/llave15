@@ -32,7 +32,7 @@ Node 24 (`.nvmrc`), pnpm 12.4.2. La versión de pnpm se fija en el `build` de `[
 
 ## Estado del build
 
-Orden de construcción de la fase 2: `blueprints/vector-taller-f2/tasks.json` (una tarea = un paso `F2-NN`, tag `f2-NN`) y `blueprints/vector-taller-f2/epics/`. Decisiones: `blueprints/vector-taller-f2/blueprint.md` (§20.3, numeradas `F2-D#`); definición de la fase: `blueprints/vector-taller-f2/FASE2.md`. Antes de cada pase a Codex, la sesión coordinadora escribe el encargo `docs/encargos/F2-NN-<tema>.md` con la plantilla de `docs/encargos/README.md`. `blueprints/vector-taller-f1/` (fase 1, decisiones globales 1–55) y `blueprints/vector-bikes/` (sitio) son registros de solo lectura. Diseño visual aprobado: `docs/design-preview.html`.
+Orden de construcción de la fase 2: `blueprints/vector-taller-f2/tasks.json` (una tarea = un paso `F2-NN`, tag `f2-NN`) y `blueprints/vector-taller-f2/epics/`. Decisiones: `blueprints/vector-taller-f2/blueprint.md` (§20.3, numeradas `F2-D#`); definición de la fase: `blueprints/vector-taller-f2/FASE2.md`. Antes de cada pase a Codex, la sesión coordinadora escribe el encargo `docs/encargos/F2-NN-<tema>.md` con la plantilla de `docs/encargos/README.md`. `blueprints/vector-taller-f1/` (fase 1, decisiones globales 1–57) y `blueprints/vector-bikes/` (sitio) son registros de solo lectura. **Fase siguiente: Bike Garage** (decisión 57): definición en `blueprints/bike-garage/FASE-BIKE-GARAGE.md`, pendiente de aprobación del dueño; todavía no tiene blueprint ni pasos. Diseño visual aprobado: `docs/design-preview.html`.
 
 ## Stack
 
@@ -163,7 +163,7 @@ La fase 2 no agrega variables; la biblioteca agrega las tres del asistente, toda
 3. Nunca borrar reservas: se cambia `status`.
 4. Nunca commitear secretos ni `.env`; nunca registrar correos, teléfonos ni tokens sin redactar.
 5. Nunca editar a mano `drizzle/` (se regenera desde el esquema); nunca `drizzle-kit generate --custom`.
-6. No construir nada de los No-Objetivos de `blueprint.md` §1 (pago en línea, cuentas de clientes, reprogramación, E2E con navegador fuera de `/taller`, feriados 2027 inventados) ni de la cerca de la fase 2 (`blueprints/vector-taller-f2/FASE2.md` §2.5: pago en línea, Strava/kilómetros, asistente de WhatsApp, multi-sucursal, entre otros). Inventario, caja, proveedores, compras, gastos y ventas de mostrador se construyen desde la decisión 55.
+6. No construir nada de los No-Objetivos de `blueprint.md` §1 (pago en línea, cuentas de clientes, reprogramación, E2E con navegador fuera de `/taller`, feriados 2027 inventados) ni de la cerca de la fase 2 (`blueprints/vector-taller-f2/FASE2.md` §2.5: pago en línea, Strava/kilómetros, asistente de WhatsApp, multi-sucursal, entre otros). Inventario, caja, proveedores, compras, gastos y ventas de mostrador se construyen desde la decisión 55. Bike Garage multi-taller (tabla `shops`, `branch_id` en las reservas, página de reservas por taller, separación del sitio) se construye desde la decisión 57 (`blueprints/bike-garage/FASE-BIKE-GARAGE.md`), dentro de su cerca §2.3; multi-sucursal sigue fuera.
 7. Nunca marcar una tarea como hecha con una compuerta fallando, ni editar un comando de Verify para que pase.
 8. `branch_id` NOT NULL en toda tabla de operación nueva.
 9. Nunca borrar una orden, línea, componente, aprobación, foto de informe, venta, compra, gasto ni movimiento: se marcan con `voided_at`.
