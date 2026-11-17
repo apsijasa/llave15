@@ -42,6 +42,9 @@ Escala: de 1 a 20 talleres, una sucursal por taller, Chile.
 12. **La biblioteca técnica es de la plataforma:** las tablas globales (BT-D1) se comparten entre talleres; lo privado de cada taller ya lleva `branch_id`. El curador (BT-D2) es un usuario con `is_platform_admin`.
 13. **Los CHECK de reservas se relajan** como en FASE-PLATAFORMA §2.3: tarifa de retiro `>= 0`, comuna no vacía; la validación de los valores del taller pasa a zod en el servidor, desde `shops`.
 
+14. **El Replit actual pasa a ser Bike Garage** (dueño, 17-11-2026): conserva la base de producción y el almacenamiento de fotos sin mudarlos; se le agrega el dominio `bikegarage.cl`. El sitio de Vector Bikes se publica en un **Replit nuevo** y pequeño, y `vectorbikes.cl` se apunta a él en el corte.
+15. **El sitio nuevo de Vector Bikes se construye en una carpeta de este repositorio** (dueño, 17-11-2026): `web/vector-bikes/`, una app Astro pequeña con la portada, privacidad, el botón "Reservar" hacia `https://bikegarage.cl/vector-bikes/reservar` y las **redirecciones permanentes** de las rutas antiguas, con sus propias pruebas dentro del gate. En el corte, el dueño la mueve a un repositorio nuevo `vector-bikes-web`.
+
 ### 2.3 Lo que queda afuera y por qué
 
 | Tema | Destino | Razón |
@@ -63,7 +66,7 @@ Escala: de 1 a 20 talleres, una sucursal por taller, Chile.
 - **Etapa 1 · Cimientos multi-taller, sin cambios visibles.** Tabla `shops` y `branches.shop_id`; `branch_id` en las tablas de reserva (expand, migrar a la sucursal de Vector Bikes, contract); unicidad por taller; motor de reservas que lee la configuración del taller; relajo de los CHECK; filtro por taller en todo lo que hoy lee reservas sin filtrar; prueba de dos talleres; guardia de literales (regla 14).
 - **Etapa 2 · Identidad.** `SITE` sale de `shops` por la sesión, el token o el `slug`; se eliminan los literales del taller; marca Bike Garage para el personal y del taller para el cliente; tokens de diseño separados en `tokens.css`; el sistema deja de cargar la portada de Vector Bikes; remitente y copias por taller.
 - **Etapa 3 · Reservas en línea por taller.** Página `/<slug>/reservar` con la isla de reserva actual y la marca y configuración del taller; `api/reservas` y `api/disponibilidad` reciben el taller; cancelación por enlace bajo el dominio de Bike Garage; Turnstile y límite de solicitudes por taller.
-- **Etapa 4 · Separación y nuevo dominio.** `APP_URL` para cookie, CSRF y enlaces; secretos propios del sistema (`TRACKING_TOKEN_SECRET` aparte de `CANCEL_TOKEN_SECRET`); nuevo Replit para Bike Garage con la base actual; `vector-bikes-web` en vectorbikes.cl; redirecciones permanentes de las rutas antiguas; Make.com al nuevo dominio.
+- **Etapa 4 · Separación y nuevo dominio.** `APP_URL` para cookie, CSRF y enlaces; secretos propios del sistema (`TRACKING_TOKEN_SECRET` aparte de `CANCEL_TOKEN_SECRET`); el Replit actual pasa a Bike Garage con `bikegarage.cl` (decisión 14); el sitio de `web/vector-bikes/` en un Replit nuevo para vectorbikes.cl (decisión 15); redirecciones permanentes de las rutas antiguas; Make.com al nuevo dominio.
 - **Etapa 5 · Administración de la plataforma.** Pantallas del administrador de plataforma (crear taller con su primer dueño, suspender, ver uso); pantalla "Mi taller" para el dueño; plantilla de catálogo inicial; `docs/nuevo-taller.md`.
 
 ## 4. Principio central
