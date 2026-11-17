@@ -1,6 +1,6 @@
 # FASE BIKE GARAGE — El sistema del taller como producto para muchos talleres
 
-> **Borrador del 17 de noviembre de 2026**, escrito por la sesión coordinadora a partir de la ruta aprobada por el dueño ese día (decisión 57). Es la **entrada** para `/the-architect:architect-brownfield`, no el blueprint. Cuando el dueño lo apruebe y responda las preguntas de §12, se genera el bundle en `blueprints/bike-garage/` (§15).
+> **Aprobado por el dueño el 17 de noviembre de 2026 (decisión 57), con el dominio `bikegarage.cl`.** Escrito por la sesión coordinadora ese mismo día; el dueño aprobó §2 completo, incluidas las propuestas de §2.2. Es la **entrada** para `/the-architect:architect-brownfield`, no el blueprint; el bundle se genera en `blueprints/bike-garage/` (§15).
 >
 > Fuentes: la conversación del 17-11-2026 (tres decisiones del dueño, §2.1); `blueprints/vector-plataforma/FASE-PLATAFORMA.md` en la rama `feat/plataforma` (decisión 56, reemplazada; se reutilizan su mapa de literales §6 y el relajo de CHECK §2.3); `blueprints/vector-taller-f2/FASE2.md` §2.5 y §16; `blueprints/vector-biblioteca/BIBLIOTECA.md` BT-D1 y BT-D8; el mapa de acoplamiento del 17-11-2026 (§6 de este documento).
 
@@ -35,8 +35,8 @@ Escala: de 1 a 20 talleres, una sucursal por taller, Chile.
 5. **El perfil y la configuración del taller viven en la base** (`shops`), no en archivos: nombre, contacto, logo, horarios, capacidad, retiro a domicilio, comunas, tarifa, prefijo de código y correo de avisos. `SITE` deja de ser una constante.
 6. **Una persona, una cuenta:** `users.email` sigue único en toda la plataforma; cada usuario pertenece a un taller por su sucursal.
 7. **Administrador de plataforma:** una marca `users.is_platform_admin` (Andrés), separada de los cuatro roles del taller. Solo ella crea, suspende y configura talleres. Un administrador de plataforma no ve datos de otros talleres por usar la marca: para operar un taller necesita un usuario en ese taller.
-8. **Marca:** Bike Garage en todo lo que ve el personal (ingreso, menú, títulos, pie de correos); **la marca del taller** en todo lo que ve su cliente (correos, informe, seguimiento, aprobación, página de reservas), con una línea discreta "con Bike Garage" al pie (ver pregunta 2 de §12).
-9. **Dominio:** Bike Garage en un dominio propio (pregunta 1 de §12). Las páginas públicas de cada taller cuelgan de él: `/<slug>/reservar`. Sin dominio propio por taller en esta fase.
+8. **Marca:** Bike Garage en todo lo que ve el personal (ingreso, menú, títulos, pie de correos); **la marca del taller** en todo lo que ve su cliente (correos, informe, seguimiento, aprobación, página de reservas), con una línea discreta "con Bike Garage" al pie.
+9. **Dominio: `bikegarage.cl`** (dueño, 17-11-2026). El sistema del personal vive en `https://bikegarage.cl/taller`; las páginas públicas de cada taller cuelgan del mismo dominio: `https://bikegarage.cl/<slug>/reservar`, y los enlaces con token (`/seguimiento`, `/informe`, `/aprobacion`, `/reservas/cancelar`) también. La raíz `https://bikegarage.cl/` es una portada mínima de Bike Garage con el ingreso. Correo de envío en un subdominio (`send.bikegarage.cl`). Sin dominio propio por taller en esta fase.
 10. **Correos:** remitente del dominio de envío de Bike Garage con el nombre del taller ("Vector Bikes · Bike Garage"), `Reply-To` al correo del taller; las copias al taller van al correo de avisos del taller.
 11. **Tareas diarias:** las cuatro tareas de `/api/tareas/*` recorren todos los talleres activos en una sola llamada de Make.com.
 12. **La biblioteca técnica es de la plataforma:** las tablas globales (BT-D1) se comparten entre talleres; lo privado de cada taller ya lleva `branch_id`. El curador (BT-D2) es un usuario con `is_platform_admin`.
@@ -136,14 +136,10 @@ Entre 35 y 45 pasos: etapa 1 (12 a 14, con tres ventanas de esquema), etapa 2 (8
 
 ## 12. Preguntas para el dueño y pendientes operativos
 
-**Preguntas que deciden partes del blueprint:**
-1. **Nombre de dominio de Bike Garage** (por ejemplo `bikegarage.cl` o `app.bikegarage.cl`) y si ya está disponible o comprado.
-2. **¿El cliente final ve "Bike Garage"?** Propuesta: una línea discreta al pie de correos y páginas del cliente ("con Bike Garage"); el resto con la marca del taller. Alternativa: marca del taller sola, sin mención.
-3. **¿Cuándo empezar la etapa 1?** No hay apuro de código: conviene que la fase 2 lleve unas semanas estable en producción.
-4. **Confirmar las decisiones propuestas de §2.2** (especialmente 7, administrador de plataforma, y 10, remitente de correos).
+**Respondidas por el dueño el 17-11-2026:** dominio `bikegarage.cl` (§2.2 decisión 9); §2.2 aprobado completo, incluida la línea "con Bike Garage" ante el cliente final (decisión 8); la fase empieza ya, con la etapa 1.
 
 **Pendientes operativos, fuera del código:**
-- Comprar el dominio; logo de Bike Garage; dominio de envío en Resend; widget de Turnstile para el dominio nuevo.
+- Dominio `bikegarage.cl` (del dueño): DNS hacia el nuevo Replit en la etapa 4; logo de Bike Garage; dominio de envío `send.bikegarage.cl` en Resend; widget de Turnstile para `bikegarage.cl`.
 - Términos con cada taller y política de privacidad de Bike Garage (§7).
 - Un segundo taller (real o de demostración) para el criterio de término.
 - Rotar la clave de la base de producción (pendiente desde antes) antes de la etapa 4.
