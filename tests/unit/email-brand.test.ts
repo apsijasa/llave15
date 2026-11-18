@@ -29,6 +29,7 @@ vi.mock("../../src/lib/site.ts", async (original) => {
 const NOW = new Date("2026-11-12T15:00:00Z");
 const BOOKING: Booking = {
   id: "11111111-1111-4111-8111-111111111111",
+  branchId: null,
   code: "VB-261113-1500",
   serviceDate: "2026-11-13",
   mode: "taller",

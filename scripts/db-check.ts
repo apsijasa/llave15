@@ -12,6 +12,7 @@ import { orderTables } from "../src/server/db/schema-orders.ts";
 import { paymentTables } from "../src/server/db/schema-payments.ts";
 import { reportTables } from "../src/server/db/schema-reports.ts";
 import { saleTables } from "../src/server/db/schema-sales.ts";
+import { shopTables } from "../src/server/db/schema-shops.ts";
 import { tallerTables } from "../src/server/db/schema-taller.ts";
 import { allTables } from "../src/server/db/schema.ts";
 
@@ -66,6 +67,7 @@ try {
   }
   const presentColumns = new Set(columns.map((row) => `${row.table_name}.${row.column_name}`));
   const missingColumns = [
+    ...shopTables,
     ...allTables,
     ...tallerTables,
     ...inventoryTables,

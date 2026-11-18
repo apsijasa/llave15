@@ -13,6 +13,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { onlyShopId, shops } from "./schema-shops.ts";
 
 export const instant = (name: string) => timestamp(name, { withTimezone: true });
 export const createdAt = () => instant("created_at").notNull().defaultNow();
@@ -22,10 +23,21 @@ export const updatedAt = () =>
     .defaultNow()
     .$onUpdate(() => new Date());
 
+/** BG-D3: con una sola sucursal, una fila sin branchId se enlaza a ella; con dos, queda null. */
+const onlyBranchId = () =>
+  sql`(select "id" from "branches" where (select count(*) from "branches") = 1)`;
+
+const bookingBranchReference = () =>
+  uuid("branch_id")
+    .references((): AnyPgColumn => branches.id, { onDelete: "restrict" })
+    .$defaultFn(onlyBranchId);
+// BG-09 agrega .notNull() a esta función y a branches.shopId.
+
 export const bookings = pgTable(
   "bookings",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    branchId: bookingBranchReference(),
     code: text("code").notNull(),
     serviceDate: date("service_date", { mode: "string" }).notNull(),
     mode: text("mode").notNull(),
@@ -59,6 +71,7 @@ export const bookings = pgTable(
     uniqueIndex("uq_bookings_code").on(t.code),
     uniqueIndex("uq_bookings_cancel_token_hash").on(t.cancelTokenHash),
     index("idx_bookings_service_date_status").on(t.serviceDate, t.status),
+    index("idx_bookings_branch_service_date").on(t.branchId, t.serviceDate),
     index("idx_bookings_phone_status_starts_at").on(t.phoneE164, t.status, t.startsAt),
     index("idx_bookings_reminder").on(t.serviceDate, t.status, t.reminderSentAt),
     check("bookings_mode_check", sql`mode in ('taller', 'retiro')`),
@@ -88,6 +101,7 @@ export const whatsappMessages = pgTable(
   "whatsapp_messages",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    branchId: bookingBranchReference(),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "restrict" }),
@@ -118,6 +132,7 @@ export const bookingBlocks = pgTable(
   "booking_blocks",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    branchId: bookingBranchReference(),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "restrict" }),
@@ -132,10 +147,12 @@ export const bookingBlocks = pgTable(
       .on(t.serviceDate, t.blockStart)
       .where(sql`is_active = true`),
     index("idx_booking_blocks_booking_id").on(t.bookingId),
+    index("idx_booking_blocks_branch_service_date").on(t.branchId, t.serviceDate),
   ],
 );
 
 export const bookingDays = pgTable("booking_days", {
+  branchId: bookingBranchReference(),
   serviceDate: date("service_date", { mode: "string" }).primaryKey(),
   createdAt: createdAt(),
 });
@@ -144,6 +161,7 @@ export const blockedPeriods = pgTable(
   "blocked_periods",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    branchId: bookingBranchReference(),
     serviceDate: date("service_date", { mode: "string" }).notNull(),
     startTime: time("start_time"),
     endTime: time("end_time"),
@@ -153,6 +171,7 @@ export const blockedPeriods = pgTable(
   },
   (t) => [
     index("idx_blocked_periods_service_date").on(t.serviceDate),
+    index("idx_blocked_periods_branch_service_date").on(t.branchId, t.serviceDate),
     check(
       "blocked_periods_range_check",
       sql`(start_time is null and end_time is null) or (start_time is not null and end_time is not null and start_time < end_time)`,
@@ -164,6 +183,9 @@ export const branches = pgTable(
   "branches",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    shopId: uuid("shop_id")
+      .references(() => shops.id, { onDelete: "restrict" })
+      .$defaultFn(onlyShopId),
     name: text("name").notNull(),
     nextOrderNumber: integer("next_order_number").notNull().default(1),
     nextPurchaseNumber: integer("next_purchase_number").notNull().default(1),
@@ -198,6 +220,7 @@ export const users = pgTable(
     role: text("role").notNull(),
     isActive: boolean("is_active").notNull().default(true),
     libraryCurator: boolean("library_curator").notNull().default(false),
+    isPlatformAdmin: boolean("is_platform_admin").notNull().default(false),
     createdBy: uuid("created_by").references((): AnyPgColumn => users.id, { onDelete: "restrict" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -243,10 +266,14 @@ export const bookingRequests = pgTable(
   "booking_requests",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    branchId: bookingBranchReference(),
     ipHash: text("ip_hash").notNull(),
     createdAt: createdAt(),
   },
-  (t) => [index("idx_booking_requests_ip_created").on(t.ipHash, t.createdAt)],
+  (t) => [
+    index("idx_booking_requests_ip_created").on(t.ipHash, t.createdAt),
+    index("idx_booking_requests_branch_ip_created").on(t.branchId, t.ipHash, t.createdAt),
+  ],
 );
 
 /** Bicicletas 2 y 3 de una reserva; la 1 vive en `bookings.bike` y `bookings.description`. */
@@ -254,6 +281,7 @@ export const bookingBikes = pgTable(
   "booking_bikes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    branchId: bookingBranchReference(),
     bookingId: uuid("booking_id")
       .notNull()
       .references(() => bookings.id, { onDelete: "restrict" }),
