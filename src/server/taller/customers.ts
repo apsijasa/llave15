@@ -169,10 +169,13 @@ async function insertInBranch(
     .insert(customers)
     .values({ ...customerValues(input, now), branchId, createdAt: now })
     // También funciona dentro de la transacción de recepción sin abortarla por el RUT.
-    .onConflictDoNothing({ target: customers.rut, where: sql`rut is not null` })
+    .onConflictDoNothing({
+      target: [customers.branchId, customers.rut],
+      where: sql`rut is not null`,
+    })
     .returning();
   if (!customer) return rutConflict(db, branchId, input.rut);
-  // Si hay ambos conflictos, prevalece el RUT global; el teléfono revierte la escritura.
+  // Si hay ambos conflictos, prevalece el RUT de la sucursal; el teléfono revierte la escritura.
   if (phoneDuplicate) throw new PhoneDuplicateError(phoneDuplicate);
   return { ok: true, customer };
 }

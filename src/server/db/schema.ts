@@ -69,7 +69,7 @@ export const bookings = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex("uq_bookings_code").on(t.code),
+    uniqueIndex("uq_bookings_code").on(t.branchId, t.code),
     uniqueIndex("uq_bookings_cancel_token_hash").on(t.cancelTokenHash),
     index("idx_bookings_service_date_status").on(t.serviceDate, t.status),
     index("idx_bookings_branch_service_date").on(t.branchId, t.serviceDate),
@@ -145,7 +145,7 @@ export const bookingBlocks = pgTable(
   },
   (t) => [
     uniqueIndex("uq_booking_blocks_active_slot")
-      .on(t.serviceDate, t.blockStart)
+      .on(t.branchId, t.serviceDate, t.blockStart)
       .where(sql`is_active = true`),
     index("idx_booking_blocks_booking_id").on(t.bookingId),
     index("idx_booking_blocks_branch_service_date").on(t.branchId, t.serviceDate),
@@ -202,7 +202,7 @@ export const branches = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex("uq_branches_name").on(t.name),
+    uniqueIndex("uq_branches_name").on(t.shopId, t.name),
     check("branches_next_order_number_check", sql`next_order_number >= 1`),
     check("branches_next_purchase_number_check", sql`next_purchase_number >= 1`),
     check("branches_next_sale_number_check", sql`next_sale_number >= 1`),

@@ -97,7 +97,7 @@ export const customers = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex("uq_customers_rut").on(t.rut).where(sql`rut is not null`),
+    uniqueIndex("uq_customers_rut").on(t.branchId, t.rut).where(sql`rut is not null`),
     index("idx_customers_branch_phone").on(t.branchId, t.phoneE164),
     index("idx_customers_branch_name").on(t.branchId, t.name),
     check(

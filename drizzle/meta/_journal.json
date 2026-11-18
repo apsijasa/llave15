@@ -288,6 +288,13 @@
       "when": 1795029868711,
       "tag": "0040_big_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795032307002,
+      "tag": "0041_awesome_firebird",
+      "breakpoints": true
     }
   ]
 }
