@@ -828,7 +828,7 @@ git tag -l bg-10 | grep -qx bg-10   # expect: exit 0
 
 #### BG-11 — Contract C: CHECK relajados y ventana V-BG3 (E1-T11)
 **Archivos:** `src/server/db/schema.ts` · `tests/integration/shops-checks.test.ts` (nuevo) · `docs/ventanas/bg-v3.md` (nuevo)
-**Hacer:** reemplazar `bookings_fee_check` y `bookings_retiro_address_check` por los de §4 (salen de `schema.ts` los literales `Vitacura` y `Las Condes`). `bg-v3.md`: las tres migraciones de BG-09, BG-10 y BG-11 (nombres reales), el aviso de cambio destructivo que mostrará Replit, precondición `pnpm bg:backfill --dry-run` con `"pending":0` en producción, pasos y verificación.
+**Hacer:** reemplazar `bookings_fee_check` y `bookings_retiro_address_check` por los de §4 (salen de `schema.ts` los literales `Vitacura` y `Las Condes`). `bg-v3.md`: las cuatro migraciones de BG-09 (dos, BG-D42), BG-10 y BG-11 (nombres reales), el aviso de cambio destructivo que mostrará Replit, precondición `pnpm bg:backfill --dry-run` con `"pending":0` en producción, pasos y verificación.
 **Reglas:** R-db · NN 5 · No cambia: ningún otro CHECK.
 **Done when**
 - [ ] WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL reemplazar solo `bookings_fee_check` y `bookings_retiro_address_check` por sus versiones de §4, con cuatro sentencias `ALTER TABLE`
