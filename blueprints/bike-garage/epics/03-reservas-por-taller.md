@@ -77,7 +77,7 @@ Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/server-api.md`, `sho
 
 ### `E3-T1` — BG-29 Add reserved slugs and scope by slug
 
-**Depends on:** `E2-T12` · **Priority:** p0
+**Depends on:** `E2-T12`, `E2-T16` (la identidad visual BG-46 … BG-49 se construye antes) · **Priority:** p0
 
 1. `tests/unit/reserved-slugs.test.ts` (incluye el recorrido de `src/pages/` y `public/` con `readdirSync`) y `tests/integration/scope-by-slug.test.ts` primero.
 2. `slugs.ts`: `RESERVED_SLUGS` y `slugSchema` ("Contracts").

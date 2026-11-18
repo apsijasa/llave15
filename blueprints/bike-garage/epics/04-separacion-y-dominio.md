@@ -218,7 +218,7 @@ git tag -l bg-36 | grep -qx bg-36   # expect: exit 0
 
 Precondición: `web/vector-bikes/{package.json,astro.config.mjs,tsconfig.json,vitest.config.ts}` existen desde el Bootstrap.
 
-1. Copias (comandos, no se escriben a mano): `mkdir -p web/vector-bikes/public/brand && cp public/brand/* web/vector-bikes/public/brand/ && cp public/favicon.svg web/vector-bikes/public/`.
+1. Copias (comandos, no se escriben a mano): `mkdir -p web/vector-bikes/public/brand && cp public/brand/vector-bikes-logo.png public/brand/favicon-32.png public/brand/apple-touch-icon.png web/vector-bikes/public/brand/ && cp public/favicon.svg web/vector-bikes/public/` (solo los archivos de Vector Bikes: los `llave15-*.svg` de BG-46 y BG-47 no van al sitio, BG-D32; el bloque `:root.l15` que `site.css` copia de `tokens.css` no aplica sin la clase `l15`).
 2. `web/vector-bikes/tests/content.test.ts` primero (datos de `VECTOR_BIKES_SITE`; `BOOKING_URL`).
 3. `src/styles/site.css` = `src/styles/tokens.css` + `src/styles/global.css` concatenados tal cual (sin hex nuevos).
 4. `SiteLayout.astro`: el `<head>` y el cromo de `src/layouts/Base.astro` (fuentes, JSON-LD, FAQ, Open Graph) con `VECTOR_BIKES_SITE`. `Home.astro`: el marcado de `Landing.astro` **sin la isla**; en su lugar, un enlace `.btn` con texto `Reservar` a `BOOKING_URL`. `pages/index.astro`: `prerender = true`. Nada de `web/` importa `src/`.

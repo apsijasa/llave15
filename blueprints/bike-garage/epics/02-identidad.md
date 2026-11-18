@@ -1,11 +1,11 @@
 # Epic 02: Identidad
 
-> Después de esta épica el perfil del taller sale de `shops` por la sesión, el token o el `slug`; `SITE` ya no existe (nace `PLATFORM`, Llave 15); el personal ve Llave 15 en ingreso, menú y títulos; el cliente de cada taller ve la marca de su taller en correos, seguimiento, aprobación, cancelación e informe, con la línea `Gestionado con Llave 15`; los correos salen como `<Taller> · Llave 15`, con `Reply-To` y copias del taller; los tokens de diseño viven en `tokens.css`; el sistema deja de cargar la portada (`AppLayout`, `PublicLayout`); el contenido de la portada de Vector Bikes vive en `web/vector-bikes/src/content/site.ts`; ninguna prueba importa `src/lib/site.ts`; el motor de reservas ya no tiene constantes del taller y la línea base de la guardia es `{}`.
+> Después de esta épica el perfil del taller sale de `shops` por la sesión, el token o el `slug`; `SITE` ya no existe (nace `PLATFORM`, Llave 15); el personal ve Llave 15 en ingreso, menú y títulos; el cliente de cada taller ve la marca de su taller en correos, seguimiento, aprobación, cancelación e informe, con la línea `Gestionado con Llave 15`; los correos salen como `<Taller> · Llave 15`, con `Reply-To` y copias del taller; los tokens de diseño viven en `tokens.css`; el sistema deja de cargar la portada (`AppLayout`, `PublicLayout`); el contenido de la portada de Vector Bikes vive en `web/vector-bikes/src/content/site.ts`; ninguna prueba importa `src/lib/site.ts`; el motor de reservas ya no tiene constantes del taller y la línea base de la guardia es `{}`; y, con `E2-T13` … `E2-T16`, todo lo que carga `AppLayout` tiene la identidad visual Llave 15 del manual de marca (paleta en `:root.l15`, Inter, controles y estados con color, firma provisional en SVG en el menú del personal y en el ingreso, pie `<Taller> · Gestionado con Llave 15`), mientras la portada heredada y `web/vector-bikes/` conservan su diseño.
 
 | | |
 |---|---|
 | **Epic id** | `02-identidad` |
-| **Tasks** | `E2-T1` … `E2-T12` (pasos BG-17 … BG-28) |
+| **Tasks** | `E2-T1` … `E2-T16` (pasos BG-17 … BG-28 y BG-46 … BG-49; las cuatro últimas se construyen después de `E2-T12` y antes de `E3-T1`) |
 | **Depends on** | `01-cimientos-multitaller` |
 | **Unlocks** | `03-reservas-por-taller` |
 | **Parallel with** | ninguna |
@@ -16,7 +16,7 @@ You do not need any other file to complete this epic. Everything below is repeat
 
 ## Stack
 
-Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon · Preact (isla de reserva) · Vitest + PGlite · Playwright (tablet 820×1180). `pnpm` 12.4.2; Node 24. Ninguna dependencia nueva.
+Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon · Preact (isla de reserva) · Vitest + PGlite · Playwright (tablet 820×1180). `pnpm` 12.4.2; Node 24. Una dependencia nueva, solo en `E2-T14`: `@fontsource-variable/inter` 5.3.0 (la instala la sesión coordinadora con `pnpm add -w --save-exact @fontsource-variable/inter@5.3.0`; el sandbox de Codex no tiene red).
 
 | Task | Command |
 |---|---|
@@ -30,11 +30,11 @@ Astro 7 SSR · TypeScript 6 · Postgres 16 · Drizzle ORM 0.45 · zod 4 · luxon
 
 **Gate:** `pnpm format && pnpm gate`. **Reparto:** Codex implementa y corre solo `pnpm format && pnpm check && pnpm test && pnpm build` (sin red, sin commits); la sesión coordinadora escribe el encargo `docs/encargos/BG-NN-<tema>.md`, corre `test:tablet`, `test:build`, `smoke`, el Verify completo y `gate`, commitea y pone el tag. Reversión: `git reset --hard bg-<anterior>` (esta épica no toca el esquema).
 
-**Reglas transversales de cada tarea:** pruebas primero; ≤ 5 archivos escritos a mano (salvo E2-T11 y E2-T12, excepciones declaradas); las pruebas existentes cambian solo por **firma, siembra o su línea de import** (lista en la tarea) o en los **valores declarados**; **valores esperados que pueden cambiar en esta épica, y solo donde la tarea lo declara:** la línea `Gestionado con Llave 15` al pie de correos y páginas del cliente; el remitente `<Taller> · Llave 15 <…>`; los títulos y la marca del personal que pasan a `Llave 15`; la URL del logo, que pasa de `/brand/vector-bikes-logo.png` a `/vector-bikes/logo`. Los valores de Vector Bikes (nombre, dirección, comunas, tarifas, horarios) no cambian. **Ningún dato de un taller en `src/`**; nunca editar `drizzle/`; correos después del commit; sin PII en logs; ningún hex nuevo; ninguna isla nueva. **Checkpoint:** `git add --` con las rutas del paso (en E2-T11 y E2-T12, `git add -u -- <carpetas>` + los nuevos por nombre); nunca `git add -A`.
+**Reglas transversales de cada tarea:** pruebas primero; ≤ 5 archivos escritos a mano (salvo E2-T11 y E2-T12, excepciones declaradas); las pruebas existentes cambian solo por **firma, siembra o su línea de import** (lista en la tarea) o en los **valores declarados**; **valores esperados que pueden cambiar en esta épica, y solo donde la tarea lo declara:** la línea `Gestionado con Llave 15` al pie de correos y páginas del cliente; el remitente `<Taller> · Llave 15 <…>`; los títulos y la marca del personal que pasan a `Llave 15`; la URL del logo, que pasa de `/brand/vector-bikes-logo.png` a `/vector-bikes/logo`; en `E2-T14`, el `descriptor` de `PLATFORM` y el conjunto de tokens de `layouts.test.ts`; en `E2-T16`, la marca del menú (firma con `alt="Llave 15"` + `Taller`) y la línea `<Taller> · Gestionado con Llave 15`. Los valores de Vector Bikes (nombre, dirección, comunas, tarifas, horarios) no cambian. **Ningún dato de un taller en `src/`**; nunca editar `drizzle/`; correos después del commit; sin PII en logs; ningún hex fuera de `src/styles/tokens.css` (hasta `E2-T13`, ningún hex nuevo; la paleta Llave 15 entra en `E2-T14`); ninguna isla nueva. **Checkpoint:** `git add --` con las rutas del paso (en E2-T11 y E2-T12, `git add -u -- <carpetas>` + los nuevos por nombre); nunca `git add -A`.
 
 **Pruebas que importan `src/lib/site.ts`** (once en `8bca898`, más `tests/unit/vector-bikes-profile.test.ts` de E1-T4): dejan de importarlo en la tarea que toca lo que prueban, **cambiando solo la línea de import o el armado de la marca, nunca la cola de un matcher**. Las que leen `SITE` importan desde E2-T2 el accesorio `SITE` de `tests/helpers/shops.ts` (mismos campos y valores que `src/lib/site.ts` en `8bca898`, copiados con `git show 8bca898:src/lib/site.ts`); las que hacen `vi.mock` de `src/lib/site.ts` arman la marca con los valores del mock y la pasan como argumento, y quitan el `vi.mock` cuando ya nada de lo que prueban usa `SITE`. Reparto: `rescheduled-email` (E2-T2); `received-email`, `ready-email`, `pricing-emails` (E2-T3); `part-added-email` y el `vi.mock` de `email-brand` (E2-T4); `delivery-date-email` (E2-T5); el `vi.mock` de `report-view-brand` (E2-T8); `low-stock`, `lineas-aviso-repuesto`, `tests/build/landing.test.ts` (`whatsappHref`) y `vector-bikes-profile` (E2-T11). Ninguna prueba importa `src/lib/faq.ts`.
 
-**Cobertura de tablet:** E2-T3 corre `e2e/recepcion-completa.spec.ts` y `e2e/control-calidad.spec.ts`; E2-T7 `e2e/seguimiento-enlace.spec.ts`; E2-T8 `e2e/etiqueta.spec.ts`; E2-T11 todo `pnpm test:tablet`.
+**Cobertura de tablet:** E2-T3 corre `e2e/recepcion-completa.spec.ts` y `e2e/control-calidad.spec.ts`; E2-T7 `e2e/seguimiento-enlace.spec.ts`; E2-T8 `e2e/etiqueta.spec.ts`; E2-T11, E2-T15 y E2-T16 todo `pnpm test:tablet`.
 
 ## Directory subtree
 
@@ -56,6 +56,11 @@ src/layouts/Base.astro · islands/BookingSchedule.tsx · BookingTicket.tsx  # ed
 src/lib/site.ts · src/lib/faq.ts                                       # DELETE (E2-T11) · src/lib/whatsapp.ts NEW
 páginas de /taller y /admin con títulos                                # edit (E2-T11, mecánico)
 src/server/booking/{rules,config,slots}.ts + importadores de tiempo    # edit (E2-T12, mecánico)
+public/brand/llave15-{distintivo,firma,firma-invertida,firma-mono}.svg # NEW (E2-T13)
+src/styles/tokens.css · src/layouts/AppLayout.astro · src/lib/platform.ts   # edit (E2-T14) · public/brand/llave15-favicon-16.svg NEW
+package.json · pnpm-lock.yaml                                          # edit por comando (E2-T14: pnpm add de Inter)
+src/styles/llave15.css                                                 # NEW (E2-T15) · taller-components.css · AppLayout.astro · admin/login.astro edit
+src/layouts/TallerLayout.astro · PublicLayout.astro · src/styles/taller-layout.css · src/server/email/templates.ts   # edit (E2-T16)
 ```
 
 ## Data model touched here
@@ -78,6 +83,10 @@ Ninguna tabla cambia. Se leen de `shops`: `name`, `email`, `notify_email`, `phon
 | `booking-state.ts` → `IslandShop`, `ShopContext`, `consentTexts` | `consentTexts(name): [string, string]` |
 | `web/vector-bikes/src/content/site.ts` → `VECTOR_BIKES_SITE`, `BOOKING_URL` | datos; solo tipos importados |
 | `src/lib/whatsapp.ts` → `whatsappHref` (E2-T11) | la misma firma que tenía en `src/lib/site.ts` |
+| `src/lib/platform.ts` → `PLATFORM.descriptor` (E2-T14) | `"Software de gestión para talleres de bicicletas"` |
+| `src/styles/tokens.css` → `:root.l15` (E2-T14) | tokens de Llave 15, solo claro; `AppLayout` pone `class="l15"` en `<html>` |
+| `src/styles/llave15.css` (E2-T15) | tipos, controles, foco y `--status-bg`/`--status-ink` por estado, bajo `.l15` |
+| `public/brand/llave15-*.svg` (E2-T13, E2-T14) | distintivo, firma principal, invertida y monocromática, favicon de 16 px; nombre accesible `Llave 15` |
 | `tests/helpers/shops.ts` (siembra) → `SITE` y `vectorBikesBrand()` (E2-T2), `VECTOR_BIKES_BOOKING_CONFIG` (E2-T12) | ayudantes de prueba; `SITE` con los campos y valores de `src/lib/site.ts` en `8bca898` |
 
 ## Conventions that bite in this area
@@ -88,6 +97,8 @@ Ninguna tabla cambia. Se leen de `shops`: `name`, `email`, `notify_email`, `phon
 - Los componentes nunca importan `src/server/**`: `ReportView` y `PublicLayout` reciben datos ya formateados.
 - Títulos del personal con `PLATFORM.name`; textos que van al cliente con el nombre del perfil.
 - `global.css` sigue siendo el diseño aprobado: solo sale el bloque `:root` a `tokens.css`, copiado literal.
+- Identidad Llave 15 por partes (`E2-T13` … `E2-T16`) y nunca antes: hasta `E2-T13`, el monocromo; tokens e Inter en `E2-T14`; controles, foco, estados e ingreso en `E2-T15`; menú, pie y correos en `E2-T16`. Todo cuelga de `:root.l15`/`.l15` o de `.taller`: la portada heredada (`Base.astro`) y `web/vector-bikes/` no cambian, y `global.css` no se toca en ninguna de las cuatro.
+- Estados: la forma y el texto de siempre más el color de su grupo (neutro, en curso, espera, listo, bloqueo) con `--status-bg`/`--status-ink`; nunca solo color.
 - Una prueba que deja de importar `src/lib/site.ts` no cambia ninguna expectativa: si `SITE.name` o `SITE.url` aparecen dentro de un matcher, siguen ahí, leídos del accesorio `SITE` de `tests/helpers/shops.ts`.
 
 Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/shops.md`, `taller-domain.md`, `taller-ui.md`, `ui-design.md`, `server-api.md`, `booking-engine.md`.
@@ -637,4 +648,203 @@ pnpm format && pnpm gate   # expect: exit 0
 git add -u -- src scripts tests e2e   # -u: solo archivos ya seguidos; nunca duplicados de iCloud sin seguimiento
 git commit -m "refactor: bg-28 remove shop constants from the booking engine" && git tag bg-28
 git tag -l bg-28 | grep -qx bg-28   # expect: exit 0
+```
+
+### `E2-T13` — BG-46 Add provisional Llave 15 brand marks
+
+**Depends on:** `E2-T12` · **Priority:** p1
+
+Las cuatro tareas `E2-T13` … `E2-T16` llevan la identidad visual del manual de marca del dueño (`docs/marca/Manual_de_marca_Llave_15.docx`; imágenes `docs/marca/llave15-portada.png`, `llave15-variantes.png`, `llave15-muestra-orden.png`). Se construyen después de `E2-T12` y antes de `E3-T1`.
+
+1. `tests/unit/llave15-brand.test.ts` primero: lee cada SVG, comprueba las marcas de accesibilidad, la ausencia de `<text>`, `<image>`, `<style>`, `<script>` y `font-family`, que sus hex (en minúsculas) sean un subconjunto de los de su variante, y lo rasteriza con `sharp` (cada firma a 132 px de ancho, el distintivo a 24 px).
+2. Dibujar a mano cuatro SVG provisionales: la letra es trazo (`<path>`), así DIN Condensed nunca se carga. Cada archivo: `xmlns="http://www.w3.org/2000/svg"`, `viewBox`, `role="img"`, `aria-label="Llave 15"` y `<title>Llave 15</title>` como primer hijo.
+3. **Distintivo** (`viewBox="0 0 40 40"`): cuadrado de radio 6 con corte oblicuo en la esquina superior derecha (el borde superior termina en x = 29 y baja en diagonal hasta (40, 11)), relleno `#ae3718`, "15" condensado en negrita, en trazos, `#ffffff`, centrado.
+4. **Firma** (`viewBox="0 0 176 40"`): distintivo en x 0–40 y `LLAVE 15` condensado en negrita, en trazos, desde x = 50 (¼ del lado del distintivo), alto de mayúscula 26. `llave15-firma.svg` principal (distintivo `#ae3718` con "15" `#ffffff`, letras `#171c22`); `llave15-firma-invertida.svg` (distintivo `#ff774f` con "15" `#171c22`, letras `#ffffff`); `llave15-firma-mono.svg` (distintivo `#171c22` con "15" `#ffffff`, letras `#171c22`).
+5. Ningún archivo de `src/` cambia: nadie los usa todavía. `public/favicon.svg` y los archivos de Vector Bikes de `public/brand/` no se tocan.
+
+**Files**
+- `public/brand/llave15-distintivo.svg` — new
+- `public/brand/llave15-firma.svg` — new
+- `public/brand/llave15-firma-invertida.svg` — new
+- `public/brand/llave15-firma-mono.svg` — new
+- `tests/unit/llave15-brand.test.ts` — new
+
+Reglas: `ui-design.md`. BG-D37.
+
+**Acceptance**
+
+1. **WHEN** `tests/unit/llave15-brand.test.ts` lee los cuatro SVG de `public/brand/` **THE SYSTEM SHALL** encontrar en cada uno `xmlns="http://www.w3.org/2000/svg"`, un `viewBox`, `role="img"`, `aria-label="Llave 15"` y `<title>Llave 15</title>`
+2. **WHEN** se buscan `<text`, `<image`, `<style`, `<script` y `font-family` en los cuatro SVG **THE SYSTEM SHALL** no encontrar ninguno
+3. **WHEN** la prueba extrae los hex de cada SVG **THE SYSTEM SHALL** encontrar solo `#ae3718` y `#ffffff` en el distintivo, `#ae3718`, `#ffffff` y `#171c22` en la firma principal, `#ff774f`, `#171c22` y `#ffffff` en la invertida, y `#171c22` y `#ffffff` en la monocromática
+4. **WHEN** `sharp` rasteriza cada firma a 132 px de ancho y el distintivo a 24 px **THE SYSTEM SHALL** producir un PNG de ese ancho sin error
+5. **WHEN** corre `git status --porcelain -- src` **THE SYSTEM SHALL** no listar ningún archivo
+
+**Verify**
+
+```bash
+pnpm test tests/unit/llave15-brand.test.ts   # expect: exit 0, 0 failed
+for f in distintivo firma firma-invertida firma-mono; do test -f "public/brand/llave15-$f.svg" || echo "$f"; done | grep -q .; test $? -eq 1   # expect: 1 = no falta ninguno → la línea sale 0
+grep -lE '<text|<image|<style|<script|font-family' public/brand/llave15-distintivo.svg public/brand/llave15-firma.svg public/brand/llave15-firma-invertida.svg public/brand/llave15-firma-mono.svg; test $? -eq 1   # expect: 1 = letra en trazos, sin texto ni estilos → la línea sale 0
+s="$(git status --porcelain -- src)" && test -z "$s"   # expect: exit 0 — ningún archivo de src cambió
+node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
+pnpm format && pnpm gate   # expect: exit 0
+```
+
+**Checkpoint**
+
+```bash
+git add -- public/brand/llave15-distintivo.svg public/brand/llave15-firma.svg public/brand/llave15-firma-invertida.svg public/brand/llave15-firma-mono.svg tests/unit/llave15-brand.test.ts
+git commit -m "feat: bg-46 add provisional llave 15 brand marks" && git tag bg-46
+git tag -l bg-46 | grep -qx bg-46   # expect: exit 0
+```
+
+### `E2-T14` — BG-47 Add Llave 15 tokens, Inter type and favicon
+
+**Depends on:** `E2-T12`, `E2-T13` · **Priority:** p1
+
+0. **Antes del pase (sesión coordinadora, con red):** `pnpm add -w --save-exact @fontsource-variable/inter@5.3.0`. Cambia solo `dependencies` de `package.json` y `pnpm-lock.yaml` (por comando: no cuentan para el límite de 5 archivos, BG-D34).
+1. `tests/integration/llave15-tokens.test.ts` primero: mapa exacto de `:root.l15`, selectores oscuros con `:not(.l15)`, `AppLayout.astro` importa Inter y no las fuentes del monocromo, render de `AppLayout` con la Container API, favicon rasterizado a 16 px con `sharp`, `PLATFORM.descriptor`.
+2. `tokens.css`: el bloque `:root` y los dos oscuros de BG-22 conservan sus valores; los selectores oscuros pasan a `:root:not([data-theme="light"]):not(.l15)` y `:root[data-theme="dark"]:not(.l15)`. Bloque nuevo `:root.l15` (hex en minúsculas): `--ground` `#f5f4f1`, `--surface` `#ffffff`, `--ink` `#171c22`, `--ink-2` y `--steel` `#515a64`, `--rule` `#d9d9d9`, `--hatch` `#e3e3df`, `--on-ink` `#ffffff`, `--field-border` `#858e97`, `--logo-filter` `none`, `--accent` `#ae3718`, `--accent-hover` `#8d2b13`, `--brand-on-dark` `#ff774f`, `--focus` `#195faf`, `--status-neutral-bg` `#eceff2`, `--status-neutral-ink` `#48525d`, `--status-progress-bg` `#e6eef8`, `--status-progress-ink` `#235285`, `--status-waiting-bg` `#fff2d9`, `--status-waiting-ink` `#734800`, `--status-ready-bg` `#dfefe5`, `--status-ready-ink` `#1a5d3b`, `--status-blocking-bg` `#fbe5e2`, `--status-blocking-ink` `#942b2b`, `--radius-control` `8px`, `--radius-card` `12px`, y `--display`, `--body`, `--mono` = `"Inter Variable", Arial, sans-serif`.
+3. `AppLayout`: `<html lang="es-CL" class="l15">`; importa `@fontsource-variable/inter/index.css` y precarga `@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url` (patrón de `Base.astro` con Archivo) en vez de Michroma, Archivo e IBM Plex Mono (los paquetes se quedan para la portada heredada); íconos `<link rel="icon" type="image/svg+xml" href="/brand/llave15-distintivo.svg" />` y `<link rel="icon" type="image/svg+xml" sizes="16x16" href="/brand/llave15-favicon-16.svg" />`.
+4. `public/brand/llave15-favicon-16.svg`: distintivo simplificado para 16 px (`viewBox="0 0 16 16"`, corte más simple, "15" en trazos gruesos), mismas marcas y prohibiciones de `E2-T13`, hex `#ae3718` y `#ffffff`.
+5. `platform.ts`: `PLATFORM` gana `descriptor: "Software de gestión para talleres de bicicletas"`.
+6. **Valor esperado declarado:** `tests/integration/layouts.test.ts` (de `E2-T6`), si compara el conjunto completo de hex o de bloques de `tokens.css` o el `<html lang="es-CL">` literal, acepta el bloque `:root.l15` y `class="l15"`; nada más (`--skip` en la paridad). Si una prueba compara `PLATFORM` completo, gana `descriptor`. `global.css` y `Base.astro` no cambian.
+
+**Files**
+- `src/styles/tokens.css` — edit
+- `src/layouts/AppLayout.astro` — edit
+- `public/brand/llave15-favicon-16.svg` — new
+- `src/lib/platform.ts` — edit
+- `tests/integration/llave15-tokens.test.ts` — new
+- `package.json`, `pnpm-lock.yaml` — edit por comando · `tests/integration/layouts.test.ts` — valor declarado
+
+Reglas: `ui-design.md`. BG-D33, BG-D34.
+
+**Acceptance**
+
+1. **WHEN** `tests/integration/llave15-tokens.test.ts` lee `src/styles/tokens.css` **THE SYSTEM SHALL** encontrar en `:root.l15` exactamente los valores de Llave 15 de este paso y los dos selectores oscuros con `:not(.l15)`
+2. **WHEN** se comparan los hex de `tokens.css` y `global.css` con los de `global.css` en `8bca898` **THE SYSTEM SHALL** no perder ninguno y sumar exactamente los 19 de la paleta Llave 15
+3. **WHEN** se renderiza `AppLayout` **THE SYSTEM SHALL** emitir `<html lang="es-CL" class="l15">` y los íconos `/brand/llave15-distintivo.svg` y `/brand/llave15-favicon-16.svg`, y `AppLayout.astro` SHALL importar `@fontsource-variable/inter` y no `@fontsource/michroma`, `@fontsource-variable/archivo` ni `@fontsource/ibm-plex-mono`
+4. **WHEN** se lee `package.json` **THE SYSTEM SHALL** tener `@fontsource-variable/inter` igual a `5.3.0` en `dependencies`, y `node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2` SHALL existir
+5. **WHEN** `sharp` rasteriza `public/brand/llave15-favicon-16.svg` a 16 px **THE SYSTEM SHALL** producir un PNG de 16 px sin error, y `PLATFORM.descriptor` SHALL ser `Software de gestión para talleres de bicicletas`
+6. **WHEN** corren `pnpm build && pnpm test:build` y `node scripts/bg-expect-parity.ts --allow 'Software de gestión para talleres de bicicletas' --skip tests/integration/layouts.test.ts` **THE SYSTEM SHALL** salir 0
+
+**Verify**
+
+```bash
+pnpm test tests/integration/llave15-tokens.test.ts tests/integration/layouts.test.ts   # expect: exit 0, 0 failed
+test "$(node -p "require('./package.json').dependencies['@fontsource-variable/inter']")" = 5.3.0   # expect: exit 0
+test -f node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2   # expect: exit 0
+node -e "const { execFileSync } = require('child_process'); const fs = require('fs'); const hex = (t) => new Set((t.match(/#[0-9a-f]{6}/gi) || []).map((h) => h.toLowerCase())); const old = hex(execFileSync('git', ['show', '8bca898:src/styles/global.css'], { encoding: 'utf8' })); const now = hex(fs.readFileSync('src/styles/tokens.css', 'utf8') + fs.readFileSync('src/styles/global.css', 'utf8')); const lost = [...old].filter((h) => !now.has(h)); const added = [...now].filter((h) => !old.has(h)).sort().join(' '); const want = '#171c22 #195faf #1a5d3b #235285 #48525d #515a64 #734800 #858e97 #8d2b13 #942b2b #ae3718 #d9d9d9 #dfefe5 #e6eef8 #eceff2 #f5f4f1 #fbe5e2 #ff774f #fff2d9'; if (lost.length > 0 || added !== want) { console.error('perdidos:', lost.join(' '), 'nuevos:', added); process.exit(1); }"   # expect: exit 0 — ningún hex perdido y exactamente los 19 nuevos
+grep -qE '@fontsource/michroma|@fontsource-variable/archivo|@fontsource/ibm-plex-mono' src/layouts/AppLayout.astro; test $? -eq 1   # expect: 1 = AppLayout ya no carga las fuentes del monocromo → la línea sale 0
+d="$(git diff HEAD --name-only -- src/styles/global.css src/layouts/Base.astro)" && test -z "$d"   # expect: exit 0 — ni global.css ni Base.astro cambiaron
+pnpm build && pnpm test:build   # expect: exit 0 — la portada heredada no cambia
+node scripts/bg-expect-parity.ts --allow 'Software de gestión para talleres de bicicletas' --skip tests/integration/layouts.test.ts   # expect: exit 0 — solo cambian expectativas declaradas
+pnpm format && pnpm gate   # expect: exit 0
+```
+
+**Checkpoint**
+
+```bash
+git add -- src/styles/tokens.css src/layouts/AppLayout.astro public/brand/llave15-favicon-16.svg src/lib/platform.ts tests/integration/llave15-tokens.test.ts tests/integration/layouts.test.ts package.json pnpm-lock.yaml && git add -u -- tests   # -u: solo las pruebas existentes con los valores declarados; nunca duplicados de iCloud sin seguimiento
+git commit -m "feat: bg-47 add llave 15 tokens inter type and favicon" && git tag bg-47
+git tag -l bg-47 | grep -qx bg-47   # expect: exit 0
+```
+
+### `E2-T15` — BG-48 Restyle controls, focus, status badges and login for Llave 15
+
+**Depends on:** `E2-T12`, `E2-T14` · **Priority:** p1
+
+1. `tests/integration/llave15-components.test.ts` primero: parsea los bloques (selectores y declaraciones) de `llave15.css` y `taller-components.css`; renderiza `/admin/login` con la Container API.
+2. `src/styles/llave15.css` (nuevo), todo bajo `.l15`, sin hex, sin sombras, sin `!important`, bajo 400 líneas: tipos (`h1` 600 28px/36px, `h2` 600 20px/28px, cuerpo 16px/24px, `table.dense` y `.label` 14px/20px; `.label` sin mayúsculas forzadas ni tracking; `tabular-nums` en `table`, `.mono`, `.status` y montos); `.btn` fondo y borde `var(--accent)`, texto `var(--on-ink)`, radio `var(--radius-control)`, hover `var(--accent-hover)`; `.btn.ghost` fondo `var(--surface)`, texto `var(--ink)`, borde `var(--field-border)` y en hover `var(--ink)`; `input`, `select`, `textarea`, `button` con radio `var(--radius-control)` y borde `var(--field-border)`; superficies de `global.css` con radio 2px (tarjetas, ticket, avisos) con `var(--radius-card)`; `:focus-visible` con `outline: 2px solid var(--focus)` y `outline-offset: 2px`, `var(--on-ink)` dentro de `.on-dark`.
+3. Estados en `llave15.css` (BG-D36): `.status` (neutro por omisión) y cada `.status--<clase>` fijan `--status-bg` y `--status-ink` de su grupo. Neutro: `reservada`, `recibida`, `entregada`, `cancelada`, `anulada`, `draft`, `published`, `withdrawn`, `sin_dato_verificado`, `no_verificada`. En curso: `diagnostico`, `en_reparacion`, `control_calidad`, `abierta`, `submitted`, `in_review`, `en_revision`. Espera: `esperando_aprobacion`, `esperando_repuesto`, `bajo`, `needs_changes`, `condicionado`, `condicionada`, `desactualizado`, `media`, `baja`. Listo: `lista_para_retirar`, `verificado`, `oficial_confirmada`, `approved`, `alta`, `activo`. Bloqueo: `trabajo_rechazado`, `sin-stock`, `diferencia`, `rejected`, `incompatible`, `suspendido`.
+4. `taller-components.css`: `.taller .status` gana `background: var(--status-bg, transparent)`, `color: var(--status-ink, inherit)`, borde `currentColor` y radio `var(--radius-control)`; bordes dobles de `var(--ink)` a `currentColor`; rayados con `var(--status-bg, var(--surface))`; cada `border-style` y `::before` igual; `.taller .btn` y hover como en `llave15.css`, `.btn.ghost` neutro; `.card`, `[role="status"]`, `[role="alert"]`, `.lib-category` con `var(--radius-card)`; `.options label` y fotos con `var(--radius-control)`; `[role="alert"]` con fondo `var(--status-blocking-bg)` y texto `var(--status-blocking-ink)` (incluye "Hay saldo pendiente: registra el pago antes de entregar"); `:focus-visible` como en `llave15.css`. Bajo 400 líneas.
+5. `AppLayout`: `import "../styles/llave15.css";` después de `global.css`. `/admin/login`: `<img src="/brand/llave15-firma.svg" alt="Llave 15" width="176" height="40" />` sobre el formulario, con espacio libre de al menos 10 px, y un `<p>` con `PLATFORM.descriptor`; ningún otro texto cambia. `global.css` no se toca.
+
+**Files**
+- `src/styles/llave15.css` — new
+- `src/styles/taller-components.css` — edit
+- `src/layouts/AppLayout.astro` — edit
+- `src/pages/admin/login.astro` — edit
+- `tests/integration/llave15-components.test.ts` — new
+
+Reglas: `ui-design.md`, `taller-ui.md`. BG-D35, BG-D36.
+
+**Acceptance**
+
+1. **WHEN** `tests/integration/llave15-components.test.ts` lee `src/styles/llave15.css` **THE SYSTEM SHALL** encontrar cada clase de estado de este paso en exactamente uno de los cinco grupos, con `--status-bg` y `--status-ink` de ese grupo
+2. **WHEN** la prueba lee `src/styles/taller-components.css` **THE SYSTEM SHALL** encontrar `background: var(--status-bg, transparent)` en `.taller .status` y conservar la regla `.taller .status--<estado>::before` de cada estado de `STATUS_LABELS`
+3. **WHEN** la prueba lee `.l15 .btn` en `llave15.css` y `.taller .btn` en `taller-components.css` **THE SYSTEM SHALL** encontrar fondo `var(--accent)` y en `:hover` `var(--accent-hover)`, y la regla `:focus-visible` de cada archivo SHALL tener `outline: 2px solid var(--focus)` y `outline-offset: 2px`
+4. **WHEN** se buscan hex en `llave15.css` y `taller-components.css` y `box-shadow` en `llave15.css` **THE SYSTEM SHALL** no encontrar ninguno
+5. **WHEN** se renderiza `/admin/login` **THE SYSTEM SHALL** mostrar `<img src="/brand/llave15-firma.svg" alt="Llave 15"` y `Software de gestión para talleres de bicicletas` junto a los textos de hoy del formulario
+6. **WHEN** corren `pnpm build && pnpm test:build && pnpm test:tablet` y `node scripts/bg-expect-parity.ts` **THE SYSTEM SHALL** salir 0
+
+**Verify**
+
+```bash
+pnpm test tests/integration/llave15-components.test.ts tests/integration/biblioteca-pages.test.ts   # expect: exit 0, 0 failed
+grep -nE '#[0-9A-Fa-f]{3,8}([^0-9A-Za-z]|$)' src/styles/llave15.css src/styles/taller-components.css; test $? -eq 1   # expect: 1 = ningún hex fuera de tokens.css → la línea sale 0
+grep -q 'box-shadow' src/styles/llave15.css; test $? -eq 1   # expect: 1 = sin sombras → la línea sale 0
+for f in src/styles/llave15.css src/styles/taller-components.css; do test "$(wc -l < "$f" | tr -d ' ')" -lt 400 || echo "$f"; done | grep -q .; test $? -eq 1   # expect: 1 = ninguno llega a 400 → la línea sale 0
+d="$(git diff HEAD --name-only -- src/styles/global.css src/layouts/Base.astro)" && test -z "$d"   # expect: exit 0 — global.css y Base.astro intactos
+pnpm build && pnpm test:build && pnpm test:tablet   # expect: exit 0, 0 failed
+node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
+pnpm format && pnpm gate   # expect: exit 0
+```
+
+**Checkpoint**
+
+```bash
+git add -- src/styles/llave15.css src/styles/taller-components.css src/layouts/AppLayout.astro src/pages/admin/login.astro tests/integration/llave15-components.test.ts
+git commit -m "feat: bg-48 restyle controls focus and status badges for llave 15" && git tag bg-48
+git tag -l bg-48 | grep -qx bg-48   # expect: exit 0
+```
+
+### `E2-T16` — BG-49 Apply the Llave 15 signature to staff, customer and email layouts
+
+**Depends on:** `E2-T12`, `E2-T15` · **Priority:** p1
+
+1. `tests/integration/llave15-layouts.test.ts` primero: renderiza `TallerLayout` y `PublicLayout` con la Container API, lee `taller-layout.css` y arma la confirmación de una reserva del Taller Demo.
+2. `TallerLayout`: `<p class="taller-brand">` pasa a `<a class="taller-brand on-dark" href="/taller"><img src="/brand/llave15-firma-invertida.svg" alt="Llave 15" width="132" height="30" /><span class="taller-area">Taller</span></a>`; la línea del usuario, el menú, sus grupos, enlaces, permisos y `Salir` no cambian.
+3. `taller-layout.css`: `.taller .taller-aside` con `background: var(--ink)` y `color: var(--on-ink)` (en tablet es la barra superior); en escritorio, enlaces del panel en `var(--on-ink)`, el actual con fondo `var(--surface)` y texto `var(--ink)`, hover con borde `var(--on-ink)`; el cajón de tablet (`:popover-open` bajo 1024px) sigue en `var(--surface)` con `var(--ink)`; `.taller-user` en `var(--on-ink)`; foco blanco dentro del grafito (`.taller-aside :focus-visible`, salvo en el cajón abierto); controles con `var(--radius-control)`, cajón con `var(--radius-card)`; espacio libre de la firma de al menos 8px; objetivos de 48px y compactación con mouse iguales.
+4. `PublicLayout`: encabezado igual; pie `<img src="/brand/llave15-distintivo.svg" alt="" width="24" height="24" />` (decorativo) + `{profile.name} · {PLATFORM.footerLine}`. `templates.ts`: el pie compartido escribe `${brand.shopName} · ${brand.footerLine}` en `text` y `html`, sin imágenes nuevas; si el pie se arma en más de un archivo, detenerse y reportarlo.
+5. **Valores esperados declarados:** `Llave 15 · Taller` (menú, de `E2-T11`) → firma `<img … alt="Llave 15">` + `Taller`; `Gestionado con Llave 15` del pie del cliente y de los correos → `<nombre del taller> · Gestionado con Llave 15` (`Vector Bikes · Gestionado con Llave 15`). Solo esas expectativas, en las pruebas existentes que las afirman; `--allow 'Llave 15'`. La línea `Taller / Sucursal` de la muestra no entra (BG-D38).
+
+**Files**
+- `src/layouts/TallerLayout.astro` — edit
+- `src/styles/taller-layout.css` — edit
+- `src/layouts/PublicLayout.astro` — edit
+- `src/server/email/templates.ts` — edit
+- `tests/integration/llave15-layouts.test.ts` — new
+- Pruebas existentes con los valores declarados del punto 5 — edit
+
+Reglas: `ui-design.md`, `taller-ui.md`, `taller-domain.md`. RC 6, 14. BG-D38, BG-D39.
+
+**Acceptance**
+
+1. **WHEN** se renderiza `TallerLayout` **THE SYSTEM SHALL** mostrar `<img src="/brand/llave15-firma-invertida.svg" alt="Llave 15"` con `width="132"` y el texto `Taller`, y los mismos enlaces de menú de hoy para cada rol
+2. **WHEN** `tests/integration/llave15-layouts.test.ts` lee `src/styles/taller-layout.css` **THE SYSTEM SHALL** encontrar `.taller .taller-aside` con `background: var(--ink)` y `color: var(--on-ink)`, y ningún hex
+3. **WHEN** se renderiza `PublicLayout` con el perfil del Taller Demo **THE SYSTEM SHALL** mostrar `Taller Demo` en el encabezado y `Taller Demo · Gestionado con Llave 15` al pie junto a `/brand/llave15-distintivo.svg`
+4. **WHEN** se arma la confirmación de una reserva del Taller Demo **THE SYSTEM SHALL** cerrar `text` y `html` con la línea `Taller Demo · Gestionado con Llave 15`
+5. **WHEN** corren `pnpm test`, `pnpm test:build` y `pnpm test:tablet` completos **THE SYSTEM SHALL** pasar
+6. **WHEN** corre `node scripts/bg-expect-parity.ts --allow 'Llave 15'` **THE SYSTEM SHALL** salir 0
+
+**Verify**
+
+```bash
+pnpm test tests/integration/llave15-layouts.test.ts tests/integration/layouts.test.ts tests/integration/booking-emails-isolation.test.ts tests/integration/email.test.ts   # expect: exit 0, 0 failed
+grep -nE '#[0-9A-Fa-f]{3,8}([^0-9A-Za-z]|$)' src/styles/taller-layout.css; test $? -eq 1   # expect: 1 = ningún hex fuera de tokens.css → la línea sale 0
+test "$(wc -l < src/server/email/templates.ts | tr -d ' ')" -lt 400   # expect: exit 0
+pnpm test   # expect: exit 0, 0 failed
+pnpm build && pnpm test:build && pnpm test:tablet   # expect: exit 0, 0 failed
+node scripts/bg-expect-parity.ts --allow 'Llave 15'   # expect: exit 0 — solo cambian expectativas declaradas
+pnpm format && pnpm gate   # expect: exit 0
+```
+
+**Checkpoint**
+
+```bash
+git add -- src/layouts/TallerLayout.astro src/styles/taller-layout.css src/layouts/PublicLayout.astro src/server/email/templates.ts tests/integration/llave15-layouts.test.ts && git add -u -- tests   # -u: solo las pruebas existentes con los valores declarados; nunca duplicados de iCloud sin seguimiento
+git commit -m "feat: bg-49 apply llave 15 signature to staff customer and email layouts" && git tag bg-49
+git tag -l bg-49 | grep -qx bg-49   # expect: exit 0
 ```

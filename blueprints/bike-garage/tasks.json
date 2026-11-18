@@ -963,10 +963,146 @@
     "status": "pending"
   },
   {
+    "id": "E2-T13",
+    "title": "BG-46 Add provisional Llave 15 brand marks",
+    "epic": "02-identidad",
+    "dependencies": ["E2-T12"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN `tests/unit/llave15-brand.test.ts` lee los cuatro SVG de `public/brand/` THE SYSTEM SHALL encontrar en cada uno `xmlns=\"http://www.w3.org/2000/svg\"`, un `viewBox`, `role=\"img\"`, `aria-label=\"Llave 15\"` y `<title>Llave 15</title>`",
+      "WHEN se buscan `<text`, `<image`, `<style`, `<script` y `font-family` en los cuatro SVG THE SYSTEM SHALL no encontrar ninguno",
+      "WHEN la prueba extrae los hex de cada SVG THE SYSTEM SHALL encontrar solo `#ae3718` y `#ffffff` en el distintivo, `#ae3718`, `#ffffff` y `#171c22` en la firma principal, `#ff774f`, `#171c22` y `#ffffff` en la invertida, y `#171c22` y `#ffffff` en la monocromática",
+      "WHEN `sharp` rasteriza cada firma a 132 px de ancho y el distintivo a 24 px THE SYSTEM SHALL producir un PNG de ese ancho sin error",
+      "WHEN corre `git status --porcelain -- src` THE SYSTEM SHALL no listar ningún archivo"
+    ],
+    "verify": [
+      "pnpm test tests/unit/llave15-brand.test.ts   # expect: exit 0, 0 failed",
+      "for f in distintivo firma firma-invertida firma-mono; do test -f \"public/brand/llave15-$f.svg\" || echo \"$f\"; done | grep -q .; test $? -eq 1   # expect: 1 = no falta ninguno → la línea sale 0",
+      "grep -lE '<text|<image|<style|<script|font-family' public/brand/llave15-distintivo.svg public/brand/llave15-firma.svg public/brand/llave15-firma-invertida.svg public/brand/llave15-firma-mono.svg; test $? -eq 1   # expect: 1 = letra en trazos, sin texto ni estilos → la línea sale 0",
+      "s=\"$(git status --porcelain -- src)\" && test -z \"$s\"   # expect: exit 0 — ningún archivo de src cambió",
+      "node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bg-46",
+    "files": [
+      "public/brand/llave15-distintivo.svg",
+      "public/brand/llave15-firma.svg",
+      "public/brand/llave15-firma-invertida.svg",
+      "public/brand/llave15-firma-mono.svg",
+      "tests/unit/llave15-brand.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T14",
+    "title": "BG-47 Add Llave 15 tokens, Inter type and favicon",
+    "epic": "02-identidad",
+    "dependencies": ["E2-T12", "E2-T13"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN `tests/integration/llave15-tokens.test.ts` lee `src/styles/tokens.css` THE SYSTEM SHALL encontrar en `:root.l15` exactamente los valores de Llave 15 de este paso y los dos selectores oscuros con `:not(.l15)`",
+      "WHEN se comparan los hex de `tokens.css` y `global.css` con los de `global.css` en `8bca898` THE SYSTEM SHALL no perder ninguno y sumar exactamente los 19 de la paleta Llave 15",
+      "WHEN se renderiza `AppLayout` THE SYSTEM SHALL emitir `<html lang=\"es-CL\" class=\"l15\">` y los íconos `/brand/llave15-distintivo.svg` y `/brand/llave15-favicon-16.svg`, y `AppLayout.astro` SHALL importar `@fontsource-variable/inter` y no `@fontsource/michroma`, `@fontsource-variable/archivo` ni `@fontsource/ibm-plex-mono`",
+      "WHEN se lee `package.json` THE SYSTEM SHALL tener `@fontsource-variable/inter` igual a `5.3.0` en `dependencies`, y `node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2` SHALL existir",
+      "WHEN `sharp` rasteriza `public/brand/llave15-favicon-16.svg` a 16 px THE SYSTEM SHALL producir un PNG de 16 px sin error, y `PLATFORM.descriptor` SHALL ser `Software de gestión para talleres de bicicletas`",
+      "WHEN corren `pnpm build && pnpm test:build` y `node scripts/bg-expect-parity.ts --allow 'Software de gestión para talleres de bicicletas' --skip tests/integration/layouts.test.ts` THE SYSTEM SHALL salir 0"
+    ],
+    "verify": [
+      "pnpm test tests/integration/llave15-tokens.test.ts tests/integration/layouts.test.ts   # expect: exit 0, 0 failed",
+      "test \"$(node -p \"require('./package.json').dependencies['@fontsource-variable/inter']\")\" = 5.3.0   # expect: exit 0",
+      "test -f node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2   # expect: exit 0",
+      "node -e \"const { execFileSync } = require('child_process'); const fs = require('fs'); const hex = (t) => new Set((t.match(/#[0-9a-f]{6}/gi) || []).map((h) => h.toLowerCase())); const old = hex(execFileSync('git', ['show', '8bca898:src/styles/global.css'], { encoding: 'utf8' })); const now = hex(fs.readFileSync('src/styles/tokens.css', 'utf8') + fs.readFileSync('src/styles/global.css', 'utf8')); const lost = [...old].filter((h) => !now.has(h)); const added = [...now].filter((h) => !old.has(h)).sort().join(' '); const want = '#171c22 #195faf #1a5d3b #235285 #48525d #515a64 #734800 #858e97 #8d2b13 #942b2b #ae3718 #d9d9d9 #dfefe5 #e6eef8 #eceff2 #f5f4f1 #fbe5e2 #ff774f #fff2d9'; if (lost.length > 0 || added !== want) { console.error('perdidos:', lost.join(' '), 'nuevos:', added); process.exit(1); }\"   # expect: exit 0 — ningún hex perdido y exactamente los 19 nuevos",
+      "grep -qE '@fontsource/michroma|@fontsource-variable/archivo|@fontsource/ibm-plex-mono' src/layouts/AppLayout.astro; test $? -eq 1   # expect: 1 = AppLayout ya no carga las fuentes del monocromo → la línea sale 0",
+      "d=\"$(git diff HEAD --name-only -- src/styles/global.css src/layouts/Base.astro)\" && test -z \"$d\"   # expect: exit 0 — ni global.css ni Base.astro cambiaron",
+      "pnpm build && pnpm test:build   # expect: exit 0 — la portada heredada no cambia",
+      "node scripts/bg-expect-parity.ts --allow 'Software de gestión para talleres de bicicletas' --skip tests/integration/layouts.test.ts   # expect: exit 0 — solo cambian expectativas declaradas",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bg-47",
+    "files": [
+      "src/styles/tokens.css",
+      "src/layouts/AppLayout.astro",
+      "public/brand/llave15-favicon-16.svg",
+      "src/lib/platform.ts",
+      "tests/integration/llave15-tokens.test.ts",
+      "tests/integration/layouts.test.ts",
+      "package.json",
+      "pnpm-lock.yaml"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T15",
+    "title": "BG-48 Restyle controls, focus, status badges and login for Llave 15",
+    "epic": "02-identidad",
+    "dependencies": ["E2-T12", "E2-T14"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN `tests/integration/llave15-components.test.ts` lee `src/styles/llave15.css` THE SYSTEM SHALL encontrar cada clase de estado de este paso en exactamente uno de los cinco grupos, con `--status-bg` y `--status-ink` de ese grupo",
+      "WHEN la prueba lee `src/styles/taller-components.css` THE SYSTEM SHALL encontrar `background: var(--status-bg, transparent)` en `.taller .status` y conservar la regla `.taller .status--<estado>::before` de cada estado de `STATUS_LABELS`",
+      "WHEN la prueba lee `.l15 .btn` en `llave15.css` y `.taller .btn` en `taller-components.css` THE SYSTEM SHALL encontrar fondo `var(--accent)` y en `:hover` `var(--accent-hover)`, y la regla `:focus-visible` de cada archivo SHALL tener `outline: 2px solid var(--focus)` y `outline-offset: 2px`",
+      "WHEN se buscan hex en `llave15.css` y `taller-components.css` y `box-shadow` en `llave15.css` THE SYSTEM SHALL no encontrar ninguno",
+      "WHEN se renderiza `/admin/login` THE SYSTEM SHALL mostrar `<img src=\"/brand/llave15-firma.svg\" alt=\"Llave 15\"` y `Software de gestión para talleres de bicicletas` junto a los textos de hoy del formulario",
+      "WHEN corren `pnpm build && pnpm test:build && pnpm test:tablet` y `node scripts/bg-expect-parity.ts` THE SYSTEM SHALL salir 0"
+    ],
+    "verify": [
+      "pnpm test tests/integration/llave15-components.test.ts tests/integration/biblioteca-pages.test.ts   # expect: exit 0, 0 failed",
+      "grep -nE '#[0-9A-Fa-f]{3,8}([^0-9A-Za-z]|$)' src/styles/llave15.css src/styles/taller-components.css; test $? -eq 1   # expect: 1 = ningún hex fuera de tokens.css → la línea sale 0",
+      "grep -q 'box-shadow' src/styles/llave15.css; test $? -eq 1   # expect: 1 = sin sombras → la línea sale 0",
+      "for f in src/styles/llave15.css src/styles/taller-components.css; do test \"$(wc -l < \"$f\" | tr -d ' ')\" -lt 400 || echo \"$f\"; done | grep -q .; test $? -eq 1   # expect: 1 = ninguno llega a 400 → la línea sale 0",
+      "d=\"$(git diff HEAD --name-only -- src/styles/global.css src/layouts/Base.astro)\" && test -z \"$d\"   # expect: exit 0 — global.css y Base.astro intactos",
+      "pnpm build && pnpm test:build && pnpm test:tablet   # expect: exit 0, 0 failed",
+      "node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bg-48",
+    "files": [
+      "src/styles/llave15.css",
+      "src/styles/taller-components.css",
+      "src/layouts/AppLayout.astro",
+      "src/pages/admin/login.astro",
+      "tests/integration/llave15-components.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
+    "id": "E2-T16",
+    "title": "BG-49 Apply the Llave 15 signature to staff, customer and email layouts",
+    "epic": "02-identidad",
+    "dependencies": ["E2-T12", "E2-T15"],
+    "priority": "p1",
+    "acceptance": [
+      "WHEN se renderiza `TallerLayout` THE SYSTEM SHALL mostrar `<img src=\"/brand/llave15-firma-invertida.svg\" alt=\"Llave 15\"` con `width=\"132\"` y el texto `Taller`, y los mismos enlaces de menú de hoy para cada rol",
+      "WHEN `tests/integration/llave15-layouts.test.ts` lee `src/styles/taller-layout.css` THE SYSTEM SHALL encontrar `.taller .taller-aside` con `background: var(--ink)` y `color: var(--on-ink)`, y ningún hex",
+      "WHEN se renderiza `PublicLayout` con el perfil del Taller Demo THE SYSTEM SHALL mostrar `Taller Demo` en el encabezado y `Taller Demo · Gestionado con Llave 15` al pie junto a `/brand/llave15-distintivo.svg`",
+      "WHEN se arma la confirmación de una reserva del Taller Demo THE SYSTEM SHALL cerrar `text` y `html` con la línea `Taller Demo · Gestionado con Llave 15`",
+      "WHEN corren `pnpm test`, `pnpm test:build` y `pnpm test:tablet` completos THE SYSTEM SHALL pasar",
+      "WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15'` THE SYSTEM SHALL salir 0"
+    ],
+    "verify": [
+      "pnpm test tests/integration/llave15-layouts.test.ts tests/integration/layouts.test.ts tests/integration/booking-emails-isolation.test.ts tests/integration/email.test.ts   # expect: exit 0, 0 failed",
+      "grep -nE '#[0-9A-Fa-f]{3,8}([^0-9A-Za-z]|$)' src/styles/taller-layout.css; test $? -eq 1   # expect: 1 = ningún hex fuera de tokens.css → la línea sale 0",
+      "test \"$(wc -l < src/server/email/templates.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
+      "pnpm test   # expect: exit 0, 0 failed",
+      "pnpm build && pnpm test:build && pnpm test:tablet   # expect: exit 0, 0 failed",
+      "node scripts/bg-expect-parity.ts --allow 'Llave 15'   # expect: exit 0 — solo cambian expectativas declaradas",
+      "pnpm format && pnpm gate   # expect: exit 0"
+    ],
+    "checkpoint": "bg-49",
+    "files": [
+      "src/layouts/TallerLayout.astro",
+      "src/styles/taller-layout.css",
+      "src/layouts/PublicLayout.astro",
+      "src/server/email/templates.ts",
+      "tests/integration/llave15-layouts.test.ts"
+    ],
+    "status": "pending"
+  },
+  {
     "id": "E3-T1",
     "title": "BG-29 Add reserved slugs and scope by slug",
     "epic": "03-reservas-por-taller",
-    "dependencies": ["E2-T12"],
+    "dependencies": ["E2-T12", "E2-T16"],
     "priority": "p0",
     "acceptance": [
       "WHEN `slugSchema` recibe `taller`, `api`, `admin`, `seguimiento`, `informe`, `aprobacion`, `reservas`, `brand`, `_astro` o `favicon` THE SYSTEM SHALL rechazarlo con el mensaje `Ese nombre está reservado.`",

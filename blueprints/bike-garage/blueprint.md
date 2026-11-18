@@ -4,10 +4,10 @@
 > Forma: herramienta interna multi-taller (`internal-tool`) sobre el sitio + taller existentes
 > Runtime track: el del repo (Node 24, pnpm 12.4.2, Astro 7, TypeScript 6) — pins de `pnpm-lock.yaml`
 > Modo de emisión: bundle (`blueprint.md`, `tasks.json`, `epics/01…05`, `workspace/`, `WORKSPACE_BASE`)
-> Versión del blueprint: 2 (corrige la ronda 1 de validación: 1 BLOCKER, 1 MAJOR, 2 MINOR) · Versiones: fijadas por el lockfile en `8bca898`, 2026-11-17 — ver §11
+> Versión del blueprint: 3 (la 2 corrige la ronda 1 de validación: 1 BLOCKER, 1 MAJOR, 2 MINOR; la 3 agrega la identidad visual Llave 15, BG-46 … BG-49, decisiones BG-D32 … BG-D40) · Versiones: fijadas por el lockfile en `8bca898`, 2026-11-17, más `@fontsource-variable/inter` 5.3.0 (BG-47, verificada el 2026-11-18) — ver §11
 > Fuente autoritativa: `blueprints/bike-garage/FASE-BIKE-GARAGE.md` (en adelante **FASE**), aprobado por el dueño el 17-11-2026 (decisión 57). Este documento no la modifica.
 
-Identificadores: cada paso se llama `BG-NN` (de `BG-01` a `BG-45`); su tarea en `tasks.json` es `E<etapa>-T<n>` y su tag de checkpoint es `bg-NN`. Las cinco épicas son las cinco etapas de FASE §3. Las decisiones propias de este blueprint se numeran `BG-D1`, `BG-D2`, …; las globales 1–57 viven en `blueprints/vector-taller-f1/blueprint.md` §20.3 (la 57 abre esta fase). Las tareas de decomisión se llaman `BG-DC1` … `BG-DC4` y no son pasos de §9. Equivalencias en el mapa de §9.
+Identificadores: cada paso se llama `BG-NN` (de `BG-01` a `BG-49`; BG-46 … BG-49, la identidad visual Llave 15, se agregaron después y se construyen entre BG-28 y BG-29, BG-D40); su tarea en `tasks.json` es `E<etapa>-T<n>` y su tag de checkpoint es `bg-NN`. Las cinco épicas son las cinco etapas de FASE §3. Las decisiones propias de este blueprint se numeran `BG-D1`, `BG-D2`, …; las globales 1–57 viven en `blueprints/vector-taller-f1/blueprint.md` §20.3 (la 57 abre esta fase). Las tareas de decomisión se llaman `BG-DC1` … `BG-DC4` y no son pasos de §9. Equivalencias en el mapa de §9.
 
 La construcción es **supervisada**, igual que las fases 1 y 2: la sesión coordinadora (Claude) escribe un encargo por paso (`docs/encargos/BG-NN-<tema>.md`, plantilla de `docs/encargos/README.md`); Codex implementa con pruebas primero y corre solo `pnpm format && pnpm check && pnpm test && pnpm build` (su sandbox no tiene red, ni siquiera `127.0.0.1`: nunca corre `db:migrate`, `db:check`, `test:tablet`, `smoke`, `test:web` ni `gate`, y nunca commitea); Claude revisa, aplica las migraciones a la base dev, corre el Verify completo y `pnpm gate`, commitea y pone el tag. El dueño sube y publica en Replit. Este blueprint se escribió sobre el commit `8bca898`: **cada paso relee los archivos que toca** y no confía en los conteos de líneas citados aquí.
 
@@ -28,7 +28,7 @@ Que **Llave 15** sea un solo sistema, en su propio dominio (`llave15.cl`), donde
 Repo en la rama `docs/bike-garage`, base `8bca898`. Astro 7 SSR en Replit Autoscale (`.replit`, `astro.config.mjs` con `site` = `PUBLIC_SITE_URL` o `https://vectorbikes.cl`), Postgres 16 vía Drizzle 0.45. Esquema en doce archivos con importación en un sentido, cabeza `src/server/db/schema.ts` (291 líneas: `bookings`, `whatsapp_messages`, `booking_blocks`, `booking_days` con PK `service_date`, `blocked_periods`, `branches`, `users`, `admin_sessions`, `login_attempts`, `booking_requests`, `booking_bikes`). Las tablas de reserva **no tienen `branch_id`**; los índices `uq_bookings_code`, `uq_booking_blocks_active_slot`, `uq_customers_rut` y `uq_branches_name` son globales; los CHECK `bookings_fee_check` (tarifa = 15000) y `bookings_retiro_address_check` (comuna `Vitacura` o `Las Condes`) llevan los valores del taller. Las reglas de reserva son constantes de `src/server/booking/rules.ts` (`TIMEZONE`, `BLOCK_MINUTES` 30, `DAILY_CAPACITY` 4, `MIN_NOTICE_MINUTES` 120, `HORIZON_DAYS` 30, `PICKUP_FEE_CLP` 15000, `PICKUP_COMUNAS`, `RECEPTION_HOURS`, `PICKUP_HOURS`); `localToday`, `addDays` y `localToInstant` viven en `slots.ts`; el código de reserva es `VB-AAMMDD-HHMM` (`create-booking.ts:38`). La identidad es la constante `SITE` (`src/lib/site.ts`, importada por 44 archivos de `src/` y 11 de `tests/`) y hay 82 literales del taller en 43 archivos de `src/` (incluidos títulos `— Vector Bikes`, `label.ts:43`, `templates.ts:257`, `Base.astro`, `BookingFields.tsx:185,205`). `TallerLayout` hereda `Base.astro` (portada: fuentes, `global.css`, FAQ, JSON-LD, wordmark). El seguimiento usa `CANCEL_TOKEN_SECRET` (`tracking.ts`); CSRF y cookie se atan a `PUBLIC_SITE_URL`. `createOwner` toma la primera sucursal o crea una (`admin-auth.ts:92-120`). La guardia de la regla 14 no existe, aunque `CLAUDE.md` la da por hecha (FASE §6). Pruebas: Vitest + PGlite (una conexión), specs de Playwright en tablet, `scripts/smoke.sh`, compuerta `pnpm gate`.
 
 ### Target state
-Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión 14), con `llave15.cl` agregado. Cadena de esquema: `schema-shops.ts` ← `schema.ts` ← `schema-taller.ts` ← … ← `schema-library-private.ts` (BG-D1). Tabla `shops` con el perfil y la configuración de cada taller; `branches.shop_id` NOT NULL; `branch_id` NOT NULL en las siete tablas de reserva; `booking_days` con PK (`branch_id`, `service_date`); unicidad por taller; CHECK relajados (FASE §2.3 punto 13). Motor de reservas que recibe un `BookingScope` (`shopId`, `branchId`, `config`) cargado desde `shops`; tiempo en `src/lib/time.ts`. Perfil del taller por sesión, token o `slug` (`src/server/shops/profile.ts`); `SITE` desaparece y nace `PLATFORM`; correos con remitente `<Taller> · Llave 15`, `Reply-To` del taller, copias a su correo de avisos y la línea `Gestionado con Llave 15`. Página pública `/<slug>/reservar` y `/<slug>/privacidad`; `api/reservas` y `api/disponibilidad` reciben el taller; Turnstile y límite por taller. `APP_URL` para cookie, CSRF y enlaces; `TRACKING_TOKEN_SECRET` propio sin romper enlaces enviados. Tareas diarias que recorren los talleres activos. Sitio nuevo de Vector Bikes en `web/vector-bikes/` con redirecciones permanentes. Pantallas `/plataforma` (crear, suspender, ver uso) y `/taller/mi-taller`. Prueba de dos talleres y guardia de literales en `pnpm gate`.
+Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión 14), con `llave15.cl` agregado. Cadena de esquema: `schema-shops.ts` ← `schema.ts` ← `schema-taller.ts` ← … ← `schema-library-private.ts` (BG-D1). Tabla `shops` con el perfil y la configuración de cada taller; `branches.shop_id` NOT NULL; `branch_id` NOT NULL en las siete tablas de reserva; `booking_days` con PK (`branch_id`, `service_date`); unicidad por taller; CHECK relajados (FASE §2.3 punto 13). Motor de reservas que recibe un `BookingScope` (`shopId`, `branchId`, `config`) cargado desde `shops`; tiempo en `src/lib/time.ts`. Perfil del taller por sesión, token o `slug` (`src/server/shops/profile.ts`); `SITE` desaparece y nace `PLATFORM`; correos con remitente `<Taller> · Llave 15`, `Reply-To` del taller, copias a su correo de avisos y la línea `Gestionado con Llave 15`. Página pública `/<slug>/reservar` y `/<slug>/privacidad`; `api/reservas` y `api/disponibilidad` reciben el taller; Turnstile y límite por taller. `APP_URL` para cookie, CSRF y enlaces; `TRACKING_TOKEN_SECRET` propio sin romper enlaces enviados. Tareas diarias que recorren los talleres activos. Sitio nuevo de Vector Bikes en `web/vector-bikes/` con redirecciones permanentes. Pantallas `/plataforma` (crear, suspender, ver uso) y `/taller/mi-taller`. Prueba de dos talleres y guardia de literales en `pnpm gate`. Identidad visual Llave 15 del manual de marca del dueño (paleta en `:root.l15`, Inter, controles y estados con color, firma provisional en SVG) en todo lo que carga `AppLayout`; la portada heredada y el sitio de Vector Bikes conservan su diseño (BG-D32).
 
 ### Usuarios
 | Persona | Qué viene a hacer | Frecuencia |
@@ -40,7 +40,7 @@ Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión
 
 ### Objetivos — alcance de esta fase
 1. Etapa 1 — cimientos: `shops`, `branch_id` en reservas (expand → migrar → contract), unicidad por taller, motor por configuración, CHECK relajados, filtro por taller en toda lectura de reservas, prueba de dos talleres, guardia de literales.
-2. Etapa 2 — identidad: perfil desde `shops`, marca Llave 15 para el personal y del taller para el cliente, `tokens.css`, el sistema deja de cargar la portada, remitente y copias por taller.
+2. Etapa 2 — identidad: perfil desde `shops`, marca Llave 15 para el personal y del taller para el cliente, `tokens.css`, el sistema deja de cargar la portada, remitente y copias por taller, y la identidad visual Llave 15 del manual de marca (BG-46 … BG-49).
 3. Etapa 3 — reservas por taller: `/<slug>/reservar`, API con taller, Turnstile y límite por taller, enlaces a la página del taller.
 4. Etapa 4 — separación y dominio: `APP_URL`, secreto propio del seguimiento, tareas por taller, sitio `web/vector-bikes/` con redirecciones, corte de dominio.
 5. Etapa 5 — plataforma: administrador de plataforma, alta de talleres con primer dueño y plantilla de catálogo, suspensión, "Mi taller", `docs/nuevo-taller.md`.
@@ -64,7 +64,11 @@ Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión
 | **Constante:** forma de las respuestas de `POST /api/reservas` (201 `{ code, service_date, start, end, mode, fee }`, errores `{ error, code, fields? }`) y de `GET /api/disponibilidad` (`{ timezone, modo, capacity, days }`) | Interfaz congelada (§5) | — |
 | **Constante:** reglas de reserva de Vector Bikes (bloque 30, capacidad 4, antelación 120, horizonte 30, retiro 15.000 en Vitacura y Las Condes, horarios, código `VB-AAMMDD-HHMM`) | Viven en su fila de `shops` con los valores de hoy | El dueño las cambia en "Mi taller" |
 | **Constante:** numeración de órdenes, ventas y compras por sucursal (`OT-`, `VM-`, `OC-`) | Ya es por sucursal | — |
-| **Constante:** No negociables 1–19 de `CLAUDE.md` (stock por `applyStockMovement`, caja, costos solo con `costs.view`, nunca borrar, tokens con hash, mecánico sin precios, archivos < 400, funciones < 50, ninguna isla nueva en `/taller`, ningún hex nuevo, fotos por orden sin tope) | FASE §13.7 | — |
+| **Constante:** No negociables 1–19 de `CLAUDE.md` (stock por `applyStockMovement`, caja, costos solo con `costs.view`, nunca borrar, tokens con hash, mecánico sin precios, archivos < 400, funciones < 50, ninguna isla nueva en `/taller`, ningún hex fuera de `src/styles/tokens.css` (hasta BG-46 ningún hex nuevo; desde BG-47 la paleta del manual de marca, BG-D33), fotos por orden sin tope) | FASE §13.7 | — |
+| Rediseño de `web/vector-bikes/` o de la portada heredada con la identidad Llave 15 | Es el sitio de Vector Bikes, con su propio diseño (BG-D32) | El dueño lo pide en `vector-bikes-web` |
+| Modo oscuro de Llave 15 | El manual de marca no lo define (BG-D33) | El taller piloto lo pide |
+| Reescribir los textos con la microcopia del manual | Es guía para pantallas nuevas; los textos de hoy los afirman las pruebas (BG-D39) | El dueño pide la reescritura |
+| Logo definitivo de Llave 15 | Los originales no existen todavía; va un SVG provisional (BG-D37) | Llegan los originales (checklist §20.1) |
 | **Constante:** biblioteca técnica global (BT-D1) y su paquete `library:export`/`library:import` | Se comparte entre talleres (decisión 12) | — |
 
 ### Métricas de éxito
@@ -79,14 +83,14 @@ Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión
 
 ## 2. Stack
 
-**Runtime track: el del repo.** Esta fase no agrega ni actualiza dependencias (§11); `web/vector-bikes/` reutiliza los mismos paquetes.
+**Runtime track: el del repo.** Esta fase agrega una sola dependencia, `@fontsource-variable/inter` 5.3.0 (BG-47, BG-D34), y no actualiza ninguna (§11); `web/vector-bikes/` reutiliza los mismos paquetes y no usa Inter.
 
 | Capa | Elección | Por qué esto y no lo otro |
 |---|---|---|
 | Lenguaje / runtime | TypeScript 6 sobre Node 24 | El del repo; Node quita tipos en `scripts/` |
 | Framework | Astro 7 SSR (`@astrojs/node` standalone) | Patrón probado; rechazado: un framework nuevo para la plataforma |
 | Multi-taller | Una base, una app, `branch_id` en toda tabla de operación + `shops` | Decisión 1; rechazado: base por taller (decisión 56, reemplazada) |
-| Estilos | `tokens.css` (nuevo, mismos valores) + `global.css` + CSS del taller | FASE §9: ningún color nuevo |
+| Estilos | `tokens.css` (BG-22, mismos valores; desde BG-47 además `:root.l15`, solo claro) + `global.css` + `llave15.css` (BG-48, bajo `.l15`) + CSS del taller | FASE §9 (ningún color nuevo) hasta BG-46; desde BG-47, la paleta del manual de marca del dueño, solo en las superficies de Llave 15 (BG-D32, BG-D33) |
 | Componentes | Servidor + formularios POST; única isla pública `BookingIsland` (ahora con props del taller) | Ninguna isla nueva en `/taller` |
 | Base de datos | Postgres 16 de Replit (la de producción, sin mudarla) | Decisión 14 |
 | Acceso a datos | Drizzle; reglas en CHECK e índices, sin triggers | `drizzle/` solo por `pnpm db:generate` |
@@ -114,12 +118,14 @@ bike-garage/  (hoy vector-bikes/)
 ├── e2e/global-setup.ts (BG-04, 33) · fixtures.ts (BG-33) · reservar-taller.spec.ts (BG-33)
 ├── scripts/bg-expect-parity.ts (BG-01) · vector-bikes-profile.ts (BG-04) · bg-backfill.ts (BG-05)
 │   · bg-check.ts (BG-39) · platform-admin.ts (BG-45) · db-check.ts (BG-03)
-├── package.json (BG-05, 39, 45: solo scripts) · README.md (BG-45)
+├── package.json (BG-05, 39, 45: scripts; BG-47: la dependencia de Inter) · README.md (BG-45)
+├── public/brand/llave15-{distintivo,firma,firma-invertida,firma-mono}.svg (BG-46) · llave15-favicon-16.svg (BG-47)
 ├── src/
 │   ├── lib/time.ts (BG-02) · platform.ts (BG-17) · whatsapp.ts (BG-27) · env.ts (BG-34, 35)
 │   │   · site.ts y faq.ts (se borran en BG-27)
-│   ├── styles/tokens.css (BG-22) · global.css (BG-22)
-│   ├── layouts/AppLayout.astro · PublicLayout.astro (BG-22) · TallerLayout.astro (BG-27, 41, 44)
+│   ├── styles/tokens.css (BG-22, 47) · global.css (BG-22) · llave15.css (BG-48) · taller-components.css (BG-48)
+│   │   · taller-layout.css (BG-49)
+│   ├── layouts/AppLayout.astro (BG-22, 47, 48) · PublicLayout.astro (BG-22, 49) · TallerLayout.astro (BG-27, 41, 44, 49)
 │   │   · Base.astro (BG-26, 27; se borra en BG-DC1)
 │   ├── components/Landing.astro (BG-25, 26) · islands/{BookingIsland,booking-state,BookingFields,
 │   │   BookingSchedule,BookingTicket,turnstile} (BG-25, 26, 30) · taller/ReportView.astro (BG-24)
@@ -134,7 +140,7 @@ bike-garage/  (hoy vector-bikes/)
 │       ├── booking/config.ts (BG-06, 28) · slots.ts · rules.ts (BG-02, 06, 28) · create-booking.ts
 │       │   · day-state.ts · availability.ts (BG-07) · reschedule-booking.ts (BG-13)
 │       ├── email/brand.ts (BG-17) · booking/templates.ts (BG-18) · garage/templates.ts (BG-19)
-│       │   · templates.ts · notifications.ts · reminders.ts · order-templates.ts (BG-16, 18–21)
+│       │   · templates.ts · notifications.ts · reminders.ts · order-templates.ts (BG-16, 18–21; templates.ts también BG-49)
 │       ├── api/handlers.ts (BG-08, 30, 34) · turnstile.ts (BG-30) · task-handlers.ts (BG-36)
 │       ├── admin/agenda.ts (BG-13) · month.ts (BG-14) · auth/admin-auth.ts (BG-41, 43)
 │       │   · auth/permissions.ts (BG-44) · whatsapp/{service,order-notices,cron}.ts (BG-16, 36)
@@ -144,7 +150,7 @@ bike-garage/  (hoy vector-bikes/)
 │                   · label (BG-24) (.ts, modificados)
 ├── tests/unit/shop-literals.test.ts · shop-literals-baseline.json · bg-expect-parity.test.ts (BG-01)
 │   · time.test.ts (BG-02) · vector-bikes-profile.test.ts (BG-04; reescrita en BG-27) · island-shop.test.ts (BG-25)
-│   · reserved-slugs.test.ts (BG-29)
+│   · reserved-slugs.test.ts (BG-29) · llave15-brand.test.ts (BG-46)
 ├── tests/helpers/shops.ts · pglite.ts (BG-04; shops.ts gana el accesorio `SITE` y `vectorBikesBrand()` en BG-18)
 │   · two-shops.ts (BG-07)
 ├── tests/integration/<archivo>.test.ts                         # uno nuevo por paso; las de aislamiento terminan en -isolation
@@ -161,8 +167,8 @@ bike-garage/  (hoy vector-bikes/)
 **Reglas de frontera.** Las de `CLAUDE.md` siguen, con tres agregados (BG-D14, BG-D22): `src/server/shops/**` es parte de `src/server/**`; `web/vector-bikes/**` nunca importa `src/**` ni `src/` importa `web/**`, **salvo** `src/layouts/Base.astro`, `src/components/Landing.astro`, `src/pages/index.astro` y `src/pages/privacidad.astro`, que importan `web/vector-bikes/src/content/site.ts` hasta BG-DC1; `e2e/global-setup.ts` puede importar además `scripts/vector-bikes-profile.ts`. La convención de importación se reconcilia en §19.6.
 
 ### Delta
-- **Nuevos:** `schema-shops.ts`, 9 módulos en `src/server/shops/`, `booking/config.ts`, `email/brand.ts`, `email/booking/templates.ts`, `email/garage/templates.ts`, `lib/time.ts`, `lib/platform.ts`, `lib/whatsapp.ts`, `styles/tokens.css`, `AppLayout.astro`, `PublicLayout.astro`, 7 páginas, 5 scripts, 1 spec, 5 documentos, la app `web/vector-bikes/` y las pruebas de cada paso.
-- **Modificados:** los archivos que nombra cada paso de §9 (el mapa de acoplamiento de FASE §6 completo), `package.json` (solo scripts), `.env.example`, `README.md`, `e2e/global-setup.ts` y `e2e/fixtures.ts` (BG-D19), y las pruebas existentes con cambios declarados de firma, siembra o import.
+- **Nuevos:** `schema-shops.ts`, 9 módulos en `src/server/shops/`, `booking/config.ts`, `email/brand.ts`, `email/booking/templates.ts`, `email/garage/templates.ts`, `lib/time.ts`, `lib/platform.ts`, `lib/whatsapp.ts`, `styles/tokens.css`, `styles/llave15.css`, `AppLayout.astro`, `PublicLayout.astro`, 5 SVG provisionales de la marca en `public/brand/`, 7 páginas, 5 scripts, 1 spec, 5 documentos, la app `web/vector-bikes/` y las pruebas de cada paso.
+- **Modificados:** los archivos que nombra cada paso de §9 (el mapa de acoplamiento de FASE §6 completo), `package.json` (scripts y, en BG-47, la dependencia de Inter), `pnpm-lock.yaml` (BG-47), `.env.example`, `README.md`, `e2e/global-setup.ts` y `e2e/fixtures.ts` (BG-D19), y las pruebas existentes con cambios declarados de firma, siembra o import.
 - **Eliminados:** `src/lib/site.ts` y `src/lib/faq.ts` (BG-27); los literales del taller en `src/`. En BG-DC1, la portada heredada del sistema. Ninguna fila de la base se borra.
 
 ---
@@ -367,11 +373,11 @@ Nuevas: las rutas de la tabla y los módulos de `src/server/shops/**`. Modificad
 | `/`, `/privacidad` | Portada heredada de Vector Bikes, prerenderizada, con el contenido de `web/vector-bikes/src/content/site.ts` hasta BG-DC1 | — | pública |
 
 ### Rendering strategy
-`/taller/**`, `/admin/**`, `/plataforma/**`, `/<slug>/**` y páginas por token con `prerender = false` y `cache-control: no-store`; `/` y `/privacidad` siguen prerenderizadas. Layouts: `AppLayout` (raíz del sistema: fuentes, `tokens.css`, `global.css`, sin FAQ, JSON-LD ni wordmark) ← `TallerLayout` (personal, marca `PLATFORM`) y `PublicLayout` (cliente, marca del taller, pie `Gestionado con Llave 15`). `Base.astro` queda solo para la portada heredada (BG-D15).
+`/taller/**`, `/admin/**`, `/plataforma/**`, `/<slug>/**` y páginas por token con `prerender = false` y `cache-control: no-store`; `/` y `/privacidad` siguen prerenderizadas. Layouts: `AppLayout` (raíz del sistema: fuentes, `tokens.css`, `global.css`, sin FAQ, JSON-LD ni wordmark; desde BG-47 `class="l15"` en `<html>`, Inter y los íconos de Llave 15; desde BG-48 `llave15.css`) ← `TallerLayout` (personal, marca `PLATFORM`) y `PublicLayout` (cliente, marca del taller, pie `Gestionado con Llave 15`). `Base.astro` queda solo para la portada heredada (BG-D15).
 
 ### Component hierarchy
 ```
-PublicLayout (servidor; profile → encabezado con logo /<slug>/logo o nombre; pie "Gestionado con Llave 15")
+PublicLayout (servidor; profile → encabezado con logo /<slug>/logo o nombre; pie "Gestionado con Llave 15", desde BG-49 "<Taller> · Gestionado con Llave 15")
 └─ [slug]/reservar.astro (servidor)
    └─ BookingIsland (client:visible; props shop = { slug, name, addressShort, pickupEnabled,
       pickupComunas, pickupFeeClp, horizonDays, blockMinutes, codePrefix, privacyHref })
@@ -389,22 +395,44 @@ Como hoy. Nuevos: `/<slug>/reservar` de un taller desconocido o suspendido → 4
 
 ## 7. Sistema de diseño
 
-Se mantiene el sistema aprobado (tabla literal en `workspace/CLAUDE.md`). **Ningún token ni hex nuevo** (FASE §9); los nueve tokens pasan de `global.css` a `src/styles/tokens.css` con los mismos valores (BG-22) y `global.css` lo importa.
+**Por paso (BG-D32 … BG-D40).** Hasta BG-46 se mantiene el sistema monocromo aprobado (tabla literal en `workspace/CLAUDE.md`, `docs/design-preview.html`): **ningún token ni hex nuevo** (FASE §9); los nueve tokens pasan de `global.css` a `src/styles/tokens.css` con los mismos valores (BG-22) y `global.css` lo importa. Desde BG-47, todo lo que carga `AppLayout` (ingreso, `/taller`, `/admin`, `/plataforma` y las páginas del cliente en `PublicLayout`) lleva `class="l15"` en `<html>` y usa la identidad Llave 15 del manual de marca del dueño (`docs/marca/Manual_de_marca_Llave_15.docx`, `docs/marca/llave15-portada.png`, `llave15-variantes.png`, `llave15-muestra-orden.png`), por partes y nunca antes: tokens y tipos en BG-47, componentes y estados en BG-48, layouts y firma en BG-49. La portada heredada (`Base.astro`, sin la clase) y `web/vector-bikes/` conservan el monocromo. En lo que ve el cliente, el nombre o el logo del taller sigue siendo el identificador principal y Llave 15 solo firma.
 
 ### Colors
-Los nueve tokens, claro y oscuro, sin cambios. Contraste ya medido en la fase 1.
+Hasta BG-46: los nueve tokens, claro y oscuro, sin cambios; contraste ya medido en la fase 1. Desde BG-47, bloque `:root.l15` de `tokens.css`, solo claro (los dos bloques oscuros pasan a `:not(.l15)`, BG-D33), hex en minúsculas:
+
+| Token | Valor | Uso | Contraste (manual) |
+|---|---|---|---|
+| `--ground` | `#f5f4f1` blanco cálido | Fondo de la app | texto principal sobre él 15,58:1 |
+| `--surface` | `#ffffff` blanco | Tarjetas, formularios, tablas | — |
+| `--ink` | `#171c22` grafito | Texto principal; desde BG-49 el menú del personal | — |
+| `--ink-2`, `--steel` | `#515a64` gris acero | Texto secundario, etiquetas, ayudas | 7,01:1 sobre blanco |
+| `--rule` | `#d9d9d9` | Bordes decorativos | — |
+| `--field-border` | `#858e97` | Borde de controles | 3,02:1 |
+| `--on-ink` | `#ffffff` | Texto sobre grafito y sobre `--accent` | 6,25:1 sobre `--accent` |
+| `--hatch` | `#e3e3df` (el de hoy) | Rayado reservado/deshabilitado | — |
+| `--accent` · `--accent-hover` | `#ae3718` naranja óxido · `#8d2b13` óxido oscuro | Botón primario y su hover | — |
+| `--brand-on-dark` | `#ff774f` naranja claro | Marca sobre grafito | — |
+| `--focus` | `#195faf` azul de foco | Anillo de foco sobre claro (sobre oscuro, `--on-ink`) | 6,37:1 |
+| `--status-neutral-bg` · `-ink` | `#eceff2` · `#48525d` | Neutro: `reservada`, `recibida`, `entregada`, `cancelada` | — |
+| `--status-progress-bg` · `-ink` | `#e6eef8` · `#235285` | En curso: `diagnostico`, `en_reparacion`, `control_calidad` | — |
+| `--status-waiting-bg` · `-ink` | `#fff2d9` · `#734800` | Espera: `esperando_aprobacion`, `esperando_repuesto` | — |
+| `--status-ready-bg` · `-ink` | `#dfefe5` · `#1a5d3b` | Listo: `lista_para_retirar` | — |
+| `--status-blocking-bg` · `-ink` | `#fbe5e2` · `#942b2b` | Bloqueo: `trabajo_rechazado` y el aviso de saldo pendiente para entregar | — |
+| `--radius-control` · `--radius-card` | `8px` · `12px` | Controles · tarjetas (desde BG-48) | — |
+
+Son 19 hex nuevos (todos menos `#ffffff` y `#e3e3df`, que ya existían). Hex solo en `tokens.css`; los SVG de `public/brand/llave15-*.svg` llevan la paleta literal porque un `<img>` no lee variables CSS. El mapa de cada clase de estado de inventario, caja, biblioteca y plataforma a los cinco grupos está en BG-48 y en `.claude/rules/ui-design.md` (BG-D36).
 
 ### Typography
-Michroma (h1), Archivo Variable (cuerpo), IBM Plex Mono para códigos (`VB-…`, `TD-…`), montos y `slug`.
+Hasta BG-46: Michroma (h1), Archivo Variable (cuerpo), IBM Plex Mono para códigos (`VB-…`, `TD-…`), montos y `slug`. Desde BG-47, en `AppLayout`: Inter Variable 400/500/600/700 (`@fontsource-variable/inter` 5.3.0), respaldo Arial, sans-serif, también para códigos y montos (`--display`, `--body` y `--mono` de `:root.l15`); desde BG-48, 28/36 títulos, 20/28 secciones, 16/24 cuerpo y 14/20 datos densos; `tabular-nums` en montos y tablas. El logotipo (DIN Condensed Bold en el manual) va en trazos dentro del SVG: esa fuente nunca se carga (BG-D34).
 
 ### Spacing, radius, elevation
-Radio 2px, reglas 1px, sin sombras; objetivos ≥ 48px en `/taller` y `/plataforma`, ≥ 44px en lo público.
+Hasta BG-47: radio 2px, reglas 1px, sin sombras. Desde BG-48: espaciado en múltiplos de 4px, radio 8px en controles (`--radius-control`) y 12px en tarjetas (`--radius-card`), reglas 1px, sin sombras (BG-D35). Siempre: objetivos ≥ 48px en `/taller` y `/plataforma`, ≥ 44px en lo público.
 
 ### Motion
 `--dur-fast` 140ms, `--dur` 160ms; `prefers-reduced-motion` → 0ms. Nada nuevo anima.
 
 ### Component style
-Logo del taller en lo que ve su cliente (`/<slug>/logo`; sin logo, el nombre en Michroma); "Llave 15" en texto en lo del personal (el logo de Llave 15 es pendiente del dueño, FASE §12). Pie público: `Gestionado con Llave 15` en `--steel`, IBM Plex Mono `.72rem`.
+Botón primario: hasta BG-47, `--ink` que invierte en hover; desde BG-48, `--accent` + `--on-ink` con hover `--accent-hover`, una acción primaria por zona de trabajo y las secundarias neutras (`.btn.ghost`). Foco: hasta BG-47, 2px `--ink` separado 3px; desde BG-48, 2px `--focus` separado 2px, blanco sobre grafito. Estados: su forma y su texto de siempre y, desde BG-48, el color de su grupo (BG-D36); nunca solo color. Logo del taller en lo que ve su cliente (`/<slug>/logo`; sin logo, el nombre). Marca de Llave 15: hasta BG-47, "Llave 15" en texto en lo del personal; desde BG-48, la firma principal en `/admin/login`; desde BG-49, el menú del personal en grafito con la firma invertida (`/brand/llave15-firma-invertida.svg`, `alt="Llave 15"`, 132px). Pie público: hasta BG-48, `Gestionado con Llave 15` en `--steel`; desde BG-49, el distintivo decorativo de 24px + `<Taller> · Gestionado con Llave 15`, la misma línea que el pie de los correos. Logo provisional dibujado desde el manual, hasta que lleguen los originales (BG-D37). Iconos lineales de una sola familia y con texto en las acciones poco familiares: guía del manual para pantallas nuevas, igual que su tabla de microcopia (BG-D39).
 
 ---
 
@@ -445,7 +473,7 @@ Sin cambios, salvo: suspender un taller revoca las sesiones de sus usuarios (BG-
 ## 9. ORDEN DE CONSTRUCCIÓN
 
 ### Reglas de un paso
-1. Una sesión por paso; **≤ 5 archivos escritos a mano** (lo generado en `drizzle/` no cuenta). Las pruebas existentes que solo cambian **por firma, por siembra o por su línea de import** se listan aparte en el paso y no cuentan (BG-D6): su cambio es mecánico y `node scripts/bg-expect-parity.ts` comprueba que ninguna expectativa cambió. **Excepciones declaradas** (mecánicas, F2-D2 como precedente): BG-04 (siembra), BG-27 (marca del personal y fin de `SITE`), BG-28 (limpieza del motor) y BG-34 (`APP_URL` en sus llamadas). ≤ 6 criterios.
+1. Una sesión por paso; **≤ 5 archivos escritos a mano** (lo generado en `drizzle/` no cuenta). Las pruebas existentes que solo cambian **por firma, por siembra o por su línea de import** se listan aparte en el paso y no cuentan (BG-D6): su cambio es mecánico y `node scripts/bg-expect-parity.ts` comprueba que ninguna expectativa cambió. **Excepciones declaradas** (mecánicas, F2-D2 como precedente): BG-04 (siembra), BG-27 (marca del personal y fin de `SITE`), BG-28 (limpieza del motor) y BG-34 (`APP_URL` en sus llamadas); `package.json` y `pnpm-lock.yaml` cambiados solo por un comando `pnpm add` declarado (BG-47) tampoco cuentan (BG-D34). ≤ 6 criterios.
 2. Pruebas primero, en rojo; después la implementación. Cada paso lleva Archivos, Hacer, Reglas, Done when, Verify y Checkpoint; la dirección completa está en su épica, que es autocontenida.
 3. Verify es shell POSIX literal desde la raíz; toda línea sale 0 cuando el paso es correcto; los fallos esperados afirman su código. La última línea siempre es `pnpm format && pnpm gate   # expect: exit 0`. El sandbox de Codex corre solo `format`, `check`, `test` y `build`; `db:migrate`, `db:check`, `bg:backfill`, `bg:check`, `test:tablet`, `test:web`, `smoke` y `gate` los corre la sesión coordinadora.
 4. Ningún Verify afirma estado de commit: los `git` de Verify comparan el árbol de trabajo contra `HEAD` o contra `8bca898`, y comprueban que `git` respondió antes de leer su salida.
@@ -459,7 +487,7 @@ Sin cambios, salvo: suspender un taller revoca las sesiones de sus usuarios (BG-
 12. **Paridad:** antes de BG-17, `node scripts/bg-expect-parity.ts` sin `--allow`; desde BG-17, cada paso declara en su Verify los únicos textos que pueden cambiar en una expectativa (`--allow`).
 
 ### Un paso, una unidad
-45 pasos = 45 tareas = 45 bloques en 5 épicas (16 + 12 + 5 + 7 + 5). Sobre el rango de FASE §10 (35–45, con la etapa 1 en 12–14) por el límite de 5 archivos, las tres generaciones de contract y las cuatro plantillas de correo (BG-D28).
+49 pasos = 49 tareas = 49 bloques en 5 épicas (16 + 16 + 5 + 7 + 5); los cuatro de la identidad visual (BG-46 … BG-49) se agregaron después, con el manual de marca, y los 45 originales son los que se explican a continuación (BG-D40). Sobre el rango de FASE §10 (35–45, con la etapa 1 en 12–14) por el límite de 5 archivos, las tres generaciones de contract y las cuatro plantillas de correo (BG-D28).
 
 ### Mapa de pasos
 | Paso | Tarea | Tag | Título | Depende de | Épica | Ventana |
@@ -492,7 +520,11 @@ Sin cambios, salvo: suspender un taller revoca las sesiones de sus usuarios (BG-
 | BG-26 | E2-T10 | bg-26 | Contenido del sitio heredado fuera de `src/` | BG-25 | 02 | — |
 | BG-27 | E2-T11 | bg-27 | Páginas heredadas, marca del personal y fin de `SITE` (excepción) | BG-26 | 02 | — |
 | BG-28 | E2-T12 | bg-28 | Motor sin constantes del taller y guardia vacía (excepción) | BG-27 | 02 | — |
-| BG-29 | E3-T1 | bg-29 | Slugs reservados y alcance por slug | BG-28 | 03 | — |
+| BG-46 | E2-T13 | bg-46 | Marca provisional de Llave 15: distintivo y firma | BG-28 | 02 | — |
+| BG-47 | E2-T14 | bg-47 | Tokens, tipografía Inter y favicon de Llave 15 | BG-28, BG-46 | 02 | — |
+| BG-48 | E2-T15 | bg-48 | Controles, foco, estados e ingreso de Llave 15 | BG-28, BG-47 | 02 | — |
+| BG-49 | E2-T16 | bg-49 | Firma de Llave 15 en el menú, el pie del cliente y los correos | BG-28, BG-48 | 02 | — |
+| BG-29 | E3-T1 | bg-29 | Slugs reservados y alcance por slug | BG-28, BG-49 | 03 | — |
 | BG-30 | E3-T2 | bg-30 | API de reservas por taller | BG-29 | 03 | — |
 | BG-31 | E3-T3 | bg-31 | Página `/<slug>/reservar` y privacidad del taller | BG-30 | 03 | — |
 | BG-32 | E3-T4 | bg-32 | Enlaces a la página de reservas del taller | BG-31 | 03 | — |
@@ -510,7 +542,7 @@ Sin cambios, salvo: suspender un taller revoca las sesiones de sus usuarios (BG-
 | BG-44 | E5-T4 | bg-44 | "Mi taller" para el dueño | BG-43 | 05 | — |
 | BG-45 | E5-T5 | bg-45 | Alta documentada y cierre de la fase | BG-44 | 05 | — |
 
-La cadena es lineal a propósito: un solo builder (Codex) por vez, un encargo por tarea.
+La cadena es lineal a propósito: un solo builder (Codex) por vez, un encargo por tarea. Orden de ejecución en la etapa 2: BG-17 … BG-28 → BG-46 → BG-47 → BG-48 → BG-49 → BG-29 (BG-D40); el paso anterior de BG-46 es BG-28 y el de BG-29 es BG-49 (reversión `git reset --hard bg-<anterior>`).
 
 **Reglas por paso (abreviatura):** R-db = `.claude/rules/database.md` · R-book = `booking-engine.md` · R-api = `server-api.md` · R-ui = `ui-design.md` · R-tui = `taller-ui.md` · R-dom = `taller-domain.md` · R-e2e = `e2e.md` · R-shops = `shops.md` · NN = No negociables de `CLAUDE.md` · RC = reglas de código (siempre: NN 2, 4, 5, 7 y RC 14).
 
@@ -948,7 +980,7 @@ git tag -l bg-16 | grep -qx bg-16   # expect: exit 0
 
 ### Épica 02 — Identidad (etapa 2)
 
-Desde aquí los valores esperados pueden cambiar **solo** donde cada paso lo declara. Los cambios declarados son siempre de uno de estos tipos: la línea `Gestionado con Llave 15` al pie de correos y páginas del cliente; el remitente `<Taller> · Llave 15 <…>`; los títulos y la marca del personal que pasan a `Llave 15`; la URL del logo, que pasa de `/brand/vector-bikes-logo.png` a `/vector-bikes/logo`. Los valores de Vector Bikes (nombre, dirección, comunas, tarifas, horarios) no cambian. Las pruebas que dejan de importar `src/lib/site.ts` lo hacen según el reparto del encabezado de este documento: solo cambia su línea de import (al accesorio `SITE` de `tests/helpers/shops.ts`) o el armado de la marca, nunca la cola de un matcher.
+Desde aquí los valores esperados pueden cambiar **solo** donde cada paso lo declara. Los cambios declarados son siempre de uno de estos tipos: la línea `Gestionado con Llave 15` al pie de correos y páginas del cliente; el remitente `<Taller> · Llave 15 <…>`; los títulos y la marca del personal que pasan a `Llave 15`; la URL del logo, que pasa de `/brand/vector-bikes-logo.png` a `/vector-bikes/logo`; en el sub-bloque de identidad visual, el `descriptor` de `PLATFORM` y el conjunto de tokens de `layouts.test.ts` (BG-47), y la marca del menú y la línea `<Taller> · Gestionado con Llave 15` (BG-49). Los valores de Vector Bikes (nombre, dirección, comunas, tarifas, horarios) no cambian. Las pruebas que dejan de importar `src/lib/site.ts` lo hacen según el reparto del encabezado de este documento: solo cambia su línea de import (al accesorio `SITE` de `tests/helpers/shops.ts`) o el armado de la marca, nunca la cola de un matcher.
 
 #### BG-17 — Perfil del taller, marca de correo y logo (E2-T1)
 **Archivos:** `src/server/shops/profile.ts` (nuevo) · `src/server/email/brand.ts` (nuevo) · `src/lib/platform.ts` (nuevo) · `src/pages/[slug]/logo.ts` (nuevo) · `tests/integration/shop-profile.test.ts` (nuevo)
@@ -1265,6 +1297,126 @@ git commit -m "refactor: bg-28 remove shop constants from the booking engine" &&
 git tag -l bg-28 | grep -qx bg-28   # expect: exit 0
 ```
 
+#### Sub-bloque: identidad visual Llave 15 (BG-46 … BG-49)
+
+Se agregó después de la validación (BG-D40): cuatro pasos de la etapa 2 que se construyen **después de BG-28 y antes de BG-29** (dependencias en el mapa y en `tasks.json`); no se renumera nada. Fuente: el manual de marca del dueño (`docs/marca/Manual_de_marca_Llave_15.docx`; imágenes `docs/marca/llave15-portada.png`, `llave15-variantes.png`, `llave15-muestra-orden.png`) y las decisiones BG-D32 … BG-D39. **Regla de entrada:** cada parte del aspecto Llave 15 entra en su paso y nunca antes (marca sin uso en BG-46; tokens y tipos en BG-47; controles, foco, estados e ingreso en BG-48; menú, pie y correos en BG-49); `CLAUDE.md`, `AGENTS.md`, `ui-design.md` y `taller-ui.md` lo dicen con "hasta BG-46 / desde BG-47". **Ámbito (BG-D32):** `AppLayout` pone `class="l15"` en `<html>`; los valores viven en `:root.l15` y las reglas nuevas cuelgan de `.l15` o de `.taller`, así que la portada heredada (`Base.astro`, sin la clase) y `web/vector-bikes/` no cambian, y `global.css` no se toca. **Textos (BG-D39):** ningún texto visible cambia salvo la firma: el `descriptor` nuevo en el ingreso (BG-48), la marca del menú y el pie del cliente y de los correos (BG-49). **Hex:** solo en `src/styles/tokens.css`; los SVG de la marca llevan la paleta literal y su prueba los limita a ella.
+
+#### BG-46 — Marca provisional de Llave 15: distintivo y firma (E2-T13)
+**Archivos:** `public/brand/llave15-distintivo.svg` (nuevo) · `public/brand/llave15-firma.svg` (nuevo) · `public/brand/llave15-firma-invertida.svg` (nuevo) · `public/brand/llave15-firma-mono.svg` (nuevo) · `tests/unit/llave15-brand.test.ts` (nuevo)
+**Hacer:** dibujar a mano, desde `docs/marca/llave15-portada.png` y `docs/marca/llave15-variantes.png`, cuatro SVG provisionales (BG-D37) sin `<text>`, `<image>`, `<style>`, `<script>`, `font-family` ni referencias externas: la letra es trazo (`<path>`), así DIN Condensed nunca se carga. Cada archivo lleva `xmlns="http://www.w3.org/2000/svg"`, `viewBox`, `role="img"`, `aria-label="Llave 15"` y `<title>Llave 15</title>` como primer hijo, y hex en minúsculas. **Distintivo** (`viewBox="0 0 40 40"`): cuadrado de radio 6 con un corte oblicuo en la esquina superior derecha (el borde superior termina en x = 29 y baja en diagonal hasta (40, 11)), relleno `#ae3718`, con "15" en cifras condensadas en negrita, en trazos, relleno `#ffffff`, centrado. **Firma** (`viewBox="0 0 176 40"`): el distintivo en x 0–40 y `LLAVE 15` en mayúsculas condensadas en negrita, en trazos, desde x = 50 (separación = ¼ del lado del distintivo), alto de mayúscula 26. Variantes: `llave15-firma.svg`, principal, para fondos claros (distintivo `#ae3718` con "15" `#ffffff`, letras `#171c22`); `llave15-firma-invertida.svg`, para grafito (distintivo `#ff774f` con "15" `#171c22`, letras `#ffffff`); `llave15-firma-mono.svg` (distintivo `#171c22` con "15" `#ffffff`, letras `#171c22`). La prueba lee cada archivo, comprueba esas marcas y que sus hex sean un subconjunto de los de su variante, y lo rasteriza con `sharp` (cada firma a 132 px de ancho, el distintivo a 24 px) para probar que es un SVG válido. Ningún archivo de `src/` cambia: nadie los usa todavía.
+**Reglas:** R-ui · BG-D37 · No cambia: `public/favicon.svg` ni los archivos de Vector Bikes de `public/brand/` (los copia BG-37 al sitio).
+**Done when**
+- [ ] WHEN `tests/unit/llave15-brand.test.ts` lee los cuatro SVG de `public/brand/` THE SYSTEM SHALL encontrar en cada uno `xmlns="http://www.w3.org/2000/svg"`, un `viewBox`, `role="img"`, `aria-label="Llave 15"` y `<title>Llave 15</title>`
+- [ ] WHEN se buscan `<text`, `<image`, `<style`, `<script` y `font-family` en los cuatro SVG THE SYSTEM SHALL no encontrar ninguno
+- [ ] WHEN la prueba extrae los hex de cada SVG THE SYSTEM SHALL encontrar solo `#ae3718` y `#ffffff` en el distintivo, `#ae3718`, `#ffffff` y `#171c22` en la firma principal, `#ff774f`, `#171c22` y `#ffffff` en la invertida, y `#171c22` y `#ffffff` en la monocromática
+- [ ] WHEN `sharp` rasteriza cada firma a 132 px de ancho y el distintivo a 24 px THE SYSTEM SHALL producir un PNG de ese ancho sin error
+- [ ] WHEN corre `git status --porcelain -- src` THE SYSTEM SHALL no listar ningún archivo
+**Verify**
+```bash
+pnpm test tests/unit/llave15-brand.test.ts   # expect: exit 0, 0 failed
+for f in distintivo firma firma-invertida firma-mono; do test -f "public/brand/llave15-$f.svg" || echo "$f"; done | grep -q .; test $? -eq 1   # expect: 1 = no falta ninguno → la línea sale 0
+grep -lE '<text|<image|<style|<script|font-family' public/brand/llave15-distintivo.svg public/brand/llave15-firma.svg public/brand/llave15-firma-invertida.svg public/brand/llave15-firma-mono.svg; test $? -eq 1   # expect: 1 = letra en trazos, sin texto ni estilos → la línea sale 0
+s="$(git status --porcelain -- src)" && test -z "$s"   # expect: exit 0 — ningún archivo de src cambió
+node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
+pnpm format && pnpm gate   # expect: exit 0
+```
+**Checkpoint**
+```bash
+git add -- public/brand/llave15-distintivo.svg public/brand/llave15-firma.svg public/brand/llave15-firma-invertida.svg public/brand/llave15-firma-mono.svg tests/unit/llave15-brand.test.ts
+git commit -m "feat: bg-46 add provisional llave 15 brand marks" && git tag bg-46
+git tag -l bg-46 | grep -qx bg-46   # expect: exit 0
+```
+
+#### BG-47 — Tokens, tipografía Inter y favicon de Llave 15 (E2-T14)
+**Archivos:** `src/styles/tokens.css` · `src/layouts/AppLayout.astro` · `public/brand/llave15-favicon-16.svg` (nuevo) · `src/lib/platform.ts` · `tests/integration/llave15-tokens.test.ts` (nuevo)
+**Dependencia declarada (comando, no se escribe a mano; BG-D34):** `pnpm add -w --save-exact @fontsource-variable/inter@5.3.0`. La corre la sesión coordinadora en el Mac antes del pase a Codex (el sandbox no tiene red); cambia solo `dependencies` de `package.json` y `pnpm-lock.yaml`, que entran en el Checkpoint.
+**Valores esperados que cambian (declarados):** `tests/integration/layouts.test.ts` (prueba de esta fase, BG-22): si compara el conjunto completo de hex o de bloques de `tokens.css`, o el `<html lang="es-CL">` literal, esa expectativa pasa a aceptar el bloque `:root.l15` y `class="l15"`; nada más (`--skip` en la paridad). Si una prueba compara `PLATFORM` completo, gana `descriptor` (`--allow`).
+**Hacer:** (1) `tokens.css`: el bloque `:root` y los dos bloques oscuros de BG-22 conservan sus valores; los selectores oscuros pasan a `:root:not([data-theme="light"]):not(.l15)` y `:root[data-theme="dark"]:not(.l15)` (Llave 15 es solo claro, BG-D33). Bloque nuevo `:root.l15`, hex en minúsculas: `--ground` `#f5f4f1`, `--surface` `#ffffff`, `--ink` `#171c22`, `--ink-2` y `--steel` `#515a64`, `--rule` `#d9d9d9`, `--hatch` `#e3e3df`, `--on-ink` `#ffffff`, `--field-border` `#858e97`, `--logo-filter` `none`, `--accent` `#ae3718`, `--accent-hover` `#8d2b13`, `--brand-on-dark` `#ff774f`, `--focus` `#195faf`, `--status-neutral-bg` `#eceff2`, `--status-neutral-ink` `#48525d`, `--status-progress-bg` `#e6eef8`, `--status-progress-ink` `#235285`, `--status-waiting-bg` `#fff2d9`, `--status-waiting-ink` `#734800`, `--status-ready-bg` `#dfefe5`, `--status-ready-ink` `#1a5d3b`, `--status-blocking-bg` `#fbe5e2`, `--status-blocking-ink` `#942b2b`, `--radius-control` `8px`, `--radius-card` `12px`, y `--display`, `--body` y `--mono` = `"Inter Variable", Arial, sans-serif`. (2) `AppLayout`: `<html lang="es-CL" class="l15">`; importa `@fontsource-variable/inter/index.css` y precarga `@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url` (el mismo patrón que `Base.astro` usa con Archivo) en vez de Michroma, Archivo e IBM Plex Mono, cuyos paquetes se quedan para la portada heredada; íconos `<link rel="icon" type="image/svg+xml" href="/brand/llave15-distintivo.svg" />` y `<link rel="icon" type="image/svg+xml" sizes="16x16" href="/brand/llave15-favicon-16.svg" />`. (3) `llave15-favicon-16.svg`: el distintivo simplificado para 16 px (`viewBox="0 0 16 16"`, corte más simple, "15" en trazos gruesos), con las mismas marcas de accesibilidad y las mismas prohibiciones de BG-46, hex `#ae3718` y `#ffffff`. (4) `platform.ts`: `PLATFORM` gana `descriptor: "Software de gestión para talleres de bicicletas"`. La prueba lee `tokens.css` (el mapa exacto de `:root.l15` y los dos selectores con `:not(.l15)`), lee `AppLayout.astro` (importa Inter, no las fuentes del monocromo), renderiza `AppLayout` con la Container API, rasteriza el favicon a 16 px con `sharp` y comprueba `PLATFORM.descriptor`.
+**Reglas:** R-ui · BG-D33, BG-D34 · No cambia: `global.css`, `Base.astro`, la portada heredada (`pnpm test:build` sin cambios), ningún componente ni ninguna página.
+**Done when**
+- [ ] WHEN `tests/integration/llave15-tokens.test.ts` lee `src/styles/tokens.css` THE SYSTEM SHALL encontrar en `:root.l15` exactamente los valores de Llave 15 de este paso y los dos selectores oscuros con `:not(.l15)`
+- [ ] WHEN se comparan los hex de `tokens.css` y `global.css` con los de `global.css` en `8bca898` THE SYSTEM SHALL no perder ninguno y sumar exactamente los 19 de la paleta Llave 15
+- [ ] WHEN se renderiza `AppLayout` THE SYSTEM SHALL emitir `<html lang="es-CL" class="l15">` y los íconos `/brand/llave15-distintivo.svg` y `/brand/llave15-favicon-16.svg`, y `AppLayout.astro` SHALL importar `@fontsource-variable/inter` y no `@fontsource/michroma`, `@fontsource-variable/archivo` ni `@fontsource/ibm-plex-mono`
+- [ ] WHEN se lee `package.json` THE SYSTEM SHALL tener `@fontsource-variable/inter` igual a `5.3.0` en `dependencies`, y `node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2` SHALL existir
+- [ ] WHEN `sharp` rasteriza `public/brand/llave15-favicon-16.svg` a 16 px THE SYSTEM SHALL producir un PNG de 16 px sin error, y `PLATFORM.descriptor` SHALL ser `Software de gestión para talleres de bicicletas`
+- [ ] WHEN corren `pnpm build && pnpm test:build` y `node scripts/bg-expect-parity.ts --allow 'Software de gestión para talleres de bicicletas' --skip tests/integration/layouts.test.ts` THE SYSTEM SHALL salir 0
+**Verify**
+```bash
+pnpm test tests/integration/llave15-tokens.test.ts tests/integration/layouts.test.ts   # expect: exit 0, 0 failed
+test "$(node -p "require('./package.json').dependencies['@fontsource-variable/inter']")" = 5.3.0   # expect: exit 0
+test -f node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2   # expect: exit 0
+node -e "const { execFileSync } = require('child_process'); const fs = require('fs'); const hex = (t) => new Set((t.match(/#[0-9a-f]{6}/gi) || []).map((h) => h.toLowerCase())); const old = hex(execFileSync('git', ['show', '8bca898:src/styles/global.css'], { encoding: 'utf8' })); const now = hex(fs.readFileSync('src/styles/tokens.css', 'utf8') + fs.readFileSync('src/styles/global.css', 'utf8')); const lost = [...old].filter((h) => !now.has(h)); const added = [...now].filter((h) => !old.has(h)).sort().join(' '); const want = '#171c22 #195faf #1a5d3b #235285 #48525d #515a64 #734800 #858e97 #8d2b13 #942b2b #ae3718 #d9d9d9 #dfefe5 #e6eef8 #eceff2 #f5f4f1 #fbe5e2 #ff774f #fff2d9'; if (lost.length > 0 || added !== want) { console.error('perdidos:', lost.join(' '), 'nuevos:', added); process.exit(1); }"   # expect: exit 0 — ningún hex perdido y exactamente los 19 nuevos
+grep -qE '@fontsource/michroma|@fontsource-variable/archivo|@fontsource/ibm-plex-mono' src/layouts/AppLayout.astro; test $? -eq 1   # expect: 1 = AppLayout ya no carga las fuentes del monocromo → la línea sale 0
+d="$(git diff HEAD --name-only -- src/styles/global.css src/layouts/Base.astro)" && test -z "$d"   # expect: exit 0 — ni global.css ni Base.astro cambiaron
+pnpm build && pnpm test:build   # expect: exit 0 — la portada heredada no cambia
+node scripts/bg-expect-parity.ts --allow 'Software de gestión para talleres de bicicletas' --skip tests/integration/layouts.test.ts   # expect: exit 0 — solo cambian expectativas declaradas
+pnpm format && pnpm gate   # expect: exit 0
+```
+**Checkpoint**
+```bash
+git add -- src/styles/tokens.css src/layouts/AppLayout.astro public/brand/llave15-favicon-16.svg src/lib/platform.ts tests/integration/llave15-tokens.test.ts tests/integration/layouts.test.ts package.json pnpm-lock.yaml && git add -u -- tests   # -u: solo las pruebas existentes con los valores declarados; nunca duplicados de iCloud sin seguimiento
+git commit -m "feat: bg-47 add llave 15 tokens inter type and favicon" && git tag bg-47
+git tag -l bg-47 | grep -qx bg-47   # expect: exit 0
+```
+
+#### BG-48 — Controles, foco, estados e ingreso de Llave 15 (E2-T15)
+**Archivos:** `src/styles/llave15.css` (nuevo) · `src/styles/taller-components.css` · `src/layouts/AppLayout.astro` · `src/pages/admin/login.astro` · `tests/integration/llave15-components.test.ts` (nuevo)
+**Hacer:** (1) `llave15.css`, todo bajo `.l15`, sin hex, sin sombras, sin `!important`, menos de 400 líneas: tipos (`h1` 600 28px/36px, `h2` 600 20px/28px, cuerpo 16px/24px, `table.dense` y `.label` 14px/20px; `.label` sin mayúsculas forzadas ni tracking; `font-variant-numeric: tabular-nums` en `table`, `.mono`, `.status` y montos); botones (`.btn`: fondo y borde `var(--accent)`, texto `var(--on-ink)`, radio `var(--radius-control)`; `.btn:hover`: `var(--accent-hover)`; `.btn.ghost`: fondo `var(--surface)`, texto `var(--ink)`, borde `var(--field-border)` y en hover borde `var(--ink)`); controles (`input`, `select`, `textarea`, `button`: radio `var(--radius-control)`, borde `var(--field-border)`); las superficies de `global.css` con radio 2px (tarjetas, ticket, avisos) con `var(--radius-card)`; foco `:focus-visible` con `outline: 2px solid var(--focus)` y `outline-offset: 2px`, y `var(--on-ink)` dentro de `.on-dark`; estados: `.status` (neutro por omisión) y cada `.status--<clase>` fijan `--status-bg` y `--status-ink` de su grupo (BG-D36). Neutro: `reservada`, `recibida`, `entregada`, `cancelada`, `anulada`, `draft`, `published`, `withdrawn`, `sin_dato_verificado`, `no_verificada`. En curso: `diagnostico`, `en_reparacion`, `control_calidad`, `abierta`, `submitted`, `in_review`, `en_revision`. Espera: `esperando_aprobacion`, `esperando_repuesto`, `bajo`, `needs_changes`, `condicionado`, `condicionada`, `desactualizado`, `media`, `baja`. Listo: `lista_para_retirar`, `verificado`, `oficial_confirmada`, `approved`, `alta`, `activo`. Bloqueo: `trabajo_rechazado`, `sin-stock`, `diferencia`, `rejected`, `incompatible`, `suspendido`. (2) `taller-components.css`: `.taller .status` gana `background: var(--status-bg, transparent)`, `color: var(--status-ink, inherit)`, borde `currentColor` y radio `var(--radius-control)`; los bordes dobles pasan de `var(--ink)` a `currentColor`; los rayados usan `var(--status-bg, var(--surface))` en lugar de `var(--surface)`; cada `border-style` y cada `::before` quedan iguales; `.taller .btn` y su hover como en `llave15.css`, `.taller .btn.ghost` neutro; `.card`, `[role="status"]`, `[role="alert"]` y `.lib-category` con `var(--radius-card)`; `.options label` y las fotos con `var(--radius-control)`; `[role="alert"]` con fondo `var(--status-blocking-bg)` y texto `var(--status-blocking-ink)` (incluye "Hay saldo pendiente: registra el pago antes de entregar"); `:focus-visible` como en `llave15.css`. Sigue bajo 400 líneas. (3) `AppLayout`: `import "../styles/llave15.css";` después de `global.css`. (4) `/admin/login`: la firma principal sobre el formulario (`<img src="/brand/llave15-firma.svg" alt="Llave 15" width="176" height="40" />`, con espacio libre de al menos 10 px) y un `<p>` con `PLATFORM.descriptor`; ningún otro texto cambia. La prueba parsea los bloques (selectores y declaraciones) de `llave15.css` y `taller-components.css` y renderiza `/admin/login` con la Container API.
+**Reglas:** R-ui · R-tui · BG-D35, BG-D36 · No cambia: `global.css` (excepción de la regla 7, intacto), las formas y las etiquetas de los estados (`biblioteca-pages.test.ts` sin cambios), ningún texto visible salvo el `descriptor` nuevo del ingreso.
+**Done when**
+- [ ] WHEN `tests/integration/llave15-components.test.ts` lee `src/styles/llave15.css` THE SYSTEM SHALL encontrar cada clase de estado de este paso en exactamente uno de los cinco grupos, con `--status-bg` y `--status-ink` de ese grupo
+- [ ] WHEN la prueba lee `src/styles/taller-components.css` THE SYSTEM SHALL encontrar `background: var(--status-bg, transparent)` en `.taller .status` y conservar la regla `.taller .status--<estado>::before` de cada estado de `STATUS_LABELS`
+- [ ] WHEN la prueba lee `.l15 .btn` en `llave15.css` y `.taller .btn` en `taller-components.css` THE SYSTEM SHALL encontrar fondo `var(--accent)` y en `:hover` `var(--accent-hover)`, y la regla `:focus-visible` de cada archivo SHALL tener `outline: 2px solid var(--focus)` y `outline-offset: 2px`
+- [ ] WHEN se buscan hex en `llave15.css` y `taller-components.css` y `box-shadow` en `llave15.css` THE SYSTEM SHALL no encontrar ninguno
+- [ ] WHEN se renderiza `/admin/login` THE SYSTEM SHALL mostrar `<img src="/brand/llave15-firma.svg" alt="Llave 15"` y `Software de gestión para talleres de bicicletas` junto a los textos de hoy del formulario
+- [ ] WHEN corren `pnpm build && pnpm test:build && pnpm test:tablet` y `node scripts/bg-expect-parity.ts` THE SYSTEM SHALL salir 0
+**Verify**
+```bash
+pnpm test tests/integration/llave15-components.test.ts tests/integration/biblioteca-pages.test.ts   # expect: exit 0, 0 failed
+grep -nE '#[0-9A-Fa-f]{3,8}([^0-9A-Za-z]|$)' src/styles/llave15.css src/styles/taller-components.css; test $? -eq 1   # expect: 1 = ningún hex fuera de tokens.css → la línea sale 0
+grep -q 'box-shadow' src/styles/llave15.css; test $? -eq 1   # expect: 1 = sin sombras → la línea sale 0
+for f in src/styles/llave15.css src/styles/taller-components.css; do test "$(wc -l < "$f" | tr -d ' ')" -lt 400 || echo "$f"; done | grep -q .; test $? -eq 1   # expect: 1 = ninguno llega a 400 → la línea sale 0
+d="$(git diff HEAD --name-only -- src/styles/global.css src/layouts/Base.astro)" && test -z "$d"   # expect: exit 0 — global.css y Base.astro intactos
+pnpm build && pnpm test:build && pnpm test:tablet   # expect: exit 0, 0 failed
+node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
+pnpm format && pnpm gate   # expect: exit 0
+```
+**Checkpoint**
+```bash
+git add -- src/styles/llave15.css src/styles/taller-components.css src/layouts/AppLayout.astro src/pages/admin/login.astro tests/integration/llave15-components.test.ts
+git commit -m "feat: bg-48 restyle controls focus and status badges for llave 15" && git tag bg-48
+git tag -l bg-48 | grep -qx bg-48   # expect: exit 0
+```
+
+#### BG-49 — Firma de Llave 15 en el menú, el pie del cliente y los correos (E2-T16)
+**Archivos:** `src/layouts/TallerLayout.astro` · `src/styles/taller-layout.css` · `src/layouts/PublicLayout.astro` · `src/server/email/templates.ts` · `tests/integration/llave15-layouts.test.ts` (nuevo)
+**Valores esperados que cambian (declarados):** la marca del menú `Llave 15 · Taller` (BG-27) pasa a la firma `<img … alt="Llave 15">` seguida de `Taller`; la línea `Gestionado con Llave 15` del pie del cliente y de los correos pasa a `<nombre del taller> · Gestionado con Llave 15` (`Vector Bikes · Gestionado con Llave 15` para Vector Bikes). Cambian solo las expectativas que contienen esas cadenas, en las pruebas existentes que las afirman (`git add -u -- tests` en el Checkpoint); nada más (`--allow 'Llave 15'`).
+**Hacer:** (1) `TallerLayout`: `<p class="taller-brand">` pasa a `<a class="taller-brand on-dark" href="/taller"><img src="/brand/llave15-firma-invertida.svg" alt="Llave 15" width="132" height="30" /><span class="taller-area">Taller</span></a>`; la línea del usuario (nombre · rol), el menú, sus grupos, enlaces, permisos y `Salir` no cambian. (2) `taller-layout.css`: `.taller .taller-aside` con `background: var(--ink)` y `color: var(--on-ink)` (grafito; en tablet es la barra superior); en escritorio, los enlaces del panel en `var(--on-ink)`, el actual con fondo `var(--surface)` y texto `var(--ink)`, el hover con borde `var(--on-ink)`; el cajón de tablet (`:popover-open` bajo 1024px) sigue en `var(--surface)` con texto `var(--ink)`; `.taller-user` en `var(--on-ink)`; foco blanco dentro del grafito (`.taller-aside :focus-visible`, salvo dentro del cajón abierto); controles del área con `var(--radius-control)` y el cajón con `var(--radius-card)`; espacio libre de la firma de al menos 8px (¼ del distintivo de 30px); los objetivos de 48px y la compactación con mouse quedan iguales. (3) `PublicLayout`: el encabezado con el nombre o el logo del taller no cambia; el pie pasa a `<img src="/brand/llave15-distintivo.svg" alt="" width="24" height="24" />` (decorativo: el texto la nombra) + `{profile.name} · {PLATFORM.footerLine}`. (4) `templates.ts`: el pie compartido escribe `${brand.shopName} · ${brand.footerLine}` en `text` y en `html`, sin imágenes nuevas; si el pie se arma en más de un archivo, detenerse y reportarlo. La prueba renderiza `TallerLayout` y `PublicLayout` con la Container API, lee `taller-layout.css` y arma la confirmación de una reserva del Taller Demo.
+**Reglas:** R-ui · R-tui · R-dom · RC 6, 14 · BG-D38, BG-D39 · No cambia: rutas, permisos, textos del menú, asuntos y condiciones de envío de los correos, el encabezado del cliente.
+**Done when**
+- [ ] WHEN se renderiza `TallerLayout` THE SYSTEM SHALL mostrar `<img src="/brand/llave15-firma-invertida.svg" alt="Llave 15"` con `width="132"` y el texto `Taller`, y los mismos enlaces de menú de hoy para cada rol
+- [ ] WHEN `tests/integration/llave15-layouts.test.ts` lee `src/styles/taller-layout.css` THE SYSTEM SHALL encontrar `.taller .taller-aside` con `background: var(--ink)` y `color: var(--on-ink)`, y ningún hex
+- [ ] WHEN se renderiza `PublicLayout` con el perfil del Taller Demo THE SYSTEM SHALL mostrar `Taller Demo` en el encabezado y `Taller Demo · Gestionado con Llave 15` al pie junto a `/brand/llave15-distintivo.svg`
+- [ ] WHEN se arma la confirmación de una reserva del Taller Demo THE SYSTEM SHALL cerrar `text` y `html` con la línea `Taller Demo · Gestionado con Llave 15`
+- [ ] WHEN corren `pnpm test`, `pnpm test:build` y `pnpm test:tablet` completos THE SYSTEM SHALL pasar
+- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15'` THE SYSTEM SHALL salir 0
+**Verify**
+```bash
+pnpm test tests/integration/llave15-layouts.test.ts tests/integration/layouts.test.ts tests/integration/booking-emails-isolation.test.ts tests/integration/email.test.ts   # expect: exit 0, 0 failed
+grep -nE '#[0-9A-Fa-f]{3,8}([^0-9A-Za-z]|$)' src/styles/taller-layout.css; test $? -eq 1   # expect: 1 = ningún hex fuera de tokens.css → la línea sale 0
+test "$(wc -l < src/server/email/templates.ts | tr -d ' ')" -lt 400   # expect: exit 0
+pnpm test   # expect: exit 0, 0 failed
+pnpm build && pnpm test:build && pnpm test:tablet   # expect: exit 0, 0 failed
+node scripts/bg-expect-parity.ts --allow 'Llave 15'   # expect: exit 0 — solo cambian expectativas declaradas
+pnpm format && pnpm gate   # expect: exit 0
+```
+**Checkpoint**
+```bash
+git add -- src/layouts/TallerLayout.astro src/styles/taller-layout.css src/layouts/PublicLayout.astro src/server/email/templates.ts tests/integration/llave15-layouts.test.ts && git add -u -- tests   # -u: solo las pruebas existentes con los valores declarados; nunca duplicados de iCloud sin seguimiento
+git commit -m "feat: bg-49 apply llave 15 signature to staff customer and email layouts" && git tag bg-49
+git tag -l bg-49 | grep -qx bg-49   # expect: exit 0
+```
+
 ---
 
 ### Épica 03 — Reservas en línea por taller (etapa 3)
@@ -1467,7 +1619,7 @@ git tag -l bg-36 | grep -qx bg-36   # expect: exit 0
 #### BG-37 — Sitio de Vector Bikes: portada (E4-T4)
 **Precondición:** `web/vector-bikes/{package.json,astro.config.mjs,tsconfig.json,vitest.config.ts}` existen desde el Bootstrap (§19.6).
 **Archivos:** `web/vector-bikes/src/layouts/SiteLayout.astro` (nuevo) · `web/vector-bikes/src/components/Home.astro` (nuevo) · `web/vector-bikes/src/pages/index.astro` (nuevo) · `web/vector-bikes/src/styles/site.css` (nuevo) · `web/vector-bikes/tests/content.test.ts` (nuevo)
-**Copias (comandos, no se escriben a mano):** `mkdir -p web/vector-bikes/public/brand && cp public/brand/* web/vector-bikes/public/brand/ && cp public/favicon.svg web/vector-bikes/public/`.
+**Copias (comandos, no se escriben a mano):** `mkdir -p web/vector-bikes/public/brand && cp public/brand/vector-bikes-logo.png public/brand/favicon-32.png public/brand/apple-touch-icon.png web/vector-bikes/public/brand/ && cp public/favicon.svg web/vector-bikes/public/` (solo los archivos de Vector Bikes: los `llave15-*.svg` de BG-46 y BG-47 no van al sitio, BG-D32; el bloque `:root.l15` que `site.css` copia de `tokens.css` no aplica sin la clase `l15`).
 **Hacer:** `site.css` = `src/styles/tokens.css` + `src/styles/global.css` concatenados tal cual (sin hex nuevos). `SiteLayout`: el `<head>` y el cromo de `src/layouts/Base.astro` (fuentes, JSON-LD, FAQ, Open Graph) con `VECTOR_BIKES_SITE`. `Home`: el marcado de `Landing.astro` **sin la isla**: en su lugar, un enlace `.btn` con texto `Reservar` a `BOOKING_URL`. `index.astro`: `prerender = true`. Nada de `web/` importa `src/`.
 **Reglas:** R-ui · BG-D22 · No cambia: textos, estructura y datos estructurados de la portada de hoy.
 **Done when**
@@ -1699,7 +1851,7 @@ git commit -m "feat: bg-45 add platform admin script and close the phase" && git
 git tag -l bg-45 | grep -qx bg-45   # expect: exit 0
 ```
 
-**Criterios FASE §14 → prueba** (también en `README.md` y §20.1): 1 los `*-isolation.test.ts` (BG-07, 12–16, 18–21, 23, 24, 36, 41) + `pnpm gate` · 2 `shops-contract.test.ts` (BG-09) + `shops-unique.test.ts` (BG-10) · 3 `api-by-shop.test.ts` (BG-30) + `booking-page.test.ts` (BG-31) + `e2e/reservar-taller.spec.ts` (BG-33) · 4 `shop-literals.test.ts` (BG-01, línea base vacía en BG-28) · 5 `layouts.test.ts`, BG-27 (títulos), `booking-emails-isolation.test.ts`, `token-pages-isolation.test.ts`, `report-brand-isolation.test.ts` · 6 `app-url.test.ts` (BG-34) + `pnpm test:web` (BG-39) + checklist de corte · 7 `tracking-secret.test.ts` (BG-35) + `redirects.test.ts` y `check-redirects.ts` (BG-38) · 8 `create-shop.test.ts` (BG-42) + `my-shop.test.ts` (BG-44) · 9 `tasks-isolation.test.ts` (BG-36) · 10 `pnpm gate` en cada paso · 11 checklist de lanzamiento (§20.1).
+**Criterios FASE §14 → prueba** (también en `README.md` y §20.1): 1 los `*-isolation.test.ts` (BG-07, 12–16, 18–21, 23, 24, 36, 41) + `pnpm gate` · 2 `shops-contract.test.ts` (BG-09) + `shops-unique.test.ts` (BG-10) · 3 `api-by-shop.test.ts` (BG-30) + `booking-page.test.ts` (BG-31) + `e2e/reservar-taller.spec.ts` (BG-33) · 4 `shop-literals.test.ts` (BG-01, línea base vacía en BG-28) · 5 `layouts.test.ts`, BG-27 (títulos), `booking-emails-isolation.test.ts`, `token-pages-isolation.test.ts`, `report-brand-isolation.test.ts`, `llave15-brand.test.ts`, `llave15-tokens.test.ts`, `llave15-components.test.ts`, `llave15-layouts.test.ts` (BG-46–49) · 6 `app-url.test.ts` (BG-34) + `pnpm test:web` (BG-39) + checklist de corte · 7 `tracking-secret.test.ts` (BG-35) + `redirects.test.ts` y `check-redirects.ts` (BG-38) · 8 `create-shop.test.ts` (BG-42) + `my-shop.test.ts` (BG-44) · 9 `tasks-isolation.test.ts` (BG-36) · 10 `pnpm gate` en cada paso · 11 checklist de lanzamiento (§20.1).
 
 ---
 
@@ -1806,7 +1958,8 @@ Las demás variables de `CLAUDE.md` no cambian. `.env.example` gana `APP_URL=` (
 | `web/vector-bikes/{package.json,astro.config.mjs,tsconfig.json,vitest.config.ts}` | Configuración del sitio (§19.6) | — (`dist/` y `.astro/` sí se ignoran, y deben ignorarse) |
 | `docs/ventanas/bg-v*.md`, `docs/corte-bike-garage.md`, `docs/nuevo-taller.md` | Operación | — |
 | `drizzle/**` | Migraciones generadas | — |
-| `package.json`, `pnpm-lock.yaml` | Scripts nuevos; lockfile sin cambios | — |
+| `package.json`, `pnpm-lock.yaml` | Scripts nuevos; la dependencia de Inter y su lockfile en BG-47 (la única vez que el lockfile cambia) | — |
+| `public/brand/llave15-*.svg`, `src/styles/llave15.css` | Marca provisional y estilos de Llave 15 (BG-46–48) | — ningún patrón de `.gitignore` los cubre |
 | `.env.example` | Plantilla de variables | `!.env.example` (existente, después de `.env.*`) |
 | `.web.log`, `.smoke.log` | **No** se commitean | `*.log` (existente) |
 
@@ -1836,7 +1989,7 @@ git add -- CLAUDE.md AGENTS.md tsconfig.json .claude/settings.json .claude/rules
 
 ## 11. Dependencias
 
-**Ninguna dependencia nueva ni actualización** (BG-D22). Pins leídos de `package.json` y `pnpm-lock.yaml` en `8bca898`; fuente: el lockfile; fecha: 2026-11-17; estado: **fijado por el lockfile, sin cambio**. Todos los instala la línea `pnpm install --frozen-lockfile` del Bootstrap (§10). `web/vector-bikes/` no es un paquete del workspace de pnpm: resuelve los mismos paquetes desde `node_modules` de la raíz, y su `package.json` repite los pins para el repositorio `vector-bikes-web` (BG-DC4).
+**Una dependencia nueva, ninguna actualización** (BG-D22, BG-D34). Pins leídos de `package.json` y `pnpm-lock.yaml` en `8bca898`; fuente: el lockfile; fecha: 2026-11-17; estado: **fijado por el lockfile, sin cambio**. Todos los instala la línea `pnpm install --frozen-lockfile` del Bootstrap (§10), salvo `@fontsource-variable/inter`, que entra en BG-47 con `pnpm add -w --save-exact @fontsource-variable/inter@5.3.0` (la corre la sesión coordinadora: el sandbox de Codex no tiene red) y desde ahí queda en el lockfile y la instala la misma línea. `web/vector-bikes/` no es un paquete del workspace de pnpm: resuelve los mismos paquetes desde `node_modules` de la raíz, y su `package.json` repite los pins para el repositorio `vector-bikes-web` (BG-DC4).
 
 ### Runtime
 | Paquete | Versión | Fuente | Verificado | Instalado por | Propósito |
@@ -1846,7 +1999,8 @@ git add -- CLAUDE.md AGENTS.md tsconfig.json .claude/settings.json .claude/rules
 | @astrojs/preact | 6.0.5 | `pnpm-lock.yaml` | 2026-11-17 (ídem) | §10 Bootstrap | Isla de reserva |
 | @astrojs/sitemap | 3.7.4 | `pnpm-lock.yaml` | 2026-11-17 (ídem) | §10 Bootstrap | Sitemap de la portada |
 | @tailwindcss/vite, tailwindcss | 4.3.3 | `pnpm-lock.yaml` | 2026-11-17 (ídem) | §10 Bootstrap | Directivas de `global.css` (y su copia) |
-| @fontsource-variable/archivo, @fontsource/ibm-plex-mono, @fontsource/michroma | 5.3.0 | `pnpm-lock.yaml` | 2026-11-17 (ídem) | §10 Bootstrap | Tipografía |
+| @fontsource-variable/archivo, @fontsource/ibm-plex-mono, @fontsource/michroma | 5.3.0 | `pnpm-lock.yaml` | 2026-11-17 (ídem) | §10 Bootstrap | Tipografía de la portada heredada (`Base.astro`); `AppLayout` deja de cargarlas en BG-47 |
+| @fontsource-variable/inter | 5.3.0 (exacta) | registro de npm, https://www.npmjs.com/package/@fontsource-variable/inter (publicada el 2026-07-19, última estable) | 2026-11-18 (verificada por la sesión coordinadora) | BG-47 (`pnpm add -w --save-exact @fontsource-variable/inter@5.3.0`) | Inter 400–700 de las superficies de Llave 15 (BG-D34) |
 | preact | 10.29.8 | `pnpm-lock.yaml` | 2026-11-17 (ídem) | §10 Bootstrap | Isla |
 | drizzle-orm | 0.45.2 | `pnpm-lock.yaml` | 2026-11-17 (ídem) | §10 Bootstrap | Esquema, `$defaultFn` (BG-D3) |
 | postgres | 3.4.9 | `pnpm-lock.yaml` | 2026-11-17 (ídem) | §10 Bootstrap | Cliente de la app y de los scripts |
@@ -1899,12 +2053,13 @@ Sin CI externo: `pnpm gate` (desde BG-39 incluye `pnpm test:web`) en el Mac ante
 | Etapa | Publicaciones | Reversión |
 |---|---|---|
 | 1 — Cimientos | V-BG1 (`bg-05`), V-BG2 (`bg-08`, con `bg:backfill` en producción), V-BG3 (`bg-11`), luego `bg-16` sin ventana | Antes de V-BG3: republicar el anterior. Después: republicar `bg-08` (compatible con el esquema contraído); si hay que deshacer el contract, restaurar el respaldo del día de V-BG3 |
-| 2 — Identidad | `bg-28`, sin esquema | Republicar `bg-16` |
-| 3 — Reservas por taller | `bg-33`, sin esquema | Republicar `bg-28` |
+| 2 — Identidad | `bg-49` (BG-17 … BG-28 y BG-46 … BG-49), sin esquema | Republicar `bg-16` |
+| 3 — Reservas por taller | `bg-33`, sin esquema | Republicar `bg-49` (o `bg-28` para volver al aspecto monocromo; no hay esquema de por medio) |
 | 4 — Separación | `bg-40` + secretos nuevos (C5), sitio nuevo (C6), DNS (C7) | C5: quitar `APP_URL` y republicar `bg-33`; C7: volver el DNS |
 | 5 — Plataforma | `bg-45`, sin esquema (la marca y `shop.manage` no tocan el esquema) | Republicar `bg-40`; los talleres creados quedan en la base sin uso |
 
 Cada ventana con el taller cerrado, respaldo del día y los pasos de `docs/ventanas/bg-v*.md` (`corepack pnpm@12.4.2 install --frozen-lockfile`, `db:migrate` y `db:check` en el workspace de Replit, `rm -rf node_modules`, Republish). La app nunca migra al arrancar.
+- **Local, identidad visual:** el paso anterior de BG-46 es `bg-28` y el de BG-29 es `bg-49` (orden de §9). Volver a `bg-46` o antes deja `package.json` y `pnpm-lock.yaml` sin Inter: después del `git reset --hard`, `pnpm install --frozen-lockfile` iguala `node_modules` al lockfile.
 - **Local:** `git reset --hard bg-<NN-1>` y, si la base dev tiene migraciones de pasos revertidos, reiniciarla (solo la de `.env`, se niega dentro de un deployment; lo aprueba el operador cada vez) y volver a completar los datos:
   ```bash
   test -z "$REPLIT_DEPLOYMENT" && psql "$(node --env-file-if-exists=.env -p 'process.env.DATABASE_URL')" -v ON_ERROR_STOP=1 -c 'drop schema public cascade; create schema public; drop schema if exists drizzle cascade;' && pnpm db:migrate
@@ -1960,7 +2115,7 @@ El envío real de una reserva desde el navegador (Turnstile necesita red; la API
 
 ## 15. Accesibilidad
 
-WCAG 2.2 AA. En `/<slug>/reservar`: un solo `h1` con el nombre del taller, `label` en todo control, mensajes de error en texto con `aria-invalid`, foco visible, objetivos ≥ 44px, `prefers-reduced-motion`. En `/plataforma` y `/taller/mi-taller`: objetivos ≥ 48px, `fieldset`/`legend` para horarios por día, estados `Activo`/`Suspendido` con forma + texto. Manual antes de cerrar: teclado y VoiceOver en `/<slug>/reservar`, zoom 200 % en "Mi taller".
+WCAG 2.2 AA. Desde BG-47, los contrastes del manual de marca de Llave 15: texto principal sobre blanco cálido 15,58:1, secundario sobre blanco 7,01:1, etiqueta blanca sobre naranja 6,25:1, borde de control 3,02:1 y foco azul 6,37:1; anillo de foco 2px separado 2px, blanco sobre grafito; estados con texto además del color; la firma lleva `alt="Llave 15"` y el distintivo del pie del cliente es decorativo (`alt=""`) porque el texto lo nombra. En `/<slug>/reservar`: un solo `h1` con el nombre del taller, `label` en todo control, mensajes de error en texto con `aria-invalid`, foco visible, objetivos ≥ 44px, `prefers-reduced-motion`. En `/plataforma` y `/taller/mi-taller`: objetivos ≥ 48px, `fieldset`/`legend` para horarios por día, estados `Activo`/`Suspendido` con forma + texto. Manual antes de cerrar: teclado y VoiceOver en `/<slug>/reservar`, zoom 200 % en "Mi taller".
 
 ---
 
@@ -1994,7 +2149,7 @@ NOT APPLICABLE — esta fase no agrega ni cambia llamadas a un modelo de lenguaj
 | Skill | Pasos | Por qué | Instalación |
 |---|---|---|---|
 | playwright-cli (se activa sola) | BG-04, 15, 19, 23, 24, 27, 33 | Depurar specs de tablet y el de la página de reservas | `npm install -g @playwright/cli@latest` y luego `playwright-cli install --skills` |
-| frontend-design (se activa sola) | BG-22, 25, 31, 37, 41, 44 | Layouts, página de reservas, sitio y pantallas de plataforma fieles al sistema existente | `/plugin marketplace add anthropics/skills` y luego `/plugin install example-skills@anthropic-agent-skills` |
+| frontend-design (se activa sola) | BG-22, 25, 31, 37, 41, 44, 46–49 | Layouts, página de reservas, sitio y pantallas de plataforma fieles al sistema existente | `/plugin marketplace add anthropics/skills` y luego `/plugin install example-skills@anthropic-agent-skills` |
 
 Si una no está instalada, se sigue con este blueprint y se anota en una línea. Las skills del proyecto `add-migration` (actualizada, §19.4) y `add-holidays` se conservan.
 
@@ -2005,13 +2160,13 @@ Si una no está instalada, se sigue con este blueprint y se anota en una línea.
 `workspace/` refleja la raíz del repo y lo copia el Bootstrap (§10). **En brownfield, los archivos de `workspace/` que ya existen en el repo son versiones fusionadas**: conservan el contenido del repo en `WORKSPACE_BASE` (`8bca898`) y agregan lo de esta fase; reemplazan a los actuales al copiarse, solo después de la guarda. Ningún paso edita un archivo de esta lista. Nunca se emite `.claude/commands/`. Los archivos bajo `workspace/` son la fuente literal; esta sección describe su contenido.
 
 ### 19.1 `CLAUDE.md`
-`workspace/CLAUDE.md` (< 200 líneas): el `CLAUDE.md` del repo completo, con: título y descripción de Llave 15 (primer taller: Vector Bikes); comandos nuevos (`node scripts/bg-expect-parity.ts`, `pnpm bg:backfill`, `pnpm bg:check`, `pnpm test:web`, `pnpm platform:admin`, con el paso desde el que existen) y la compuerta con `test:web`; "Estado del build" apuntando a `blueprints/bike-garage/` y a los encargos `docs/encargos/BG-NN-<tema>.md`; caminos de reserva y de alcance; fronteras con `src/server/shops/**` y `web/vector-bikes/**`; "Dónde vive cada cosa" con `schema-shops.ts` a la cabeza de la cadena de trece archivos, perfil y alcance del taller, `src/lib/time.ts`, `PLATFORM`; regla de código 14 reescrita (guardia) y regla 15 (alcance); tokens en `tokens.css`; variables `APP_URL` y `TRACKING_TOKEN_SECRET`; regla diferida `shops.md`; No negociable 6 enmendado (decisión 57) y 20–22 nuevos; "Reparto con Codex" literal.
+`workspace/CLAUDE.md` (< 200 líneas): el `CLAUDE.md` del repo completo, con: título y descripción de Llave 15 (primer taller: Vector Bikes); comandos nuevos (`node scripts/bg-expect-parity.ts`, `pnpm bg:backfill`, `pnpm bg:check`, `pnpm test:web`, `pnpm platform:admin`, con el paso desde el que existen) y la compuerta con `test:web`; "Estado del build" apuntando a `blueprints/bike-garage/` y a los encargos `docs/encargos/BG-NN-<tema>.md`; caminos de reserva y de alcance; fronteras con `src/server/shops/**` y `web/vector-bikes/**`; "Dónde vive cada cosa" con `schema-shops.ts` a la cabeza de la cadena de trece archivos, perfil y alcance del taller, `src/lib/time.ts`, `PLATFORM`; regla de código 14 reescrita (guardia) y regla 15 (alcance); tokens en `tokens.css`; variables `APP_URL` y `TRACKING_TOKEN_SECRET`; regla diferida `shops.md`; No negociable 6 enmendado (decisión 57) y 20–22 nuevos; "Reparto con Codex" literal; "Sistema de diseño" con la regla por paso (hasta BG-46 el monocromo, desde BG-47 Llave 15; BG-D40) en una sola tabla de tokens con las dos columnas, y el manual de marca en "Estado del build".
 
 ### 19.2 `AGENTS.md`
-`workspace/AGENTS.md`: el del repo completo con los mismos cambios en comandos, orden de trabajo, reglas de código (14 y 16), fronteras, esquema, reglas por carpeta y No negociables 20–22.
+`workspace/AGENTS.md`: el del repo completo con los mismos cambios en comandos, orden de trabajo, reglas de código (14 y 16), fronteras, esquema, reglas por carpeta, No negociables 20–22 y la sección "Diseño por paso" (BG-D40): Codex lee solo `AGENTS.md`, así que la regla de entrada del aspecto Llave 15 también vive ahí.
 
 ### 19.3 `.claude/settings.json`
-El allowlist existente completo más: la línea literal `rsync -a blueprints/bike-garage/workspace/ ./`; `node scripts/bg-expect-parity.ts` (con y sin argumentos); `node scripts/bg-backfill.ts:*`, `DATABASE_URL=postgres://127.0.0.1:1/x node scripts/bg-backfill.ts --dry-run 2>&1`, `pnpm bg:backfill:*`; `pnpm bg:check`, `DATABASE_URL=postgres://127.0.0.1:1/x node scripts/bg-check.ts 2>&1`; `pnpm test:web`, `sh web/vector-bikes/scripts/test-web.sh`, `node web/vector-bikes/scripts/check-redirects.ts:*`; `pnpm platform:admin:*`, `node scripts/platform-admin.ts:*`; `cp public/brand/*:*`, `cp public/favicon.svg:*`, `cp public/robots.txt:*`; `psql:*` (reinicio de §12, con confirmación). Deny agrega `git add -A`. Cubre cada Verify, cada Checkpoint y §20.1.
+El allowlist existente completo más: la línea literal `rsync -a blueprints/bike-garage/workspace/ ./`; `node scripts/bg-expect-parity.ts` (con y sin argumentos); `node scripts/bg-backfill.ts:*`, `DATABASE_URL=postgres://127.0.0.1:1/x node scripts/bg-backfill.ts --dry-run 2>&1`, `pnpm bg:backfill:*`; `pnpm bg:check`, `DATABASE_URL=postgres://127.0.0.1:1/x node scripts/bg-check.ts 2>&1`; `pnpm test:web`, `sh web/vector-bikes/scripts/test-web.sh`, `node web/vector-bikes/scripts/check-redirects.ts:*`; `pnpm platform:admin:*`, `node scripts/platform-admin.ts:*`; `cp public/brand/*:*`, `cp public/favicon.svg:*`, `cp public/robots.txt:*`; `psql:*` (reinicio de §12, con confirmación). Deny agrega `git add -A`. Con la identidad visual (BG-D40) suma la línea literal `pnpm add -w --save-exact @fontsource-variable/inter@5.3.0` (BG-47) y la copia literal de BG-37 `cp public/brand/vector-bikes-logo.png public/brand/favicon-32.png public/brand/apple-touch-icon.png web/vector-bikes/public/brand/`. Cubre cada Verify, cada Checkpoint y §20.1.
 
 ### 19.4 Skills del proyecto
 | Skill | Se activa con | Automatiza |
@@ -2026,9 +2181,9 @@ El allowlist existente completo más: la línea literal `rsync -a blueprints/bik
 | `booking-engine.md` (fusionado) | sin cambios | configuración por taller (`BookingScope`), `src/lib/time.ts`, código con prefijo, lock por (sucursal, día) |
 | `server-api.md` (fusionado) | + `src/pages/[slug]/**`, `src/pages/plataforma/**` | `taller` en la API, `shop_not_found`, Turnstile `cdata`, límite por taller, `APP_URL` y dos orígenes, `/plataforma` |
 | `e2e.md` (fusionado) | sin cambios | excepción de la página de reservas (BG-D19); `global-setup.ts`/`fixtures.ts` los editan solo BG-04 y BG-33 |
-| `ui-design.md` (fusionado) | + `src/pages/[slug]/**` | `tokens.css`, `PublicLayout`, pie `Gestionado con Llave 15`, portada heredada desde `web/vector-bikes/src/content/site.ts` |
+| `ui-design.md` (fusionado) | + `src/pages/[slug]/**` | `tokens.css`, `PublicLayout`, pie `Gestionado con Llave 15`, portada heredada desde `web/vector-bikes/src/content/site.ts`; diseño por paso: hasta BG-46 el monocromo, desde BG-47 Llave 15 (paleta, Inter, forma, botón, foco, grupos de estado, marca provisional; BG-D32 … BG-D39) |
 | `taller-domain.md` (fusionado) | sin cambios | `PLATFORM` y perfil del taller en vez de `SITE` |
-| `taller-ui.md` (fusionado) | sin cambios | títulos con `PLATFORM.name`; "Mi taller" |
+| `taller-ui.md` (fusionado) | sin cambios | títulos con `PLATFORM.name`; "Mi taller"; diseño por paso (color de grupo en los estados desde BG-48, menú en grafito con la firma desde BG-49, `status--activo` y `status--suspendido` para `/plataforma`) |
 | `shops.md` (nuevo) | `src/server/shops/**`, `src/pages/plataforma/**`, `scripts/bg-*.ts`, `scripts/platform-admin.ts`, `web/vector-bikes/**` | alcance, aislamiento, plataforma, slugs, sitio |
 | `library.md`, demás | — | sin cambios (no se entregan) |
 
@@ -2068,7 +2223,7 @@ Ningún servicio en contenedor: Postgres local es prerrequisito (§10). Cargador
 | drizzle-kit | `pnpm db:generate` | `./schema-shops.ts` desde `schema.ts` | cargador TS de drizzle-kit; glob de `drizzle.config.ts` |
 | Playwright | `pnpm test:tablet` | `./fixtures.ts`; `../scripts/vector-bikes-profile.ts` desde `global-setup.ts` | transformación TS de Playwright |
 
-Ningún paquete con resolución no trivial nuevo.
+Un paquete nuevo, `@fontsource-variable/inter` (BG-47): `AppLayout` importa su CSS (`@fontsource-variable/inter/index.css`) y el `.woff2` latino con `?url` para precargarlo, igual que `Base.astro` hace hoy con Archivo; lo resuelve Vite en la app, en el build y en Vitest (`getViteConfig`), y ningún script ni `web/vector-bikes/` lo importa. El nombre `inter-latin-wght-normal.woff2` lo confirma el Verify de BG-47 (`test -f`).
 
 #### Cross-artifact value reconciliation
 | Valor | Fuente | Literal | Otras apariciones | Comparado |
@@ -2088,7 +2243,13 @@ Ningún paquete con resolución no trivial nuevo.
 | Origen de las redirecciones | `web/vector-bikes/src/lib/redirects.ts` (BG-38) | `https://llave15.cl` | `check-redirects.ts`, `docs/corte-bike-garage.md`, `.env` de producción `APP_URL` | yes |
 | Slug de Vector Bikes | `scripts/vector-bikes-profile.ts` | `vector-bikes` | `site.ts` del sitio, `global-setup.ts`, URL de reserva, logo `/vector-bikes/logo`, spec BG-33 | yes |
 | Prefijos de código | perfiles | `VB`, `TD` | Verify y criterios de BG-04, BG-07, `global-setup.ts` | yes |
-| Pie del cliente | `src/lib/platform.ts` (`PLATFORM.footerLine`) | `Gestionado con Llave 15` | `brand.ts`, `PublicLayout`, criterios BG-17–24, 31, 33 | yes |
+| Pie del cliente | `src/lib/platform.ts` (`PLATFORM.footerLine`) | `Gestionado con Llave 15`; desde BG-49 precedido de `<nombre del taller> · ` | `brand.ts`, `PublicLayout`, `email/templates.ts` (BG-49), criterios BG-17–24, 31, 33, 49 | yes |
+| Rutas de la marca de Llave 15 | archivos de `public/brand/` (BG-46, BG-47) | `/brand/llave15-distintivo.svg`, `/brand/llave15-firma.svg`, `/brand/llave15-firma-invertida.svg`, `/brand/llave15-firma-mono.svg`, `/brand/llave15-favicon-16.svg` | `AppLayout` (íconos, BG-47), `/admin/login` (BG-48), `TallerLayout` y `PublicLayout` (BG-49), pruebas `llave15-*.test.ts`, `ui-design.md`, `taller-ui.md` | yes |
+| Ámbito de Llave 15 | `AppLayout` (BG-47) | `l15` (`<html lang="es-CL" class="l15">`) | `:root.l15` y `:not(.l15)` de `tokens.css` (BG-47), `.l15` de `llave15.css` (BG-48), `llave15-tokens.test.ts` | yes |
+| Familia de la interfaz | CSS de `@fontsource-variable/inter` | `"Inter Variable"` | `--display`, `--body` y `--mono` de `:root.l15` (BG-47) | yes |
+| Pin de Inter | §11 | `5.3.0` | comando `pnpm add` y Verify de BG-47, `settings.json`, `package.json` | yes |
+| Hex nuevos de la paleta | `:root.l15` de `tokens.css` (BG-47) | los 19 de §7, en minúsculas | lista literal del Verify de BG-47, §7, `ui-design.md`; `CLAUDE.md` los muestra en mayúsculas como el resto de su tabla (las pruebas comparan sin distinguir); los SVG de BG-46 y BG-47 usan un subconjunto | yes |
+| Texto del descriptor | `src/lib/platform.ts` (`PLATFORM.descriptor`, BG-47) | `Software de gestión para talleres de bicicletas` | `/admin/login` (BG-48), criterios y `--allow` de BG-47, criterio de BG-48 | yes |
 | Remitente | `src/server/email/brand.ts` (`senderFor`) | `<Taller> · Llave 15 <dirección>` | criterios BG-17–19, §5 | yes |
 | Nueve patrones de la guardia | `tests/unit/shop-literals.test.ts` | `Vector Bikes`, `Vitacura`, `Las Condes`, `Kennedy`, `vectorbikes`, `vector.bikes`, `$15.000`, `85095780`, `8509 5780` | Verify de BG-01, BG-26, BG-27, BG-28 | yes |
 | Pruebas de siembra de BG-04 | §9 BG-04 | las quince + `tests/helpers/pglite.ts` | Verify y Checkpoint de BG-04, `tasks.json` `files`, épica 01 | yes |
@@ -2140,7 +2301,7 @@ pnpm gate                        # expect: exit 0
 **Criterios FASE §14 → prueba:** tabla al final de BG-45 (§9).
 
 **Compuertas manuales (una vez, después del build):**
-- [ ] Un tag por paso: `test "$(git tag -l 'bg-*' | wc -l | tr -d ' ')" = 45` sale 0.
+- [ ] Un tag por paso: `test "$(git tag -l 'bg-*' | wc -l | tr -d ' ')" = 49` sale 0.
 - [ ] Archivos commiteados, uno por invocación: `git ls-files --error-unmatch CLAUDE.md`, `… AGENTS.md`, `… tsconfig.json`, `… .claude/settings.json`, `… .claude/rules/shops.md`, `… web/vector-bikes/package.json`, `… web/vector-bikes/astro.config.mjs`, `… docs/ventanas/bg-v1.md`, `… docs/ventanas/bg-v2.md`, `… docs/ventanas/bg-v3.md`, `… docs/corte-bike-garage.md`, `… docs/nuevo-taller.md` — cada uno sale 0; y `git check-ignore -q web/vector-bikes/package.json; test $? -eq 1` y `git check-ignore -q docs/corte-bike-garage.md; test $? -eq 1` (1 = no ignorado; 128 = uso, y entonces falla).
 - [ ] Ningún duplicado de iCloud commiteado: `test -z "$(git ls-files | grep -E ' 2(\.[^/]*)?$')"` sale 0.
 - [ ] Ninguna prueba importa `src/lib/site.ts`: `grep -rq 'lib/site.ts' tests e2e; test $? -eq 1` sale 0.
@@ -2155,7 +2316,8 @@ pnpm gate                        # expect: exit 0
 - [ ] **Lanzamiento — marca de plataforma:** `pnpm platform:admin <correo de Andrés>` contra producción sale 0.
 - [ ] **Lanzamiento — documentos (FASE §7):** términos con cada taller, política de privacidad de Llave 15 y procedimiento de supresión, antes del segundo taller real.
 - [ ] **Lanzamiento — tablet real y navegador:** recepción y control de calidad en el iPad con dos talleres en la base; una reserva real en `/vector-bikes/reservar` desde un teléfono.
-- [ ] **Lanzamiento — logo de Llave 15** (pendiente del dueño, FASE §12).
+- [ ] **Lanzamiento — logo de Llave 15:** los SVG provisionales de BG-46 y BG-47 (BG-D37) se reemplazan por los originales del dueño en las mismas rutas de `public/brand/` cuando lleguen; después, `pnpm test tests/unit/llave15-brand.test.ts tests/integration/llave15-tokens.test.ts` y `pnpm gate` salen 0.
+- [ ] **Lanzamiento — revisión visual de Llave 15:** el dueño compara en el iPad y en escritorio una orden de `/taller/ordenes/<id>`, `/admin/login` y `/vector-bikes/reservar` con `docs/marca/llave15-muestra-orden.png` y `docs/marca/llave15-variantes.png` (menú en grafito con la firma, botón primario naranja, estados con forma, texto y color, pie `Vector Bikes · Gestionado con Llave 15`).
 - [ ] **Decomisiones:** `BG-DC1` a `BG-DC4` según §9.1.
 - [ ] **Cierre de fase (FASE §14.11):** un segundo taller opera un mes junto a Vector Bikes sin cruces; `pnpm bg:check` sale 0 cada semana del mes.
 
@@ -2177,6 +2339,11 @@ pnpm gate                        # expect: exit 0
 | iCloud duplica archivos (`* 2.*`) | A | M | Un `… 2.sql` en `drizzle/` | Guarda en Bootstrap y en los Checkpoints de esquema; `git add -u` en las excepciones |
 | Bundles viejos de la isla en caché sin `taller` | M | B | 422 `taller` en logs con dos talleres | Sin `taller` y con un taller funciona; la isla nueva siempre lo envía |
 | Límites del sandbox de Codex (sin red ni Postgres) | A | B | Codex no puede correr `db:migrate`, `test:tablet`, `test:web` ni `gate` | Reparto: Codex genera y corre check/test/build; Claude migra, verifica y commitea |
+| `pnpm add` sin red en el sandbox de Codex (BG-47) | A | B | Codex no puede instalar Inter | La sesión coordinadora corre `pnpm add -w --save-exact @fontsource-variable/inter@5.3.0` antes del pase y el lockfile entra en el Checkpoint |
+| El `.woff2` de Inter tiene otro nombre que el previsto | B | B | `test -f node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2` falla en BG-47 | La coordinadora lista esa carpeta después del `pnpm add`; si el nombre difiere, detiene el paso y corrige el blueprint antes del pase (nunca el Verify dentro del encargo) |
+| Los SVG provisionales difieren de los originales | A | B | El dueño los compara con el manual | Mismas rutas en `public/brand/`; el reemplazo no toca código (BG-D37, checklist §20.1) |
+| La identidad Llave 15 se filtra a la portada heredada o al sitio de Vector Bikes | B | M | `pnpm test:build` falla o el sitio cambia de aspecto en C6 | Ámbito `l15` en `<html>` de `AppLayout` (BG-D32); `global.css` y `Base.astro` intactos en BG-47 y BG-48; BG-37 copia solo los archivos de Vector Bikes |
+| Un encargo anterior a BG-47 aplica el aspecto nuevo antes de tiempo | M | M | El diff de un paso anterior toca colores, radios o fuentes | "Hasta BG-46 / desde BG-47" en `CLAUDE.md`, `AGENTS.md`, `ui-design.md` y `taller-ui.md` (BG-D40); la revisión de cada pase mira `git diff -- src/styles src/layouts` |
 
 ### 20.3 Registro de decisiones
 Numeración propia de este blueprint (`BG-D#`). Las decisiones globales 1–57 viven en `blueprints/vector-taller-f1/blueprint.md` §20.3; la 57 abre esta fase.
@@ -2210,10 +2377,19 @@ Numeración propia de este blueprint (`BG-D#`). Las decisiones globales 1–57 v
 | BG-D25 | `is_platform_admin` es marca, no rol; `/plataforma` muestra solo metadatos y conteos; además es curador de la biblioteca | Quinto rol | Decisión 7 y 12 | — |
 | BG-D26 | La plantilla de catálogo es el catálogo (servicios y precios) de un taller existente que elige el administrador de plataforma | Catálogo genérico escrito en el repo | No inventa contenido; el dueño ajusta precios en `/taller/catalogo` | El dueño quiere una plantilla neutra |
 | BG-D27 | "Mi taller" con acción nueva `shop.manage` (solo `owner`); `slug` y `code_prefix` no editables | Reutilizar una acción existente | Ninguna existente es solo del dueño y de la configuración del taller; cambiar el slug rompe enlaces | — |
-| BG-D28 | 45 pasos (16 + 12 + 5 + 7 + 5), en el borde superior de FASE §10 | Pasos más grandes | Límite de 5 archivos, tres generaciones de contract, cuatro grupos de plantillas | — |
+| BG-D28 | 49 pasos (16 + 16 + 5 + 7 + 5): los 45 originales, en el borde superior de FASE §10, más los cuatro de la identidad visual (BG-D40) | Pasos más grandes | Límite de 5 archivos, tres generaciones de contract, cuatro grupos de plantillas, y la identidad repartida en marca, tokens, componentes y layouts | — |
 | BG-D29 | Checkpoints con rutas nombradas (`git add -u` + nuevos por nombre en las excepciones); nunca `git add -A` | `git add -A` | Repo en iCloud con copias `* 2.*` (F2-D26) | El repo sale de iCloud |
 | BG-D30 | Lista de slugs reservados con una prueba que recorre las rutas de primer nivel | Lista fija sin prueba | Una ruta nueva sin reservar chocaría con un taller | — |
 | BG-D31 | El producto se llama **Llave 15** (con espacio y mayúscula; `LLAVE 15` solo en el logo, según el manual de marca `docs/marca/`) y su dominio es `llave15.cl` (dueño, 18-11-2026, antes de BG-02); los identificadores internos (`BG-NN`, `bg-NN`, `bg:*`, `blueprints/bike-garage/`, `feat/bike-garage`) se conservan | Renombrar también los identificadores internos | El nombre aún no estaba en `src/`; cambiar los identificadores rompería el historial y las referencias sin cambio visible | — |
+| BG-D32 | La identidad visual del manual de marca de Llave 15 (`docs/marca/`) aplica a todo lo que carga `AppLayout` (ingreso, `/taller`, `/admin`, `/plataforma` y las páginas del cliente en `PublicLayout`: reserva, seguimiento, informe, aprobación, cancelación) y al pie de los correos, con la clase `l15` en `<html>` como ámbito; en lo del cliente, el nombre o el logo del taller sigue siendo el identificador principal y Llave 15 firma `<Taller> · Gestionado con Llave 15`; la portada heredada (`Base.astro`) y `web/vector-bikes/` conservan su diseño, y BG-37 copia al sitio solo los archivos de Vector Bikes de `public/brand/` | Cambiar los valores de `:root` para todo el repo | La portada heredada sirve `vectorbikes.cl` hasta C7 y `site.css` (BG-37) copia `tokens.css`: un `:root` nuevo cambiaría el sitio de Vector Bikes; con el ámbito queda intacto y BG-DC1 lo retira | El dueño quiere otro diseño para el sitio de Vector Bikes (se hace en su repositorio) |
+| BG-D33 | Paleta del manual como tokens en `:root.l15` de `src/styles/tokens.css`: los nombres existentes (`--ground`, `--surface`, `--ink`, `--ink-2`, `--steel`, `--rule`, `--field-border`, `--on-ink`, `--hatch`) con los valores de Llave 15 y los nuevos `--accent`, `--accent-hover`, `--brand-on-dark`, `--focus`, `--status-*` y `--radius-*`; solo claro (los bloques oscuros pasan a `:not(.l15)`); desde BG-47 reemplaza el "ningún color nuevo" de FASE §9 para las superficies de Llave 15, con hex solo en `tokens.css` (y en los SVG de la marca) | Mantener el monocromo, o una paleta clara y otra oscura | El dueño entregó el manual de marca con la paleta y los contrastes medidos (WCAG 2.2 AA); el manual no define modo oscuro y no se inventa | El taller piloto pide modo oscuro |
+| BG-D34 | Interfaz en Inter 400/500/600/700 con `@fontsource-variable/inter` 5.3.0 (verificada en npm el 2026-11-18, última estable, publicada el 2026-07-19), respaldo Arial, sans-serif, cifras tabulares; `AppLayout` deja de cargar Michroma, Archivo y Plex, cuyos paquetes se quedan para la portada heredada; el logotipo va en trazos y DIN Condensed nunca se carga; `package.json` y el lockfile que cambia el comando `pnpm add` declarado no cuentan para el límite de 5 archivos | Inter desde Google Fonts, o la fuente del sistema | Fuente servida por la propia app, como las de hoy, sin un tercero en cada carga; un paquete y una familia | El dueño entrega otra tipografía de interfaz |
+| BG-D35 | Forma de Llave 15 desde BG-48: espaciado en múltiplos de 4px, radio 8px en controles y 12px en tarjetas, reglas de 1px, sin sombras; botón primario `--accent` con hover `--accent-hover` en lugar del hover que invierte; una acción primaria por zona de trabajo y las demás neutras; foco 2px `--focus` separado 2px, blanco sobre grafito; objetivos ≥ 48px en `/taller` (más estricto que los 44 del manual) y ≥ 44px en lo demás | Los 44px del manual también en `/taller` | La tablet se usa con las manos sucias (FASE1); 48 cumple igual el manual | — |
+| BG-D36 | Estados: cada uno conserva su forma propia y su texto y suma el color de uno de cinco grupos (neutro, en curso, espera, listo, bloqueo) con `--status-bg`/`--status-ink`; inventario, caja, biblioteca y plataforma usan los mismos grupos (`bajo`, `condicionado`, `desactualizado` y `needs_changes` en espera; `sin-stock`, `diferencia`, `rejected`, `incompatible` y `suspendido` en bloqueo; `anulada`, `draft`, `published` y `withdrawn` en neutro; `abierta`, `submitted`, `in_review` y `en_revision` en curso; `verificado`, `approved`, `alta` y `activo` en listo); los avisos `role="alert"`, incluido el de saldo pendiente para entregar, usan el grupo bloqueo | Solo color, o color en lugar de la forma | La regla del taller es nunca solo color (WCAG 1.4.1); el manual define los cinco grupos | El dueño reasigna una clase a otro grupo |
+| BG-D37 | Logo provisional dibujado a mano en SVG desde las imágenes del manual (distintivo, firma principal, invertida y monocromática en BG-46; favicon simplificado de 16 px en BG-47), en `public/brand/llave15-*.svg`, con nombre accesible `Llave 15`, firma ≥ 132px, distintivo ≥ 24px y espacio libre ¼ del lado del distintivo; aprobado por el dueño hasta que lleguen los originales | Esperar los originales | La identidad no queda bloqueada; reemplazar un archivo no toca código | Llegan los originales: se reemplazan los cinco archivos en las mismas rutas, corren las pruebas de BG-46 y BG-47 y `pnpm gate` |
+| BG-D38 | Menú del personal en grafito con la firma invertida (`alt="Llave 15"`) + `Taller`; ingreso con la firma principal y el descriptor `Software de gestión para talleres de bicicletas`; pie del cliente con el distintivo decorativo + `<Taller> · Gestionado con Llave 15`; pie de los correos con la misma línea, sin imágenes nuevas. La línea `Taller / Sucursal` de la muestra de orden no entra en BG-49 | Pasar el nombre del taller y de la sucursal a cada página del personal en BG-49 | El layout no lee la base y `SessionUser` está congelado (§5): exigiría tocar decenas de páginas, fuera del límite de 5 archivos | El dueño la pide: paso propio (§20.4) |
+| BG-D39 | Voz: los textos visibles de hoy se conservan (las pruebas los afirman); cambian solo los de la firma (BG-49) y se agrega el descriptor del ingreso (BG-48); la tabla de microcopia y la guía de iconos del manual son para pantallas nuevas; los montos siguen con `formatClp` | Reescribir los textos con el manual | Paridad declarada por paso; reescribir cambiaría cientos de expectativas sin que el dueño lo pidiera | El dueño pide la reescritura |
+| BG-D40 | La identidad visual entra en cuatro pasos nuevos, BG-46 … BG-49 (`E2-T13` … `E2-T16`, épica `02-identidad`), que se construyen después de BG-28 y antes de BG-29 (cada uno depende de BG-28 y del anterior; BG-29 depende además de BG-49), sin renumerar; `CLAUDE.md`, `AGENTS.md`, `ui-design.md` y `taller-ui.md` se actualizan en el bundle, en la raíz y en `workspace/`, con "hasta BG-46 / desde BG-47" (patrón BG-D2) | Renumerar BG-29 … BG-45, o un solo paso de identidad | BG-01 … BG-05 ya están construidos y los tags, los encargos y las decisiones citan los números; cuatro pasos respetan el límite de 5 archivos | — |
 
 ### 20.4 Qué construir después
 Desde la cerca de FASE §2.3:
@@ -2223,6 +2399,7 @@ Desde la cerca de FASE §2.3:
 4. **Multi-sucursal** — fase 4; `shops` 1—N `branches` ya es posible en el esquema.
 5. **Mercado Pago integrado, asistente de WhatsApp, Strava** — fase 3.
 6. **Portal de clientes con cuenta** — fuera por ahora.
+7. **`Taller / Sucursal` en la barra del personal** (muestra de orden del manual de marca) — necesita el nombre del taller y de la sucursal en cada página del personal; un paso propio cuando el dueño lo pida (BG-D38).
 
 ---
 

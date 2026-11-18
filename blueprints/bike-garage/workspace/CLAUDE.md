@@ -34,7 +34,7 @@ Node 24 (`.nvmrc`), pnpm 12.4.2. La versión de pnpm se fija en el `build` de `[
 
 ## Estado del build
 
-Orden de construcción: `blueprints/bike-garage/tasks.json` (una tarea = un paso `BG-NN`, tag `bg-NN`) y `blueprints/bike-garage/epics/`. Decisiones: `blueprints/bike-garage/blueprint.md` (§20.3, numeradas `BG-D#`; paridad y corte en §9.1); definición: `blueprints/bike-garage/FASE-BIKE-GARAGE.md`. Antes de cada pase a Codex, la sesión coordinadora escribe el encargo `docs/encargos/BG-NN-<tema>.md` con la plantilla de `docs/encargos/README.md`. Ventanas: `docs/ventanas/bg-v1.md`, `bg-v2.md`, `bg-v3.md`; corte del dominio: `docs/corte-bike-garage.md`. `blueprints/vector-taller-f1/` (decisiones globales 1–57), `blueprints/vector-taller-f2/` y `blueprints/vector-bikes/` son registros de solo lectura. Diseño visual aprobado: `docs/design-preview.html`.
+Orden de construcción: `blueprints/bike-garage/tasks.json` (una tarea = un paso `BG-NN`, tag `bg-NN`) y `blueprints/bike-garage/epics/`. Decisiones: `blueprints/bike-garage/blueprint.md` (§20.3, numeradas `BG-D#`; paridad y corte en §9.1); definición: `blueprints/bike-garage/FASE-BIKE-GARAGE.md`. Antes de cada pase a Codex, la sesión coordinadora escribe el encargo `docs/encargos/BG-NN-<tema>.md` con la plantilla de `docs/encargos/README.md`. Ventanas: `docs/ventanas/bg-v1.md`, `bg-v2.md`, `bg-v3.md`; corte del dominio: `docs/corte-bike-garage.md`. `blueprints/vector-taller-f1/` (decisiones globales 1–57), `blueprints/vector-taller-f2/` y `blueprints/vector-bikes/` son registros de solo lectura. Diseño visual aprobado: `docs/design-preview.html`; manual de marca de Llave 15: `docs/marca/`.
 
 ## Stack
 
@@ -69,7 +69,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | Conexión | `src/server/db/client.ts` (`getDb()`, tipo `AppDb`); los módulos reciben `db` como argumento |
 | Entorno | `src/lib/env.ts` (accesores por funcionalidad, `getAppEnv`, `getTrackingEnv`); nunca `process.env` en otro lado |
 | Perfil y configuración del taller | la fila de `shops`; `src/server/shops/profile.ts` (`ShopProfile`), `src/server/booking/config.ts` (`BookingConfig`), alcance en `src/server/shops/scope.ts` |
-| Marca de la plataforma | `PLATFORM` (`src/lib/platform.ts`, Llave 15; desde BG-17). `SITE` deja de existir en BG-27 |
+| Marca de la plataforma | `PLATFORM` (`src/lib/platform.ts`, Llave 15; desde BG-17; `descriptor` desde BG-47). `SITE` deja de existir en BG-27. Logo provisional en `public/brand/llave15-*.svg` (BG-46, 47) |
 | Tiempo y zona | `src/lib/time.ts` (`TIMEZONE`, `localToday`, `addDays`, `localToInstant`) |
 | Reglas genéricas de reserva | `src/server/booking/rules.ts` (`blocksFor`, `MAX_BIKES_PER_BOOKING`); los valores del taller, en `shops` |
 | Reglas del taller (estados, transiciones, checklists, capacidad, etiqueta, categorías, medios de pago, IVA) | `src/server/taller/rules.ts` (`VAT_RATE_PERCENT`, `vatOfNet`, `netOfGross`) |
@@ -79,7 +79,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | Auditoría | `src/server/taller/audit.ts` (`recordAudit`, dentro de la transacción) |
 | Almacenamiento de imágenes | `src/server/storage/storage.ts` (`getStorage()`); pipeline en `src/server/storage/images.ts`; logos en `shops/<id>/logo.png` |
 | Correos | `src/server/email/brand.ts` (remitente `<Taller> · Llave 15`, `Reply-To`, pie `Gestionado con Llave 15`), `email/booking/*`, `email/garage/*` |
-| Feriados · Tokens de diseño · Logs | `src/data/feriados-cl.json` · `src/styles/tokens.css` (desde BG-22) · `src/lib/log.ts` |
+| Feriados · Tokens de diseño · Logs | `src/data/feriados-cl.json` · `src/styles/tokens.css` (desde BG-22; `:root.l15` desde BG-47) · `src/lib/log.ts` |
 | Biblioteca técnica | `src/server/library/**` (reglas en `library/rules.ts`, acceso en `access.ts`); decisiones en `blueprints/vector-biblioteca/BIBLIOTECA.md` |
 
 ## Reglas de código
@@ -102,26 +102,30 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 
 ## Sistema de diseño
 
-Fuente: `docs/design-preview.html`. Monocromo, reglas de 1px, radio 2px, sin sombras. Es el diseño de Llave 15; el logo del taller aparece en lo que ve su cliente.
+**Por paso (BG-D32–BG-D40).** Hasta BG-46 rige el monocromo aprobado (`docs/design-preview.html`). Desde BG-47, todo lo que carga `AppLayout` (ingreso, `/taller`, `/admin`, `/plataforma`, páginas del cliente en `PublicLayout`) usa la identidad Llave 15 (`docs/marca/`, `blueprint.md` §7) por partes: tokens y tipos en BG-47, componentes y estados en BG-48, layouts y firma en BG-49; nunca antes. La portada heredada (`Base.astro`) y `web/vector-bikes/` siguen en monocromo. Detalle en `.claude/rules/ui-design.md`.
 
-| Token | Claro | Oscuro | Uso |
+| Token | Hasta BG-46 (claro · oscuro) | Desde BG-47 (`:root.l15`, solo claro) | Uso |
 |---|---|---|---|
-| `--ground` | #F6F6F4 | #0C0D0E | Fondo |
-| `--surface` | #FFFFFF | #151618 | Controles, ticket |
-| `--ink` | #0C0D0E | #F1F1EE | Texto, botón primario, foco |
-| `--ink-2` | #2A2C2F | #C8C9CB | Texto secundario |
-| `--steel` | #5A5E63 | #9C9FA4 | Etiquetas, ayudas |
-| `--rule` | #D9D9D5 | #2B2D30 | Divisores (solo decorativos) |
-| `--hatch` | #E3E3DF | #1E2022 | Rayado reservado/deshabilitado |
-| `--on-ink` | #F6F6F4 | #0C0D0E | Texto sobre `--ink` |
-| `--field-border` | = `--steel` | = `--steel` | Bordes de controles |
+| `--ground` | #F6F6F4 · #0C0D0E | #F5F4F1 | Fondo |
+| `--surface` | #FFFFFF · #151618 | #FFFFFF | Controles, tarjetas, tablas, ticket |
+| `--ink` | #0C0D0E · #F1F1EE | #171C22 | Texto; desde BG-49 menú del personal |
+| `--ink-2` | #2A2C2F · #C8C9CB | #515A64 | Texto secundario |
+| `--steel` | #5A5E63 · #9C9FA4 | #515A64 | Etiquetas, ayudas |
+| `--rule` | #D9D9D5 · #2B2D30 | #D9D9D9 | Divisores (solo decorativos) |
+| `--hatch` | #E3E3DF · #1E2022 | #E3E3DF | Rayado reservado/deshabilitado |
+| `--on-ink` | #F6F6F4 · #0C0D0E | #FFFFFF | Texto sobre `--ink` y `--accent` |
+| `--field-border` | = `--steel` | #858E97 | Bordes de controles |
+| `--accent` · `--accent-hover` | — | #AE3718 · #8D2B13 | Botón primario (desde BG-48) |
+| `--brand-on-dark` · `--focus` | — | #FF774F · #195FAF | Marca sobre grafito · anillo de foco |
+| `--status-<grupo>-bg` · `-ink` | — | cinco grupos (`ui-design.md`) | Estados (desde BG-48) |
 
-- **Tipos:** Michroma 400 (h1/h2, con moderación) · Archivo Variable 400/600, cuerpo 16px/1.55 · IBM Plex Mono 400/500, etiquetas .72rem mayúsculas tracking .14em, `tabular-nums`.
-- **Botón primario:** `--ink` + `--on-ink`; **hover invierte** (fondo `--surface`, texto y borde `--ink`). Nav: `.nav a:not(.btn)`.
+- **Tipos:** hasta BG-46, Michroma 400 (h1/h2, con moderación) · Archivo Variable 400/600, cuerpo 16px/1.55 · IBM Plex Mono 400/500, etiquetas .72rem mayúsculas tracking .14em. Desde BG-47, Inter Variable 400–700 (respaldo Arial, sans-serif); desde BG-48, 28/36 títulos, 20/28 secciones, 16/24 cuerpo, 14/20 datos densos. Siempre `tabular-nums` en montos y tablas.
+- **Forma:** reglas de 1px y sin sombras siempre; radio 2px hasta BG-47; desde BG-48, 8px controles y 12px tarjetas, espaciado múltiplo de 4px.
+- **Botón primario:** hasta BG-47, `--ink` + `--on-ink` con **hover que invierte** (fondo `--surface`, texto y borde `--ink`); desde BG-48, `--accent` + `--on-ink`, hover `--accent-hover`, una acción primaria por zona y las demás `.btn.ghost`. Foco: hasta BG-47 2px `--ink` a 3px; desde BG-48 2px `--focus` a 2px, blanco sobre grafito. Nav: `.nav a:not(.btn)`.
 - **Formularios:** etiqueta arriba; `.fields{align-items:start}`, `.field{align-content:start}`.
 - **Movimiento:** `--dur-fast` 140ms, `--dur` 160ms, máx. 250ms, `--ease: cubic-bezier(.2,.7,.2,1)`; `prefers-reduced-motion` → 0ms.
-- **Layout:** `.wrap` máx. 1180px; objetivos táctiles ≥ 44px. `AppLayout` (raíz del sistema) ← `TallerLayout` (personal) y `PublicLayout` (cliente, pie `Gestionado con Llave 15`).
-- **Área `/taller`:** mismos tokens, ningún hex nuevo; objetivos ≥ 48px; estados con forma + texto; tablas densas con `tabular-nums`; órdenes `neto` con `OrderAmounts.astro`; ninguna isla nueva. Detalle en `.claude/rules/taller-ui.md`.
+- **Layout:** `.wrap` máx. 1180px; objetivos táctiles ≥ 44px. `AppLayout` (raíz del sistema) ← `TallerLayout` (personal) y `PublicLayout` (cliente: manda el nombre o logo del taller; pie `Gestionado con Llave 15`, desde BG-49 `<Taller> · Gestionado con Llave 15`). Desde BG-49 el menú del personal va en grafito con la firma invertida (`alt="Llave 15"`).
+- **Área `/taller`:** mismos tokens; hex solo en `tokens.css` (hasta BG-46, ningún hex nuevo); objetivos ≥ 48px; estados con forma + texto (desde BG-48, además el color de su grupo); tablas densas con `tabular-nums`; órdenes `neto` con `OrderAmounts.astro`; ninguna isla nueva. Detalle en `.claude/rules/taller-ui.md`.
 
 ## Entorno
 

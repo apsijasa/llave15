@@ -48,6 +48,10 @@ Orden de trabajo de la fase Llave 15: `blueprints/bike-garage/tasks.json` y `blu
 15. Un error descubierto dentro de una transacción después de escribir se lanza (error centinela) y se traduce a `{ ok: false, code }` afuera.
 16. Toda función que lee o escribe reservas recibe el alcance del taller (`BookingScope`, `src/server/shops/scope.ts`) o la sucursal; sin él, `singleShopScope` lanza cuando hay dos talleres. Las páginas y los handlers siempre lo pasan explícito.
 
+## Diseño por paso
+
+Hasta BG-46 rige el monocromo aprobado (`docs/design-preview.html`: radio 2px, botón primario `--ink` que invierte en hover, Michroma/Archivo/IBM Plex Mono, ningún hex nuevo). La identidad Llave 15 del manual de marca (`docs/marca/`, `blueprint.md` §7) entra solo en su paso y nunca antes: tokens en `:root.l15` de `src/styles/tokens.css` (solo claro) e Inter en BG-47; botones `--accent`, foco `--focus`, radios 8/12px y colores de estado en BG-48 (`src/styles/llave15.css`, bajo `.l15`); menú del personal en grafito con la firma y pie `<Taller> · Gestionado con Llave 15` en BG-49. Desde BG-47, hex solo en `src/styles/tokens.css` (y en `public/brand/llave15-*.svg`). Los estados conservan siempre su forma y su texto. La portada heredada (`Base.astro`) y `web/vector-bikes/` no cambian de diseño. Detalle en `.claude/rules/ui-design.md` y `taller-ui.md`.
+
 ## Fronteras de importación
 
 | Capa | Puede importar | Nunca |
