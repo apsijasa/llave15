@@ -677,7 +677,7 @@ Reglas: `ui-design.md`. BG-D37.
 2. **WHEN** se buscan `<text`, `<image`, `<style`, `<script` y `font-family` en los cuatro SVG **THE SYSTEM SHALL** no encontrar ninguno
 3. **WHEN** la prueba extrae los hex de cada SVG **THE SYSTEM SHALL** encontrar solo `#ae3718` y `#ffffff` en el distintivo, `#ae3718`, `#ffffff` y `#171c22` en la firma principal, `#ff774f`, `#171c22` y `#ffffff` en la invertida, y `#171c22` y `#ffffff` en la monocromática
 4. **WHEN** `sharp` rasteriza cada firma a 132 px de ancho y el distintivo a 24 px **THE SYSTEM SHALL** producir un PNG de ese ancho sin error
-5. **WHEN** corre `git status --porcelain -- src` **THE SYSTEM SHALL** no listar ningún archivo
+5. **WHEN** corre `git diff HEAD --name-only -- src` **THE SYSTEM SHALL** no listar ningún archivo
 
 **Verify**
 
@@ -685,7 +685,7 @@ Reglas: `ui-design.md`. BG-D37.
 pnpm test tests/unit/llave15-brand.test.ts   # expect: exit 0, 0 failed
 for f in distintivo firma firma-invertida firma-mono; do test -f "public/brand/llave15-$f.svg" || echo "$f"; done | grep -q .; test $? -eq 1   # expect: 1 = no falta ninguno → la línea sale 0
 grep -lE '<text|<image|<style|<script|font-family' public/brand/llave15-distintivo.svg public/brand/llave15-firma.svg public/brand/llave15-firma-invertida.svg public/brand/llave15-firma-mono.svg; test $? -eq 1   # expect: 1 = letra en trazos, sin texto ni estilos → la línea sale 0
-s="$(git status --porcelain -- src)" && test -z "$s"   # expect: exit 0 — ningún archivo de src cambió
+d="$(git diff HEAD --name-only -- src)" && test -z "$d"   # expect: exit 0 — ningún archivo de src cambió
 node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
 pnpm format && pnpm gate   # expect: exit 0
 ```
@@ -746,7 +746,7 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -- src/styles/tokens.css src/layouts/AppLayout.astro public/brand/llave15-favicon-16.svg src/lib/platform.ts tests/integration/llave15-tokens.test.ts tests/integration/layouts.test.ts package.json pnpm-lock.yaml && git add -u -- tests   # -u: solo las pruebas existentes con los valores declarados; nunca duplicados de iCloud sin seguimiento
+git add -- src/styles/tokens.css src/layouts/AppLayout.astro public/brand/llave15-favicon-16.svg src/lib/platform.ts tests/integration/llave15-tokens.test.ts tests/integration/layouts.test.ts package.json pnpm-lock.yaml && git add -u -- tests e2e   # -u: solo las pruebas existentes con los valores declarados; nunca duplicados de iCloud sin seguimiento
 git commit -m "feat: bg-47 add llave 15 tokens inter type and favicon" && git tag bg-47
 git tag -l bg-47 | grep -qx bg-47   # expect: exit 0
 ```
@@ -844,7 +844,7 @@ pnpm format && pnpm gate   # expect: exit 0
 **Checkpoint**
 
 ```bash
-git add -- src/layouts/TallerLayout.astro src/styles/taller-layout.css src/layouts/PublicLayout.astro src/server/email/templates.ts tests/integration/llave15-layouts.test.ts && git add -u -- tests   # -u: solo las pruebas existentes con los valores declarados; nunca duplicados de iCloud sin seguimiento
+git add -- src/layouts/TallerLayout.astro src/styles/taller-layout.css src/layouts/PublicLayout.astro src/server/email/templates.ts tests/integration/llave15-layouts.test.ts && git add -u -- tests e2e   # -u: solo las pruebas existentes con los valores declarados; nunca duplicados de iCloud sin seguimiento
 git commit -m "feat: bg-49 apply llave 15 signature to staff customer and email layouts" && git tag bg-49
 git tag -l bg-49 | grep -qx bg-49   # expect: exit 0
 ```

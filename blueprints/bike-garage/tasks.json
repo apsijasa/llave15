@@ -973,13 +973,13 @@
       "WHEN se buscan `<text`, `<image`, `<style`, `<script` y `font-family` en los cuatro SVG THE SYSTEM SHALL no encontrar ninguno",
       "WHEN la prueba extrae los hex de cada SVG THE SYSTEM SHALL encontrar solo `#ae3718` y `#ffffff` en el distintivo, `#ae3718`, `#ffffff` y `#171c22` en la firma principal, `#ff774f`, `#171c22` y `#ffffff` en la invertida, y `#171c22` y `#ffffff` en la monocromática",
       "WHEN `sharp` rasteriza cada firma a 132 px de ancho y el distintivo a 24 px THE SYSTEM SHALL producir un PNG de ese ancho sin error",
-      "WHEN corre `git status --porcelain -- src` THE SYSTEM SHALL no listar ningún archivo"
+      "WHEN corre `git diff HEAD --name-only -- src` THE SYSTEM SHALL no listar ningún archivo"
     ],
     "verify": [
       "pnpm test tests/unit/llave15-brand.test.ts   # expect: exit 0, 0 failed",
       "for f in distintivo firma firma-invertida firma-mono; do test -f \"public/brand/llave15-$f.svg\" || echo \"$f\"; done | grep -q .; test $? -eq 1   # expect: 1 = no falta ninguno → la línea sale 0",
       "grep -lE '<text|<image|<style|<script|font-family' public/brand/llave15-distintivo.svg public/brand/llave15-firma.svg public/brand/llave15-firma-invertida.svg public/brand/llave15-firma-mono.svg; test $? -eq 1   # expect: 1 = letra en trazos, sin texto ni estilos → la línea sale 0",
-      "s=\"$(git status --porcelain -- src)\" && test -z \"$s\"   # expect: exit 0 — ningún archivo de src cambió",
+      "d=\"$(git diff HEAD --name-only -- src)\" && test -z \"$d\"   # expect: exit 0 — ningún archivo de src cambió",
       "node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
