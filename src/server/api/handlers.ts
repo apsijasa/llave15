@@ -271,11 +271,16 @@ export async function checkRateLimit(ctx: HandlerContext): Promise<Response | nu
   return null;
 }
 
-/** Registra el intento; solo cuentan los que pasaron la validación (un 422 no suma). */
-export async function recordAttempt(ctx: HandlerContext): Promise<void> {
+/**
+ * Registra el intento; solo cuentan los que pasaron la validación (un 422 no suma).
+ * Con `branchId` queda en la sucursal del taller; sin él, la única sucursal (BG-D3).
+ */
+export async function recordAttempt(ctx: HandlerContext, branchId?: string): Promise<void> {
   const ipHash = rateLimitKey(ctx);
   if (ipHash !== null) {
-    await ctx.db.insert(bookingRequests).values({ ipHash, createdAt: ctx.now });
+    await ctx.db
+      .insert(bookingRequests)
+      .values({ ipHash, createdAt: ctx.now, ...(branchId === undefined ? {} : { branchId }) });
   }
 }
 
@@ -320,7 +325,7 @@ export async function handleCreateBooking(
         telefono: "Faltan dígitos: son 8 después del +56 9.",
       });
     }
-    await recordAttempt(ctx);
+    await recordAttempt(ctx, scope.branchId);
 
     const token = data.turnstile_token ?? "";
     const human =
