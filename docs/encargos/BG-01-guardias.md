@@ -2,7 +2,7 @@ BG-01 · Guardias: literales del taller y paridad de expectativas
 
 ## Contexto y autorización (Andrés, 18-nov)
 
-Primer paso de la fase llave15 (decisión 57, `blueprints/bike-garage/FASE-BIKE-GARAGE.md`). El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-01 — Guardias: literales del taller y paridad de expectativas (E1-T1)"**, y en `blueprints/bike-garage/tasks.json` (tarea `E1-T1`). Ese bloque manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
+Primer paso de la fase Llave 15 (decisión 57, `blueprints/bike-garage/FASE-BIKE-GARAGE.md`). El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-01 — Guardias: literales del taller y paridad de expectativas (E1-T1)"**, y en `blueprints/bike-garage/tasks.json` (tarea `E1-T1`). Ese bloque manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
 
 Hoy `CLAUDE.md` (regla 14) dice que una prueba guardiana impide escribir el nombre del taller en `src/`, pero esa prueba no existe. Este paso la crea con una línea base de las ocurrencias actuales (que se vacía al cerrar la etapa 2), y crea el script que vuelve decidible la regla de paridad de la fase: ninguna prueba existente cambia lo que espera hasta la etapa 2.
 

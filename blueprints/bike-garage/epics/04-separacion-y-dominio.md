@@ -1,6 +1,6 @@
 # Epic 04: Separación y nuevo dominio
 
-> Después de esta épica llave15 arma enlaces, cookie y defensa CSRF con `APP_URL` (aceptando, durante la convivencia, el origen heredado `PUBLIC_SITE_URL`); el seguimiento tiene su propio secreto sin romper los enlaces ya enviados; las tareas diarias recorren todos los talleres activos en una llamada; el sitio nuevo de Vector Bikes vive en `web/vector-bikes/` (portada, privacidad, botón "Reservar" a `https://llave15.cl/vector-bikes/reservar` y redirecciones permanentes de las rutas antiguas), con sus pruebas dentro de `pnpm gate`; existe `pnpm bg:check` y el plan de corte del dominio está escrito.
+> Después de esta épica Llave 15 arma enlaces, cookie y defensa CSRF con `APP_URL` (aceptando, durante la convivencia, el origen heredado `PUBLIC_SITE_URL`); el seguimiento tiene su propio secreto sin romper los enlaces ya enviados; las tareas diarias recorren todos los talleres activos en una llamada; el sitio nuevo de Vector Bikes vive en `web/vector-bikes/` (portada, privacidad, botón "Reservar" a `https://llave15.cl/vector-bikes/reservar` y redirecciones permanentes de las rutas antiguas), con sus pruebas dentro de `pnpm gate`; existe `pnpm bg:check` y el plan de corte del dominio está escrito.
 
 | | |
 |---|---|
@@ -91,7 +91,7 @@ Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/server-api.md`, `sho
 1. `tests/integration/app-url.test.ts` primero (fuentes de entorno explícitas).
 2. `env.ts`: `getAppEnv()`. `handlers.ts`: `isAllowedOrigin(request, appUrl?, legacyUrl?)` con los dos orígenes.
 3. Llamadas mecánicas (una línea cada una, `getSiteEnv().PUBLIC_SITE_URL` → `getAppEnv().APP_URL`): `src/pages/admin/login.astro` (cookie y redirección), `src/server/email/notifications.ts`, `src/pages/taller/ordenes/[id]/etiqueta.ts`, `src/pages/taller/ordenes/[id]/adicional.astro`, `src/pages/taller/ordenes/[id]/index.astro`, `src/pages/taller/ordenes/[id]/informe.astro`, `src/server/taller/part-notice.ts`, `src/pages/taller/index.astro`, `src/server/taller/quotes.ts`, `src/server/taller/reception.ts`, `src/server/taller/qc.ts`, `src/server/taller/maintenance-plan.ts`, `src/server/taller/delivery-notice.ts`.
-4. `.env.example`: `APP_URL=` con comentario (`# Origen de llave15 (https://llave15.cl); vacío = PUBLIC_SITE_URL.`).
+4. `.env.example`: `APP_URL=` con comentario (`# Origen de Llave 15 (https://llave15.cl); vacío = PUBLIC_SITE_URL.`).
 
 **Files**
 - `src/lib/env.ts` — edit

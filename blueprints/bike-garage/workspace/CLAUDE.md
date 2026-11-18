@@ -1,4 +1,4 @@
-# llave15
+# Llave 15
 
 Sistema multi-taller para talleres de bicicletas (antes, el sistema de Vector Bikes, Av. Kennedy 7666, Vitacura, que es su primer taller): reservas en línea por taller (`/<slug>/reservar`), API, panel `/admin`, recordatorios, el área interna `/taller` (recepción en tablet, órdenes de trabajo, historial, inventario, caja y ventas de mostrador) y la administración de la plataforma (`/plataforma`), en Replit (`llave15.cl`). El sitio informativo de Vector Bikes vive en `web/vector-bikes/` hasta que sale a `vector-bikes-web`.
 
@@ -69,7 +69,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | Conexión | `src/server/db/client.ts` (`getDb()`, tipo `AppDb`); los módulos reciben `db` como argumento |
 | Entorno | `src/lib/env.ts` (accesores por funcionalidad, `getAppEnv`, `getTrackingEnv`); nunca `process.env` en otro lado |
 | Perfil y configuración del taller | la fila de `shops`; `src/server/shops/profile.ts` (`ShopProfile`), `src/server/booking/config.ts` (`BookingConfig`), alcance en `src/server/shops/scope.ts` |
-| Marca de la plataforma | `PLATFORM` (`src/lib/platform.ts`, llave15; desde BG-17). `SITE` deja de existir en BG-27 |
+| Marca de la plataforma | `PLATFORM` (`src/lib/platform.ts`, Llave 15; desde BG-17). `SITE` deja de existir en BG-27 |
 | Tiempo y zona | `src/lib/time.ts` (`TIMEZONE`, `localToday`, `addDays`, `localToInstant`) |
 | Reglas genéricas de reserva | `src/server/booking/rules.ts` (`blocksFor`, `MAX_BIKES_PER_BOOKING`); los valores del taller, en `shops` |
 | Reglas del taller (estados, transiciones, checklists, capacidad, etiqueta, categorías, medios de pago, IVA) | `src/server/taller/rules.ts` (`VAT_RATE_PERCENT`, `vatOfNet`, `netOfGross`) |
@@ -78,7 +78,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | Permisos · Sesión | `src/server/auth/permissions.ts` (`can(role, action)`; costos solo con `costs.view`; `shop.manage` solo dueño) · `src/server/auth/admin-auth.ts` (`requireAdmin`, `loginRedirect`) |
 | Auditoría | `src/server/taller/audit.ts` (`recordAudit`, dentro de la transacción) |
 | Almacenamiento de imágenes | `src/server/storage/storage.ts` (`getStorage()`); pipeline en `src/server/storage/images.ts`; logos en `shops/<id>/logo.png` |
-| Correos | `src/server/email/brand.ts` (remitente `<Taller> · llave15`, `Reply-To`, pie `con llave15`), `email/booking/*`, `email/garage/*` |
+| Correos | `src/server/email/brand.ts` (remitente `<Taller> · Llave 15`, `Reply-To`, pie `Gestionado con Llave 15`), `email/booking/*`, `email/garage/*` |
 | Feriados · Tokens de diseño · Logs | `src/data/feriados-cl.json` · `src/styles/tokens.css` (desde BG-22) · `src/lib/log.ts` |
 | Biblioteca técnica | `src/server/library/**` (reglas en `library/rules.ts`, acceso en `access.ts`); decisiones en `blueprints/vector-biblioteca/BIBLIOTECA.md` |
 
@@ -102,7 +102,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 
 ## Sistema de diseño
 
-Fuente: `docs/design-preview.html`. Monocromo, reglas de 1px, radio 2px, sin sombras. Es el diseño de llave15; el logo del taller aparece en lo que ve su cliente.
+Fuente: `docs/design-preview.html`. Monocromo, reglas de 1px, radio 2px, sin sombras. Es el diseño de Llave 15; el logo del taller aparece en lo que ve su cliente.
 
 | Token | Claro | Oscuro | Uso |
 |---|---|---|---|
@@ -120,7 +120,7 @@ Fuente: `docs/design-preview.html`. Monocromo, reglas de 1px, radio 2px, sin som
 - **Botón primario:** `--ink` + `--on-ink`; **hover invierte** (fondo `--surface`, texto y borde `--ink`). Nav: `.nav a:not(.btn)`.
 - **Formularios:** etiqueta arriba; `.fields{align-items:start}`, `.field{align-content:start}`.
 - **Movimiento:** `--dur-fast` 140ms, `--dur` 160ms, máx. 250ms, `--ease: cubic-bezier(.2,.7,.2,1)`; `prefers-reduced-motion` → 0ms.
-- **Layout:** `.wrap` máx. 1180px; objetivos táctiles ≥ 44px. `AppLayout` (raíz del sistema) ← `TallerLayout` (personal) y `PublicLayout` (cliente, pie `con llave15`).
+- **Layout:** `.wrap` máx. 1180px; objetivos táctiles ≥ 44px. `AppLayout` (raíz del sistema) ← `TallerLayout` (personal) y `PublicLayout` (cliente, pie `Gestionado con Llave 15`).
 - **Área `/taller`:** mismos tokens, ningún hex nuevo; objetivos ≥ 48px; estados con forma + texto; tablas densas con `tabular-nums`; órdenes `neto` con `OrderAmounts.astro`; ninguna isla nueva. Detalle en `.claude/rules/taller-ui.md`.
 
 ## Entorno
@@ -166,7 +166,7 @@ Fuente: `docs/design-preview.html`. Monocromo, reglas de 1px, radio 2px, sin som
 3. Nunca borrar reservas: se cambia `status`.
 4. Nunca commitear secretos ni `.env`; nunca registrar correos, teléfonos ni tokens sin redactar.
 5. Nunca editar a mano `drizzle/` (se regenera desde el esquema); nunca `drizzle-kit generate --custom`.
-6. No construir nada de los No-Objetivos de `blueprint.md` §1 (pago en línea, cuentas de clientes, reprogramación por el cliente, feriados 2027 inventados) ni de la cerca de la fase 2 (`blueprints/vector-taller-f2/FASE2.md` §2.5). Inventario, caja, proveedores, compras, gastos y ventas de mostrador se construyen desde la decisión 55. llave15 multi-taller (tabla `shops`, `branch_id` en las reservas, página de reservas por taller, separación del sitio) se construye desde la decisión 57 (`blueprints/bike-garage/FASE-BIKE-GARAGE.md`), dentro de su cerca §2.3; multi-sucursal sigue fuera. Specs de navegador solo en `/taller` y, por excepción BG-D19, en `/<slug>/reservar`.
+6. No construir nada de los No-Objetivos de `blueprint.md` §1 (pago en línea, cuentas de clientes, reprogramación por el cliente, feriados 2027 inventados) ni de la cerca de la fase 2 (`blueprints/vector-taller-f2/FASE2.md` §2.5). Inventario, caja, proveedores, compras, gastos y ventas de mostrador se construyen desde la decisión 55. Llave 15 multi-taller (tabla `shops`, `branch_id` en las reservas, página de reservas por taller, separación del sitio) se construye desde la decisión 57 (`blueprints/bike-garage/FASE-BIKE-GARAGE.md`), dentro de su cerca §2.3; multi-sucursal sigue fuera. Specs de navegador solo en `/taller` y, por excepción BG-D19, en `/<slug>/reservar`.
 7. Nunca marcar una tarea como hecha con una compuerta fallando, ni editar un comando de Verify para que pase.
 8. `branch_id` NOT NULL en toda tabla de operación, incluidas las de reserva desde BG-09.
 9. Nunca borrar una orden, línea, componente, aprobación, foto de informe, venta, compra, gasto ni movimiento: se marcan con `voided_at`.

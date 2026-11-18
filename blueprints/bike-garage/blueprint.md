@@ -1,4 +1,4 @@
-# llave15 — El sistema del taller como producto para muchos talleres — Blueprint de cambio
+# Llave 15 — El sistema del taller como producto para muchos talleres — Blueprint de cambio
 
 > Generado por The Architect el 2026-11-17 (modo brownfield, `/the-architect:architect-brownfield`)
 > Forma: herramienta interna multi-taller (`internal-tool`) sobre el sitio + taller existentes
@@ -13,7 +13,7 @@ La construcción es **supervisada**, igual que las fases 1 y 2: la sesión coord
 
 **Paridad (regla aprobada por el dueño):** con el taller Vector Bikes sembrado con los valores de hoy, la suite existente pasa **sin cambiar valores esperados hasta la etapa 2**. Se permiten, declarados por paso, los **cambios de firma o de siembra** en pruebas existentes (agregar `branch_id`, sembrar el taller, pasar el alcance o la configuración a una función cuya firma cambió, cambiar la línea de import de un módulo que se mueve). Ningún valor esperado cambia antes de BG-17; desde la etapa 2, cada paso que cambia un texto visible declara exactamente qué valores esperados cambian, y `scripts/bg-expect-parity.ts` (BG-01) lo hace decidible por script.
 
-**Regla transversal de esta fase:** ningún dato de un taller en `src/` (nombre, dirección, comunas, teléfono, tarifa, dominio). Lo que ve el personal usa `PLATFORM` (llave15, `src/lib/platform.ts`); lo que ve el cliente usa el perfil del taller (`ShopProfile`). La guardia `tests/unit/shop-literals.test.ts` (BG-01) lo hace cumplir y su línea base queda vacía en BG-28.
+**Regla transversal de esta fase:** ningún dato de un taller en `src/` (nombre, dirección, comunas, teléfono, tarifa, dominio). Lo que ve el personal usa `PLATFORM` (Llave 15, `src/lib/platform.ts`); lo que ve el cliente usa el perfil del taller (`ShopProfile`). La guardia `tests/unit/shop-literals.test.ts` (BG-01) lo hace cumplir y su línea base queda vacía en BG-28.
 
 **Pruebas que importan `src/lib/site.ts`** (once en `8bca898`, más `tests/unit/vector-bikes-profile.test.ts` de BG-04): dejan de importarlo en el paso que toca lo que prueban, siempre **cambiando solo la línea de import o el armado de la marca, nunca la cola de un matcher**. Las que leen `SITE` (`SITE.name`, `SITE.url`, …) importan desde BG-18 el accesorio `SITE` de `tests/helpers/shops.ts`, con los mismos campos y valores que `src/lib/site.ts` tenía en `8bca898`; las que hacen `vi.mock` de `src/lib/site.ts` arman la marca con los valores del mock y la pasan como argumento, y quitan el `vi.mock` cuando ya nada de lo que prueban usa `SITE`. Reparto: `rescheduled-email` (BG-18), `received-email`, `ready-email`, `pricing-emails` (BG-19), `part-added-email` y el `vi.mock` de `email-brand` (BG-20), `delivery-date-email` (BG-21), el `vi.mock` de `report-view-brand` (BG-24), y `low-stock`, `lineas-aviso-repuesto`, `tests/build/landing.test.ts` (`whatsappHref`) y `vector-bikes-profile` (BG-27).
 
@@ -22,25 +22,25 @@ La construcción es **supervisada**, igual que las fases 1 y 2: la sesión coord
 ## 1. Visión general y No-Objetivos
 
 ### Visión
-Que **llave15** sea un solo sistema, en su propio dominio (`llave15.cl`), donde cada taller de bicicletas entra con sus usuarios y ve solo lo suyo: agenda, reservas en línea, recepción, órdenes, inventario, caja, ventas, informes y avisos al cliente. El sitio de Vector Bikes queda como un sitio informativo aparte (`web/vector-bikes/`, después repositorio `vector-bikes-web`), cuyo botón "Reservar" lleva a `https://llave15.cl/vector-bikes/reservar` (FASE §1). Escala: de 1 a 20 talleres, una sucursal por taller, Chile. Principio central (FASE §4): ninguna consulta, tarea, correo ni página ve datos de un taller distinto al del usuario, el token o el `slug` que la origina.
+Que **Llave 15** sea un solo sistema, en su propio dominio (`llave15.cl`), donde cada taller de bicicletas entra con sus usuarios y ve solo lo suyo: agenda, reservas en línea, recepción, órdenes, inventario, caja, ventas, informes y avisos al cliente. El sitio de Vector Bikes queda como un sitio informativo aparte (`web/vector-bikes/`, después repositorio `vector-bikes-web`), cuyo botón "Reservar" lleva a `https://llave15.cl/vector-bikes/reservar` (FASE §1). Escala: de 1 a 20 talleres, una sucursal por taller, Chile. Principio central (FASE §4): ninguna consulta, tarea, correo ni página ve datos de un taller distinto al del usuario, el token o el `slug` que la origina.
 
 ### Current state
 Repo en la rama `docs/bike-garage`, base `8bca898`. Astro 7 SSR en Replit Autoscale (`.replit`, `astro.config.mjs` con `site` = `PUBLIC_SITE_URL` o `https://vectorbikes.cl`), Postgres 16 vía Drizzle 0.45. Esquema en doce archivos con importación en un sentido, cabeza `src/server/db/schema.ts` (291 líneas: `bookings`, `whatsapp_messages`, `booking_blocks`, `booking_days` con PK `service_date`, `blocked_periods`, `branches`, `users`, `admin_sessions`, `login_attempts`, `booking_requests`, `booking_bikes`). Las tablas de reserva **no tienen `branch_id`**; los índices `uq_bookings_code`, `uq_booking_blocks_active_slot`, `uq_customers_rut` y `uq_branches_name` son globales; los CHECK `bookings_fee_check` (tarifa = 15000) y `bookings_retiro_address_check` (comuna `Vitacura` o `Las Condes`) llevan los valores del taller. Las reglas de reserva son constantes de `src/server/booking/rules.ts` (`TIMEZONE`, `BLOCK_MINUTES` 30, `DAILY_CAPACITY` 4, `MIN_NOTICE_MINUTES` 120, `HORIZON_DAYS` 30, `PICKUP_FEE_CLP` 15000, `PICKUP_COMUNAS`, `RECEPTION_HOURS`, `PICKUP_HOURS`); `localToday`, `addDays` y `localToInstant` viven en `slots.ts`; el código de reserva es `VB-AAMMDD-HHMM` (`create-booking.ts:38`). La identidad es la constante `SITE` (`src/lib/site.ts`, importada por 44 archivos de `src/` y 11 de `tests/`) y hay 82 literales del taller en 43 archivos de `src/` (incluidos títulos `— Vector Bikes`, `label.ts:43`, `templates.ts:257`, `Base.astro`, `BookingFields.tsx:185,205`). `TallerLayout` hereda `Base.astro` (portada: fuentes, `global.css`, FAQ, JSON-LD, wordmark). El seguimiento usa `CANCEL_TOKEN_SECRET` (`tracking.ts`); CSRF y cookie se atan a `PUBLIC_SITE_URL`. `createOwner` toma la primera sucursal o crea una (`admin-auth.ts:92-120`). La guardia de la regla 14 no existe, aunque `CLAUDE.md` la da por hecha (FASE §6). Pruebas: Vitest + PGlite (una conexión), specs de Playwright en tablet, `scripts/smoke.sh`, compuerta `pnpm gate`.
 
 ### Target state
-Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión 14), con `llave15.cl` agregado. Cadena de esquema: `schema-shops.ts` ← `schema.ts` ← `schema-taller.ts` ← … ← `schema-library-private.ts` (BG-D1). Tabla `shops` con el perfil y la configuración de cada taller; `branches.shop_id` NOT NULL; `branch_id` NOT NULL en las siete tablas de reserva; `booking_days` con PK (`branch_id`, `service_date`); unicidad por taller; CHECK relajados (FASE §2.3 punto 13). Motor de reservas que recibe un `BookingScope` (`shopId`, `branchId`, `config`) cargado desde `shops`; tiempo en `src/lib/time.ts`. Perfil del taller por sesión, token o `slug` (`src/server/shops/profile.ts`); `SITE` desaparece y nace `PLATFORM`; correos con remitente `<Taller> · llave15`, `Reply-To` del taller, copias a su correo de avisos y la línea `con llave15`. Página pública `/<slug>/reservar` y `/<slug>/privacidad`; `api/reservas` y `api/disponibilidad` reciben el taller; Turnstile y límite por taller. `APP_URL` para cookie, CSRF y enlaces; `TRACKING_TOKEN_SECRET` propio sin romper enlaces enviados. Tareas diarias que recorren los talleres activos. Sitio nuevo de Vector Bikes en `web/vector-bikes/` con redirecciones permanentes. Pantallas `/plataforma` (crear, suspender, ver uso) y `/taller/mi-taller`. Prueba de dos talleres y guardia de literales en `pnpm gate`.
+Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión 14), con `llave15.cl` agregado. Cadena de esquema: `schema-shops.ts` ← `schema.ts` ← `schema-taller.ts` ← … ← `schema-library-private.ts` (BG-D1). Tabla `shops` con el perfil y la configuración de cada taller; `branches.shop_id` NOT NULL; `branch_id` NOT NULL en las siete tablas de reserva; `booking_days` con PK (`branch_id`, `service_date`); unicidad por taller; CHECK relajados (FASE §2.3 punto 13). Motor de reservas que recibe un `BookingScope` (`shopId`, `branchId`, `config`) cargado desde `shops`; tiempo en `src/lib/time.ts`. Perfil del taller por sesión, token o `slug` (`src/server/shops/profile.ts`); `SITE` desaparece y nace `PLATFORM`; correos con remitente `<Taller> · Llave 15`, `Reply-To` del taller, copias a su correo de avisos y la línea `Gestionado con Llave 15`. Página pública `/<slug>/reservar` y `/<slug>/privacidad`; `api/reservas` y `api/disponibilidad` reciben el taller; Turnstile y límite por taller. `APP_URL` para cookie, CSRF y enlaces; `TRACKING_TOKEN_SECRET` propio sin romper enlaces enviados. Tareas diarias que recorren los talleres activos. Sitio nuevo de Vector Bikes en `web/vector-bikes/` con redirecciones permanentes. Pantallas `/plataforma` (crear, suspender, ver uso) y `/taller/mi-taller`. Prueba de dos talleres y guardia de literales en `pnpm gate`.
 
 ### Usuarios
 | Persona | Qué viene a hacer | Frecuencia |
 |---|---|---|
-| Personal de un taller (`owner`, `admin`, `reception`, `mechanic`) | Lo mismo que hoy, viendo solo su taller y la marca llave15 | Diaria |
+| Personal de un taller (`owner`, `admin`, `reception`, `mechanic`) | Lo mismo que hoy, viendo solo su taller y la marca Llave 15 | Diaria |
 | Cliente de un taller | Reservar en `/<slug>/reservar`, abrir enlaces de seguimiento, informe, aprobación y cancelación con la marca de su taller | Ocasional |
 | Administrador de plataforma (`users.is_platform_admin`, Andrés) | Crear, suspender y ver el uso de los talleres en `/plataforma` | Semanal |
 | Dueño de un taller nuevo | Entrar, editar "Mi taller" y operar | Diaria |
 
 ### Objetivos — alcance de esta fase
 1. Etapa 1 — cimientos: `shops`, `branch_id` en reservas (expand → migrar → contract), unicidad por taller, motor por configuración, CHECK relajados, filtro por taller en toda lectura de reservas, prueba de dos talleres, guardia de literales.
-2. Etapa 2 — identidad: perfil desde `shops`, marca llave15 para el personal y del taller para el cliente, `tokens.css`, el sistema deja de cargar la portada, remitente y copias por taller.
+2. Etapa 2 — identidad: perfil desde `shops`, marca Llave 15 para el personal y del taller para el cliente, `tokens.css`, el sistema deja de cargar la portada, remitente y copias por taller.
 3. Etapa 3 — reservas por taller: `/<slug>/reservar`, API con taller, Turnstile y límite por taller, enlaces a la página del taller.
 4. Etapa 4 — separación y dominio: `APP_URL`, secreto propio del seguimiento, tareas por taller, sitio `web/vector-bikes/` con redirecciones, corte de dominio.
 5. Etapa 5 — plataforma: administrador de plataforma, alta de talleres con primer dueño y plantilla de catálogo, suspensión, "Mi taller", `docs/nuevo-taller.md`.
@@ -59,7 +59,7 @@ Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión
 | Mercado Pago integrado, asistente de WhatsApp, Strava | Igual que hoy | Fase 3 |
 | Catálogo de servicios compartido entre talleres | Cada taller tiene el suyo; se copia una plantilla al crear el taller | — |
 | Portal de clientes con cuenta | El cliente usa enlaces con token | — |
-| Términos con cada taller, política de privacidad de llave15, procedimiento de supresión (FASE §7) | Son documentos del dueño, no código | Antes del segundo taller real (checklist §20.1) |
+| Términos con cada taller, política de privacidad de Llave 15, procedimiento de supresión (FASE §7) | Son documentos del dueño, no código | Antes del segundo taller real (checklist §20.1) |
 | **Constante:** los enlaces de seguimiento, informe, aprobación y cancelación ya enviados siguen funcionando | FASE §13.5 | — |
 | **Constante:** forma de las respuestas de `POST /api/reservas` (201 `{ code, service_date, start, end, mode, fee }`, errores `{ error, code, fields? }`) y de `GET /api/disponibilidad` (`{ timezone, modo, capacity, days }`) | Interfaz congelada (§5) | — |
 | **Constante:** reglas de reserva de Vector Bikes (bloque 30, capacidad 4, antelación 120, horizonte 30, retiro 15.000 en Vitacura y Las Condes, horarios, código `VB-AAMMDD-HHMM`) | Viven en su fila de `shops` con los valores de hoy | El dueño las cambia en "Mi taller" |
@@ -93,7 +93,7 @@ Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión
 | Auth | Sesión propia + `can(role, action)` + marca `is_platform_admin` | Decisión 7: la marca no es un quinto rol |
 | Correo | Resend, dominio de envío `send.llave15.cl` | Decisión 10 |
 | Segundo plano | `/api/tareas/*` (Make.com), una llamada para todos los talleres activos | Decisión 11 |
-| Hosting | Replit actual = llave15 (`llave15.cl`); Replit nuevo = `vectorbikes.cl` | Decisión 14 |
+| Hosting | Replit actual = Llave 15 (`llave15.cl`); Replit nuevo = `vectorbikes.cl` | Decisión 14 |
 | Sitio de Vector Bikes | `web/vector-bikes/`: Astro con portada y privacidad prerenderizadas y un endpoint comodín de redirecciones | Decisión 15 |
 | Gestor | pnpm 12.4.2 vía corepack (en `.replit`, nunca `packageManager`) | El del repo |
 
@@ -319,7 +319,7 @@ Accesorio de prueba `SITE` (`tests/helpers/shops.ts`, BG-18): un objeto con exac
 - Códigos nuevos: `shop_not_found` (404), `ambiguous` (backfill), `forbidden`, `validation_error`.
 - Páginas `/plataforma/**` y `/taller/mi-taller`: sesión → marca o permiso → zod → `src/server/shops/**`; POST con `isAllowedOrigin` y 303 a `?hecho=<acción>`.
 - Mensaje de comunas: `Elige ` + las comunas del taller unidas con `, ` y la última con ` o ` + `.` (`Elige Vitacura o Las Condes.` para Vector Bikes, igual que hoy).
-- Remitente: `<nombre del taller> · llave15 <dirección de EMAIL_FROM>`; `Reply-To` = `shops.email`; copias al taller → `shops.notify_email`; pie `con llave15` en todo correo (BG-D16).
+- Remitente: `<nombre del taller> · Llave 15 <dirección de EMAIL_FROM>`; `Reply-To` = `shops.email`; copias al taller → `shops.notify_email`; pie `Gestionado con Llave 15` en todo correo (BG-D16).
 
 ### Routes
 | Método | Ruta | Descripción | Auth | Límite |
@@ -367,11 +367,11 @@ Nuevas: las rutas de la tabla y los módulos de `src/server/shops/**`. Modificad
 | `/`, `/privacidad` | Portada heredada de Vector Bikes, prerenderizada, con el contenido de `web/vector-bikes/src/content/site.ts` hasta BG-DC1 | — | pública |
 
 ### Rendering strategy
-`/taller/**`, `/admin/**`, `/plataforma/**`, `/<slug>/**` y páginas por token con `prerender = false` y `cache-control: no-store`; `/` y `/privacidad` siguen prerenderizadas. Layouts: `AppLayout` (raíz del sistema: fuentes, `tokens.css`, `global.css`, sin FAQ, JSON-LD ni wordmark) ← `TallerLayout` (personal, marca `PLATFORM`) y `PublicLayout` (cliente, marca del taller, pie `con llave15`). `Base.astro` queda solo para la portada heredada (BG-D15).
+`/taller/**`, `/admin/**`, `/plataforma/**`, `/<slug>/**` y páginas por token con `prerender = false` y `cache-control: no-store`; `/` y `/privacidad` siguen prerenderizadas. Layouts: `AppLayout` (raíz del sistema: fuentes, `tokens.css`, `global.css`, sin FAQ, JSON-LD ni wordmark) ← `TallerLayout` (personal, marca `PLATFORM`) y `PublicLayout` (cliente, marca del taller, pie `Gestionado con Llave 15`). `Base.astro` queda solo para la portada heredada (BG-D15).
 
 ### Component hierarchy
 ```
-PublicLayout (servidor; profile → encabezado con logo /<slug>/logo o nombre; pie "con llave15")
+PublicLayout (servidor; profile → encabezado con logo /<slug>/logo o nombre; pie "Gestionado con Llave 15")
 └─ [slug]/reservar.astro (servidor)
    └─ BookingIsland (client:visible; props shop = { slug, name, addressShort, pickupEnabled,
       pickupComunas, pickupFeeClp, horizonDays, blockMinutes, codePrefix, privacyHref })
@@ -404,7 +404,7 @@ Radio 2px, reglas 1px, sin sombras; objetivos ≥ 48px en `/taller` y `/platafor
 `--dur-fast` 140ms, `--dur` 160ms; `prefers-reduced-motion` → 0ms. Nada nuevo anima.
 
 ### Component style
-Logo del taller en lo que ve su cliente (`/<slug>/logo`; sin logo, el nombre en Michroma); "llave15" en texto en lo del personal (el logo de llave15 es pendiente del dueño, FASE §12). Pie público: `con llave15` en `--steel`, IBM Plex Mono `.72rem`.
+Logo del taller en lo que ve su cliente (`/<slug>/logo`; sin logo, el nombre en Michroma); "Llave 15" en texto en lo del personal (el logo de Llave 15 es pendiente del dueño, FASE §12). Pie público: `Gestionado con Llave 15` en `--steel`, IBM Plex Mono `.72rem`.
 
 ---
 
@@ -948,23 +948,23 @@ git tag -l bg-16 | grep -qx bg-16   # expect: exit 0
 
 ### Épica 02 — Identidad (etapa 2)
 
-Desde aquí los valores esperados pueden cambiar **solo** donde cada paso lo declara. Los cambios declarados son siempre de uno de estos tipos: la línea `con llave15` al pie de correos y páginas del cliente; el remitente `<Taller> · llave15 <…>`; los títulos y la marca del personal que pasan a `llave15`; la URL del logo, que pasa de `/brand/vector-bikes-logo.png` a `/vector-bikes/logo`. Los valores de Vector Bikes (nombre, dirección, comunas, tarifas, horarios) no cambian. Las pruebas que dejan de importar `src/lib/site.ts` lo hacen según el reparto del encabezado de este documento: solo cambia su línea de import (al accesorio `SITE` de `tests/helpers/shops.ts`) o el armado de la marca, nunca la cola de un matcher.
+Desde aquí los valores esperados pueden cambiar **solo** donde cada paso lo declara. Los cambios declarados son siempre de uno de estos tipos: la línea `Gestionado con Llave 15` al pie de correos y páginas del cliente; el remitente `<Taller> · Llave 15 <…>`; los títulos y la marca del personal que pasan a `Llave 15`; la URL del logo, que pasa de `/brand/vector-bikes-logo.png` a `/vector-bikes/logo`. Los valores de Vector Bikes (nombre, dirección, comunas, tarifas, horarios) no cambian. Las pruebas que dejan de importar `src/lib/site.ts` lo hacen según el reparto del encabezado de este documento: solo cambia su línea de import (al accesorio `SITE` de `tests/helpers/shops.ts`) o el armado de la marca, nunca la cola de un matcher.
 
 #### BG-17 — Perfil del taller, marca de correo y logo (E2-T1)
 **Archivos:** `src/server/shops/profile.ts` (nuevo) · `src/server/email/brand.ts` (nuevo) · `src/lib/platform.ts` (nuevo) · `src/pages/[slug]/logo.ts` (nuevo) · `tests/integration/shop-profile.test.ts` (nuevo)
-**Hacer:** `profile.ts`: `ShopProfile` (`shopId`, `slug`, `name`, `email`, `notifyEmail`, `phone`, `phoneDisplay`, `streetAddress`, `addressShort`, `locality`, `region`, `mapsUrl`, `instagramUrl`, `instagramHandle` = `@` + último segmento de `instagram_url`, `logoKey`, `logoPath` = `/<slug>/logo` o `null`, `certifications`, `receptionHours`, `pickupHours`), `profileForBranch`, `profileBySlug`, `profileForCancelToken` (hash de `tokens.ts`), `profileForShareToken(db, "seguimiento" | "informe" | "aprobacion", token)` (hash de `share-tokens.ts` contra `order_tracking_tokens`, `service_reports.share_token_hash` y `work_order_approvals.token_hash`). `platform.ts`: `PLATFORM = { name: "llave15", domain: "llave15.cl", footerLine: "con llave15" } as const`. `brand.ts`: `EmailBrand`, `emailBrand(profile)`, `senderFor(profile, emailFrom)` (toma la dirección entre `<>` de `EMAIL_FROM`, o todo si no hay). `[slug]/logo.ts`: GET; `getStorage()`; 404 sin taller, sin logo o con slug reservado.
+**Hacer:** `profile.ts`: `ShopProfile` (`shopId`, `slug`, `name`, `email`, `notifyEmail`, `phone`, `phoneDisplay`, `streetAddress`, `addressShort`, `locality`, `region`, `mapsUrl`, `instagramUrl`, `instagramHandle` = `@` + último segmento de `instagram_url`, `logoKey`, `logoPath` = `/<slug>/logo` o `null`, `certifications`, `receptionHours`, `pickupHours`), `profileForBranch`, `profileBySlug`, `profileForCancelToken` (hash de `tokens.ts`), `profileForShareToken(db, "seguimiento" | "informe" | "aprobacion", token)` (hash de `share-tokens.ts` contra `order_tracking_tokens`, `service_reports.share_token_hash` y `work_order_approvals.token_hash`). `platform.ts`: `PLATFORM = { name: "Llave 15", domain: "llave15.cl", footerLine: "Gestionado con Llave 15" } as const`. `brand.ts`: `EmailBrand`, `emailBrand(profile)`, `senderFor(profile, emailFrom)` (toma la dirección entre `<>` de `EMAIL_FROM`, o todo si no hay). `[slug]/logo.ts`: GET; `getStorage()`; 404 sin taller, sin logo o con slug reservado.
 **Reglas:** R-shops · R-api · RC 14 · No cambia: nada existente.
 **Done when**
 - [ ] WHEN `profileForBranch` recibe la sucursal del Taller Demo THE SYSTEM SHALL devolver su nombre, contacto, dirección, horarios, correo de avisos y `instagramHandle` igual a `@tallerdemo`
 - [ ] WHEN `profileForCancelToken`, o `profileForShareToken` con `seguimiento`, `informe` o `aprobacion`, reciben un token válido de una reserva u orden del Taller Demo THE SYSTEM SHALL devolver el perfil del Taller Demo, y con un token desconocido SHALL devolver `null`
-- [ ] WHEN `senderFor` recibe el perfil `Taller Demo` y `Vector Bikes <reservas@send.vectorbikes.cl>` THE SYSTEM SHALL devolver `Taller Demo · llave15 <reservas@send.vectorbikes.cl>`
-- [ ] WHEN `emailBrand` recibe un perfil THE SYSTEM SHALL devolver `replyTo` igual al correo del taller, `notifyEmail` igual a su correo de avisos y `footerLine` igual a `con llave15`
+- [ ] WHEN `senderFor` recibe el perfil `Taller Demo` y `Vector Bikes <reservas@send.vectorbikes.cl>` THE SYSTEM SHALL devolver `Taller Demo · Llave 15 <reservas@send.vectorbikes.cl>`
+- [ ] WHEN `emailBrand` recibe un perfil THE SYSTEM SHALL devolver `replyTo` igual al correo del taller, `notifyEmail` igual a su correo de avisos y `footerLine` igual a `Gestionado con Llave 15`
 - [ ] WHEN se pide `GET /vector-bikes/logo` con `logo_key` guardado THE SYSTEM SHALL responder 200 con la imagen y `cache-control: public, max-age=86400`, y un taller sin logo o un slug desconocido SHALL responder 404
-- [ ] WHEN se lee `src/lib/platform.ts` THE SYSTEM SHALL exportar `PLATFORM` con `name` igual a `llave15`
+- [ ] WHEN se lee `src/lib/platform.ts` THE SYSTEM SHALL exportar `PLATFORM` con `name` igual a `Llave 15`
 **Verify**
 ```bash
 pnpm test tests/integration/shop-profile.test.ts   # expect: exit 0, 0 failed
-grep -qF 'name: "llave15"' src/lib/platform.ts   # expect: exit 0
+grep -qF 'name: "Llave 15"' src/lib/platform.ts   # expect: exit 0
 node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
 pnpm format && pnpm gate   # expect: exit 0
 ```
@@ -978,21 +978,21 @@ git tag -l bg-17 | grep -qx bg-17   # expect: exit 0
 #### BG-18 — Correos de reserva con la marca del taller (E2-T2)
 **Archivos:** `src/server/email/booking/templates.ts` (nuevo) · `src/server/email/templates.ts` · `src/server/email/notifications.ts` · `src/server/email/reminders.ts` · `tests/integration/booking-emails-isolation.test.ts` (nuevo)
 **Siembra y firma declaradas (no cuentan):** `tests/helpers/shops.ts` (siembra: agrega `vectorBikesBrand()` y el accesorio `SITE` de §4); `tests/unit/multi-bike-email.test.ts` y `tests/integration/email.test.ts` (pasan `vectorBikesBrand()` como primer argumento); `tests/unit/rescheduled-email.test.ts` (pasa la marca y **deja de importar `src/lib/site.ts`**: su `import { SITE }` pasa a `../helpers/shops.ts`, sin tocar ninguna expectativa); `tests/unit/email-brand.test.ts` (arma la marca con los valores que hoy fija su `vi.mock` de `src/lib/site.ts` y la pasa a las plantillas de reserva; el `vi.mock` sigue hasta BG-20 porque la prueba también cubre plantillas de la orden).
-**Valores esperados que cambian (declarados):** la línea final `con llave15` en `text` y `html`; el remitente `Vector Bikes · llave15 <reservas@send.vectorbikes.cl>`; la URL del logo `/vector-bikes/logo`. Nada más.
+**Valores esperados que cambian (declarados):** la línea final `Gestionado con Llave 15` en `text` y `html`; el remitente `Vector Bikes · Llave 15 <reservas@send.vectorbikes.cl>`; la URL del logo `/vector-bikes/logo`. Nada más.
 **Hacer:** mover `customerConfirmationEmail`, `shopNewBookingEmail`, `bookingRescheduledEmail`, `shopRescheduledEmail`, `reminderEmail` y `shopCancellationEmail` a `email/booking/templates.ts`, con `brand: EmailBrand` como primer argumento (nombre, dirección, horario, logo, pie; `templates.ts:257` usa el nombre del perfil); `notifications.ts` resuelve `profileForBranch(db, booking.branchId)`, arma `from`, `replyTo` y la copia a `notifyEmail`, y el ICS con la dirección del perfil; `reminders.ts` pasa la marca de cada reserva.
 **Reglas:** R-dom · RC 6, 14 · NN 4 · No cambia: asuntos, condiciones de envío, envío post-commit.
 **Done when**
-- [ ] WHEN una reserva del Taller Demo se crea THE SYSTEM SHALL enviar la confirmación al cliente con remitente `Taller Demo · llave15 <reservas@send.vectorbikes.cl>`, `Reply-To` igual al correo del Taller Demo, el nombre y la dirección del Taller Demo en el cuerpo y en el ICS, y la línea `con llave15`
+- [ ] WHEN una reserva del Taller Demo se crea THE SYSTEM SHALL enviar la confirmación al cliente con remitente `Taller Demo · Llave 15 <reservas@send.vectorbikes.cl>`, `Reply-To` igual al correo del Taller Demo, el nombre y la dirección del Taller Demo en el cuerpo y en el ICS, y la línea `Gestionado con Llave 15`
 - [ ] WHEN una reserva del Taller Demo se crea, cancela o reprograma THE SYSTEM SHALL mandar la copia al correo de avisos del Taller Demo y no a `SHOP_NOTIFY_EMAIL`
-- [ ] WHEN una reserva de Vector Bikes se crea THE SYSTEM SHALL producir el mismo asunto y cuerpo de hoy más la línea final `con llave15`
+- [ ] WHEN una reserva de Vector Bikes se crea THE SYSTEM SHALL producir el mismo asunto y cuerpo de hoy más la línea final `Gestionado con Llave 15`
 - [ ] WHEN `reminderEmail` arma el recordatorio de una reserva del Taller Demo THE SYSTEM SHALL decir `Te recordamos tu reserva en Taller Demo.`
-- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0
+- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0
 - [ ] WHEN se cuentan las líneas de `src/server/email/templates.ts` y `src/server/email/booking/templates.ts` THE SYSTEM SHALL tener menos de 400 cada uno
 **Verify**
 ```bash
 pnpm test tests/integration/booking-emails-isolation.test.ts tests/integration/email.test.ts tests/unit/multi-bike-email.test.ts tests/unit/rescheduled-email.test.ts tests/unit/email-brand.test.ts tests/integration/cancel-flow.test.ts tests/integration/reschedule-notification.test.ts tests/integration/reminders.test.ts   # expect: exit 0, 0 failed
 test "$(wc -l < src/server/email/templates.ts | tr -d ' ')" -lt 400 && test "$(wc -l < src/server/email/booking/templates.ts | tr -d ' ')" -lt 400   # expect: exit 0
-node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
+node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
@@ -1009,18 +1009,18 @@ git tag -l bg-18 | grep -qx bg-18   # expect: exit 0
 **Hacer:** mover `receivedBikeEmail` y `readyForPickupEmail` a `email/garage/templates.ts` con `brand` primero (dirección y horario de recepción del perfil en vez de `SITE` y `RECEPTION_HOURS`); `templates.ts` queda con el render compartido; `reception.ts` y `qc.ts` resuelven `profileForBranch(db, order.branchId)` y envían con remitente, `Reply-To` y copia del taller, después del commit.
 **Reglas:** R-dom · RC 6, 14 · NN 13 · No cambia: condiciones de envío, auditoría `notify.*`.
 **Done when**
-- [ ] WHEN se finaliza la recepción de una orden del Taller Demo THE SYSTEM SHALL enviar `Recibimos tu bicicleta` con el nombre, la dirección y el horario de recepción del Taller Demo, remitente `Taller Demo · llave15 <reservas@send.vectorbikes.cl>` y copia a su correo de avisos
-- [ ] WHEN una orden del Taller Demo queda lista para retirar THE SYSTEM SHALL enviar el aviso con la marca del Taller Demo y la línea `con llave15`
-- [ ] WHEN las plantillas reciben la marca de Vector Bikes THE SYSTEM SHALL producir el mismo `subject`, `html` y `text` de hoy más la línea `con llave15`
+- [ ] WHEN se finaliza la recepción de una orden del Taller Demo THE SYSTEM SHALL enviar `Recibimos tu bicicleta` con el nombre, la dirección y el horario de recepción del Taller Demo, remitente `Taller Demo · Llave 15 <reservas@send.vectorbikes.cl>` y copia a su correo de avisos
+- [ ] WHEN una orden del Taller Demo queda lista para retirar THE SYSTEM SHALL enviar el aviso con la marca del Taller Demo y la línea `Gestionado con Llave 15`
+- [ ] WHEN las plantillas reciben la marca de Vector Bikes THE SYSTEM SHALL producir el mismo `subject`, `html` y `text` de hoy más la línea `Gestionado con Llave 15`
 - [ ] WHEN corre `pnpm test:tablet e2e/recepcion-completa.spec.ts e2e/control-calidad.spec.ts` THE SYSTEM SHALL pasar
-- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0
+- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0
 - [ ] WHEN se cuentan las líneas de `reception.ts`, `qc.ts`, `templates.ts` y `garage/templates.ts` THE SYSTEM SHALL tener menos de 400 cada uno
 **Verify**
 ```bash
 pnpm test tests/integration/order-emails-isolation.test.ts tests/unit/received-email.test.ts tests/unit/ready-email.test.ts tests/unit/tracking-in-emails.test.ts tests/unit/pricing-emails.test.ts tests/unit/email-brand.test.ts tests/integration/received-notification.test.ts tests/integration/ready-notification.test.ts   # expect: exit 0, 0 failed
 for f in src/server/taller/reception.ts src/server/taller/qc.ts src/server/email/templates.ts src/server/email/garage/templates.ts; do test "$(wc -l < "$f" | tr -d ' ')" -lt 400 || echo "$f"; done | grep -q .; test $? -eq 1   # expect: 1 = ningún archivo llega a 400 → la línea sale 0
 pnpm build && pnpm test:tablet e2e/recepcion-completa.spec.ts e2e/control-calidad.spec.ts   # expect: exit 0, 0 failed
-node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
+node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
@@ -1038,14 +1038,14 @@ git tag -l bg-19 | grep -qx bg-19   # expect: exit 0
 **Reglas:** R-dom · RC 6, 14 · NN 17 · No cambia: los correos nunca llevan costos ni márgenes.
 **Done when**
 - [ ] WHEN se envía la cotización de una orden del Taller Demo THE SYSTEM SHALL usar el nombre del Taller Demo en el asunto y el cuerpo, su remitente y su copia de avisos
-- [ ] WHEN se agrega un repuesto a una orden del Taller Demo THE SYSTEM SHALL enviar `Agregamos un repuesto a tu orden` con la marca del Taller Demo y la línea `con llave15`
-- [ ] WHEN las dos plantillas reciben la marca de Vector Bikes THE SYSTEM SHALL producir el mismo `subject`, `html` y `text` de hoy más la línea `con llave15`
-- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0
+- [ ] WHEN se agrega un repuesto a una orden del Taller Demo THE SYSTEM SHALL enviar `Agregamos un repuesto a tu orden` con la marca del Taller Demo y la línea `Gestionado con Llave 15`
+- [ ] WHEN las dos plantillas reciben la marca de Vector Bikes THE SYSTEM SHALL producir el mismo `subject`, `html` y `text` de hoy más la línea `Gestionado con Llave 15`
+- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0
 **Verify**
 ```bash
 pnpm test tests/integration/quote-part-emails-isolation.test.ts tests/unit/quote-email.test.ts tests/unit/part-added-email.test.ts tests/unit/pricing-emails.test.ts tests/unit/email-brand.test.ts tests/integration/quotes.test.ts tests/integration/part-notice.test.ts   # expect: exit 0, 0 failed
 grep -q 'lib/site.ts' tests/unit/email-brand.test.ts tests/unit/part-added-email.test.ts; test $? -eq 1   # expect: 1 = ya no importan ni mockean src/lib/site.ts → la línea sale 0
-node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
+node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
@@ -1060,17 +1060,17 @@ git tag -l bg-20 | grep -qx bg-20   # expect: exit 0
 **Firma declarada (no cuenta):** `tests/unit/maintenance-email.test.ts` (pasa la marca); `tests/unit/delivery-date-email.test.ts` (pasa la marca y **deja de importar `src/lib/site.ts`**: su `import { SITE }` pasa a `../helpers/shops.ts`, sin tocar ninguna expectativa).
 **Valores esperados que cambian (declarados):** los mismos tres de BG-18.
 **Hacer:** `deliveryDateChangedEmail` y `maintenanceReminderEmail` con `brand` primero; `delivery-notice.ts` y `maintenance-plan.ts` resuelven el perfil de cada orden; `sendOverdueDigest` (`maintenance.ts:91-92`) agrupa por sucursal y manda **un correo por taller** con atrasos o stock bajo a su correo de avisos, con el nombre del taller en el asunto; la respuesta conserva `{ ok, overdue, sent, lowStock? }` con los totales.
-**Reglas:** R-dom · RC 6, 14 · No cambia: con un taller, el mismo correo de hoy más la línea `con llave15`.
+**Reglas:** R-dom · RC 6, 14 · No cambia: con un taller, el mismo correo de hoy más la línea `Gestionado con Llave 15`.
 **Done when**
 - [ ] WHEN cambia la fecha de entrega de una orden del Taller Demo THE SYSTEM SHALL enviar `Cambiamos la fecha de entrega` con la marca del Taller Demo y copia a su correo de avisos
 - [ ] WHEN se envía el recordatorio de mantención de una orden del Taller Demo THE SYSTEM SHALL usar el nombre y el remitente del Taller Demo
 - [ ] WHEN `sendOverdueDigest` corre con órdenes atrasadas en los dos talleres THE SYSTEM SHALL enviar dos correos, cada uno a su correo de avisos y solo con sus órdenes
 - [ ] WHEN `sendOverdueDigest` corre con un solo taller THE SYSTEM SHALL responder como hoy (`tasks-maintenance.test.ts` y `low-stock.test.ts` sin cambios de valores)
-- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0
+- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0
 **Verify**
 ```bash
 pnpm test tests/integration/notices-isolation.test.ts tests/unit/delivery-date-email.test.ts tests/unit/maintenance-email.test.ts tests/integration/delivery-notice.test.ts tests/integration/maintenance-plan.test.ts tests/integration/tasks-maintenance.test.ts tests/integration/low-stock.test.ts tests/integration/tasks-maintenance-reminders.test.ts   # expect: exit 0, 0 failed
-node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
+node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
@@ -1087,7 +1087,7 @@ git tag -l bg-21 | grep -qx bg-21   # expect: exit 0
 **Done when**
 - [ ] WHEN se lee `src/styles/tokens.css` THE SYSTEM SHALL contener los nueve tokens de `:root` en claro y oscuro con los mismos valores que `global.css` tenía en `8bca898`, y `global.css` SHALL importarlo y ya no declararlos
 - [ ] WHEN se comparan los hex de `global.css` y `tokens.css` con los de `global.css` en `8bca898` THE SYSTEM SHALL encontrar exactamente el mismo conjunto
-- [ ] WHEN se renderiza `PublicLayout` con el perfil del Taller Demo THE SYSTEM SHALL mostrar `Taller Demo` en el encabezado, la línea `con llave15` al pie, `noindex` y ningún `application/ld+json`
+- [ ] WHEN se renderiza `PublicLayout` con el perfil del Taller Demo THE SYSTEM SHALL mostrar `Taller Demo` en el encabezado, la línea `Gestionado con Llave 15` al pie, `noindex` y ningún `application/ld+json`
 - [ ] WHEN se renderiza `AppLayout` THE SYSTEM SHALL no incluir el FAQ, el JSON-LD ni el wordmark de la portada
 **Verify**
 ```bash
@@ -1107,20 +1107,20 @@ git tag -l bg-22 | grep -qx bg-22   # expect: exit 0
 
 #### BG-23 — Páginas por token con la marca del taller (E2-T7)
 **Archivos:** `src/pages/seguimiento/[token].astro` · `src/pages/aprobacion/[token].astro` · `src/pages/reservas/cancelar.astro` · `tests/integration/token-pages-isolation.test.ts` (nuevo)
-**Valores esperados que cambian (declarados):** la línea `con llave15` y el cambio de `Base.astro` a `PublicLayout` en esas tres páginas (los títulos siguen `… — <nombre del taller>`, igual para Vector Bikes).
+**Valores esperados que cambian (declarados):** la línea `Gestionado con Llave 15` y el cambio de `Base.astro` a `PublicLayout` en esas tres páginas (los títulos siguen `… — <nombre del taller>`, igual para Vector Bikes).
 **Hacer:** las tres páginas usan `PublicLayout` y el perfil de `profileForShareToken`/`profileForCancelToken` (dirección, horario de recepción, correo); conservan `no-store`, `noindex`, `no-referrer`, `originForLog` y solo el primer nombre.
 **Reglas:** R-api · R-ui · RC 10, 14 · No cambia: comportamiento del token, códigos de respuesta.
 **Done when**
-- [ ] WHEN se abre `/seguimiento/<token>` de una orden del Taller Demo THE SYSTEM SHALL mostrar el nombre, la dirección y el horario de recepción del Taller Demo, la línea `con llave15`, `no-store`, `noindex` y `no-referrer`, sin ningún dato de Vector Bikes
+- [ ] WHEN se abre `/seguimiento/<token>` de una orden del Taller Demo THE SYSTEM SHALL mostrar el nombre, la dirección y el horario de recepción del Taller Demo, la línea `Gestionado con Llave 15`, `no-store`, `noindex` y `no-referrer`, sin ningún dato de Vector Bikes
 - [ ] WHEN se abre `/aprobacion/<token>` de una propuesta del Taller Demo THE SYSTEM SHALL mostrar la marca del Taller Demo
 - [ ] WHEN se abre `/reservas/cancelar?token=<token>` de una reserva del Taller Demo THE SYSTEM SHALL mostrar el correo del Taller Demo como contacto
 - [ ] WHEN un token no existe THE SYSTEM SHALL responder 404 como hoy
-- [ ] WHEN corren `tracking-page.test.ts`, `approval-page.test.ts`, `cancel-flow.test.ts` y `pnpm test:tablet e2e/seguimiento-enlace.spec.ts` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'llave15'` SHALL salir 0
+- [ ] WHEN corren `tracking-page.test.ts`, `approval-page.test.ts`, `cancel-flow.test.ts` y `pnpm test:tablet e2e/seguimiento-enlace.spec.ts` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'Llave 15'` SHALL salir 0
 **Verify**
 ```bash
 pnpm test tests/integration/token-pages-isolation.test.ts tests/integration/tracking-page.test.ts tests/integration/approval-page.test.ts tests/integration/cancel-flow.test.ts   # expect: exit 0, 0 failed
 pnpm build && pnpm test:tablet e2e/seguimiento-enlace.spec.ts   # expect: exit 0, 0 failed
-node scripts/bg-expect-parity.ts --allow 'llave15'   # expect: exit 0 — solo cambian expectativas declaradas
+node scripts/bg-expect-parity.ts --allow 'Llave 15'   # expect: exit 0 — solo cambian expectativas declaradas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
@@ -1133,21 +1133,21 @@ git tag -l bg-23 | grep -qx bg-23   # expect: exit 0
 #### BG-24 — Informe, etiqueta y textos de la orden (E2-T8)
 **Archivos:** `src/pages/informe/[token].astro` · `src/components/taller/ReportView.astro` · `src/pages/taller/ordenes/[id]/informe.astro` · `src/server/taller/label.ts` · `tests/integration/report-brand-isolation.test.ts` (nuevo)
 **Firma declarada (no cuenta):** `tests/integration/report-view-brand.test.ts` (pasa a `ReportView` la marca armada con los valores que hoy fija su `vi.mock` de `src/lib/site.ts` y, como `ReportView` ya no usa `SITE`, **quita ese `vi.mock` y deja de importar `src/lib/site.ts`**; sus expectativas no cambian).
-**Valores esperados que cambian (declarados):** `con llave15`; logo `/vector-bikes/logo`; títulos del personal `… — llave15` en `taller/ordenes/[id]/informe.astro` y en la etiqueta (`Etiqueta <número> — llave15`).
+**Valores esperados que cambian (declarados):** `Gestionado con Llave 15`; logo `/vector-bikes/logo`; títulos del personal `… — Llave 15` en `taller/ordenes/[id]/informe.astro` y en la etiqueta (`Etiqueta <número> — Llave 15`).
 **Hacer:** `ReportView` recibe `brand` ya formateado (nombre, `addressShort`, correo, teléfono, certificaciones, `logoPath`) en vez de `SITE` (líneas 117-118); `/informe/[token]` usa `PublicLayout` y el perfil del token; el texto de WhatsApp de `taller/ordenes/[id]/informe.astro:111` usa el nombre del perfil de la sucursal del usuario; títulos del personal con `PLATFORM.name`.
 **Reglas:** R-ui · R-tui · R-api · RC 14 · No cambia: snapshot v1 del informe, tokens.
 **Done when**
-- [ ] WHEN se abre `/informe/<token>` de una orden del Taller Demo THE SYSTEM SHALL mostrar el nombre, la dirección, el correo, el teléfono y las certificaciones del Taller Demo, su logo si lo tiene, y la línea `con llave15`
+- [ ] WHEN se abre `/informe/<token>` de una orden del Taller Demo THE SYSTEM SHALL mostrar el nombre, la dirección, el correo, el teléfono y las certificaciones del Taller Demo, su logo si lo tiene, y la línea `Gestionado con Llave 15`
 - [ ] WHEN se abre el informe de una orden de Vector Bikes THE SYSTEM SHALL mostrar los mismos datos de hoy, con el logo servido desde `/vector-bikes/logo`
-- [ ] WHEN el personal del Taller Demo abre `/taller/ordenes/<id>/informe` THE SYSTEM SHALL armar el texto de WhatsApp con `en Taller Demo` y titular la página con `— llave15`
-- [ ] WHEN se genera la etiqueta de una orden THE SYSTEM SHALL titularla `Etiqueta <número> — llave15`
-- [ ] WHEN corren `report-page.test.ts`, `report-view.test.ts`, `report-page-brand.test.ts`, `report-view-brand.test.ts`, `label.test.ts` y `pnpm test:tablet e2e/etiqueta.spec.ts` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` SHALL salir 0
+- [ ] WHEN el personal del Taller Demo abre `/taller/ordenes/<id>/informe` THE SYSTEM SHALL armar el texto de WhatsApp con `en Taller Demo` y titular la página con `— Llave 15`
+- [ ] WHEN se genera la etiqueta de una orden THE SYSTEM SHALL titularla `Etiqueta <número> — Llave 15`
+- [ ] WHEN corren `report-page.test.ts`, `report-view.test.ts`, `report-page-brand.test.ts`, `report-view-brand.test.ts`, `label.test.ts` y `pnpm test:tablet e2e/etiqueta.spec.ts` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` SHALL salir 0
 **Verify**
 ```bash
 pnpm test tests/integration/report-brand-isolation.test.ts tests/integration/report-page.test.ts tests/integration/report-view.test.ts tests/integration/report-page-brand.test.ts tests/integration/report-view-brand.test.ts tests/integration/label.test.ts tests/integration/informe-mantencion-page.test.ts   # expect: exit 0, 0 failed
 grep -q 'lib/site.ts' tests/integration/report-view-brand.test.ts; test $? -eq 1   # expect: 1 = ya no mockea src/lib/site.ts → la línea sale 0
 pnpm build && pnpm test:tablet e2e/etiqueta.spec.ts   # expect: exit 0, 0 failed
-node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
+node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
@@ -1209,16 +1209,16 @@ git tag -l bg-26 | grep -qx bg-26   # expect: exit 0
 ```
 
 #### BG-27 — Páginas heredadas, marca del personal y fin de `SITE` (E2-T11) — excepción declarada
-**Archivos (excepción mecánica, BG-D6):** `src/pages/index.astro`, `src/pages/privacidad.astro`, `src/pages/404.astro` (contenido de `VECTOR_BIKES_SITE`; 404 con `PLATFORM.name`); `src/lib/faq.ts` (se borra; `Base.astro` importa el FAQ de `VECTOR_BIKES_SITE`); `src/lib/site.ts` (se borra); `src/lib/whatsapp.ts` (nuevo: `whatsappHref` tal cual); `src/layouts/Base.astro` (imports); `src/layouts/TallerLayout.astro` (sobre `AppLayout`, marca `{PLATFORM.name} · Taller`); `src/pages/admin/login.astro` (sobre `AppLayout`, título `Ingresar — llave15`); y cada página de `src/pages/taller/**` y `src/pages/admin/**` con `— Vector Bikes` literal o `SITE.name` (lista de §19.6). Regla de reemplazo: en `title=` y en la marca del menú → `PLATFORM.name`; en un texto que va al cliente (WhatsApp, cotización) → nombre del perfil de `profileForBranch(db, user.branchId)`.
+**Archivos (excepción mecánica, BG-D6):** `src/pages/index.astro`, `src/pages/privacidad.astro`, `src/pages/404.astro` (contenido de `VECTOR_BIKES_SITE`; 404 con `PLATFORM.name`); `src/lib/faq.ts` (se borra; `Base.astro` importa el FAQ de `VECTOR_BIKES_SITE`); `src/lib/site.ts` (se borra); `src/lib/whatsapp.ts` (nuevo: `whatsappHref` tal cual); `src/layouts/Base.astro` (imports); `src/layouts/TallerLayout.astro` (sobre `AppLayout`, marca `{PLATFORM.name} · Taller`); `src/pages/admin/login.astro` (sobre `AppLayout`, título `Ingresar — Llave 15`); y cada página de `src/pages/taller/**` y `src/pages/admin/**` con `— Vector Bikes` literal o `SITE.name` (lista de §19.6). Regla de reemplazo: en `title=` y en la marca del menú → `PLATFORM.name`; en un texto que va al cliente (WhatsApp, cotización) → nombre del perfil de `profileForBranch(db, user.branchId)`.
 **Pruebas existentes de la excepción (firma de import, no cuentan):** las últimas que importan `src/lib/site.ts` (BG-18 a BG-24 ya movieron las demás). `tests/integration/low-stock.test.ts` y `tests/integration/lineas-aviso-repuesto.test.ts`: su `import { SITE } from "../../src/lib/site.ts"` pasa a `import { SITE } from "../helpers/shops.ts"`; `SITE.name` y `SITE.url` siguen dentro de sus expectativas con los mismos valores (las de `low-stock.test.ts` en las líneas 160, 173 y 190), así que ninguna cola de matcher cambia. `tests/build/landing.test.ts`: su import de `whatsappHref` pasa a `../../src/lib/whatsapp.ts`; nada más. `tests/unit/vector-bikes-profile.test.ts` (prueba de esta fase, BG-04): se reescribe para comparar el perfil con `VECTOR_BIKES_SITE` (identidad y `islandShop`: comunas, tarifa, horizonte, bloque, prefijo) y con valores literales en la prueba para horarios, capacidad y antelación; ya no importa `src/lib/site.ts` ni `src/server/booking/rules.ts`, así que BG-28 no la toca.
-**Valores esperados que cambian (declarados):** títulos `… — Vector Bikes` y `… · Vector Bikes` del personal y del ingreso → `llave15`; marca del menú `Vector Bikes · Taller` → `llave15 · Taller`; título del 404 → `Página no encontrada — llave15`; y las expectativas de `tests/unit/vector-bikes-profile.test.ts` (prueba de esta fase, `--skip`).
+**Valores esperados que cambian (declarados):** títulos `… — Vector Bikes` y `… · Vector Bikes` del personal y del ingreso → `Llave 15`; marca del menú `Vector Bikes · Taller` → `Llave 15 · Taller`; título del 404 → `Página no encontrada — Llave 15`; y las expectativas de `tests/unit/vector-bikes-profile.test.ts` (prueba de esta fase, `--skip`).
 **Reglas:** R-tui · R-ui · R-api · RC 14 · No cambia: rutas, permisos, `global.css`.
 **Done when**
 - [ ] WHEN se busca `lib/site.ts` en `src/`, `tests/` y `e2e/` THE SYSTEM SHALL no encontrar ningún importador, y `src/lib/site.ts` y `src/lib/faq.ts` SHALL no existir
-- [ ] WHEN se renderiza una página de `/taller` o `/admin` THE SYSTEM SHALL titularla con `— llave15` y el menú SHALL decir `llave15 · Taller`
+- [ ] WHEN se renderiza una página de `/taller` o `/admin` THE SYSTEM SHALL titularla con `— Llave 15` y el menú SHALL decir `Llave 15 · Taller`
 - [ ] WHEN un texto de esas páginas va al cliente THE SYSTEM SHALL usar el nombre del taller del perfil de la sucursal del usuario
 - [ ] WHEN `TallerLayout` y `/admin/login` se renderizan THE SYSTEM SHALL usar `AppLayout` y no `Base.astro`
-- [ ] WHEN corren `pnpm test`, `pnpm test:build` y `pnpm test:tablet` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'llave15' --skip tests/unit/vector-bikes-profile.test.ts` SHALL salir 0
+- [ ] WHEN corren `pnpm test`, `pnpm test:build` y `pnpm test:tablet` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'Llave 15' --skip tests/unit/vector-bikes-profile.test.ts` SHALL salir 0
 - [ ] WHEN se buscan los nueve patrones de la guardia en `src/pages`, `src/layouts` y `src/lib` THE SYSTEM SHALL no encontrar ninguno
 **Verify**
 ```bash
@@ -1228,13 +1228,13 @@ test -z "$(grep -rlFI -e 'Vector Bikes' -e 'Vitacura' -e 'Las Condes' -e 'Kenned
 grep -q 'AppLayout' src/layouts/TallerLayout.astro && { grep -q 'Base.astro' src/layouts/TallerLayout.astro; test $? -eq 1; }   # expect: exit 0
 pnpm test   # expect: exit 0, 0 failed
 pnpm build && pnpm test:build && pnpm test:tablet   # expect: exit 0, 0 failed
-node scripts/bg-expect-parity.ts --allow 'llave15' --skip tests/unit/vector-bikes-profile.test.ts   # expect: exit 0 — solo cambian expectativas declaradas
+node scripts/bg-expect-parity.ts --allow 'Llave 15' --skip tests/unit/vector-bikes-profile.test.ts   # expect: exit 0 — solo cambian expectativas declaradas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
 git add -u -- src tests e2e && git add -- src/lib/whatsapp.ts   # -u: solo archivos ya seguidos (también los borrados); nunca duplicados de iCloud sin seguimiento
-git commit -m "feat: bg-27 brand staff pages with llave15 and remove site constant" && git tag bg-27
+git commit -m "feat: bg-27 brand staff pages with Llave 15 and remove site constant" && git tag bg-27
 git tag -l bg-27 | grep -qx bg-27   # expect: exit 0
 ```
 
@@ -1321,7 +1321,7 @@ git tag -l bg-30 | grep -qx bg-30   # expect: exit 0
 **Hacer:** `reservar.astro`: `prerender = false`, `scopeBySlug` + `profileBySlug` (404 si `null`), `PublicLayout`, `h1` con el nombre, `BookingIsland client:visible` con las props del taller (`privacyHref` = `/<slug>/privacidad`) y `PUBLIC_TURNSTILE_SITE_KEY`; `cache-control: no-store`; indexable. `privacidad.astro`: el texto del aviso de `8bca898:src/pages/privacidad.astro` con los datos del perfil en vez de los literales; `noindex`.
 **Reglas:** R-ui · R-api · RC 14 · No cambia: ninguna isla nueva (la de reserva es la misma).
 **Done when**
-- [ ] WHEN se pide `/taller-demo/reservar` THE SYSTEM SHALL responder 200 con `PublicLayout`, `Taller Demo` en el `h1`, la isla con las props del Taller Demo y la línea `con llave15`
+- [ ] WHEN se pide `/taller-demo/reservar` THE SYSTEM SHALL responder 200 con `PublicLayout`, `Taller Demo` en el `h1`, la isla con las props del Taller Demo y la línea `Gestionado con Llave 15`
 - [ ] WHEN se pide `/no-existe/reservar` o la página de un taller `suspendido` THE SYSTEM SHALL responder 404
 - [ ] WHEN se pide `/vector-bikes/reservar` THE SYSTEM SHALL mostrar la isla con los valores de Vector Bikes
 - [ ] WHEN se pide `/taller-demo/privacidad` THE SYSTEM SHALL mostrar el aviso de privacidad con el nombre, la dirección y el correo del Taller Demo, sin datos de Vector Bikes
@@ -1366,10 +1366,10 @@ git tag -l bg-32 | grep -qx bg-32   # expect: exit 0
 
 #### BG-33 — Spec de navegador de la reserva por taller (E3-T5) — excepción a "sin E2E fuera de `/taller`" (BG-D19)
 **Archivos:** `e2e/reservar-taller.spec.ts` (nuevo) · `e2e/global-setup.ts` · `e2e/fixtures.ts`
-**Hacer:** `fixtures.ts`: `SEED.demoShopId`, `SEED.demoBranchId`. `global-setup.ts` (con `hasTable`): el Taller Demo E2E (`slug` `taller-demo`, `name` `Taller Demo E2E`, valores de `DEMO_SHOP_PROFILE` escritos en el archivo, prefijo `TD`) y su sucursal. El spec **no envía** la reserva (Turnstile necesita red): comprueba marca, comunas, línea `con llave15` y que los bloques mostrados vengan de `/api/disponibilidad` con el `taller` de la página (`page.waitForResponse`).
+**Hacer:** `fixtures.ts`: `SEED.demoShopId`, `SEED.demoBranchId`. `global-setup.ts` (con `hasTable`): el Taller Demo E2E (`slug` `taller-demo`, `name` `Taller Demo E2E`, valores de `DEMO_SHOP_PROFILE` escritos en el archivo, prefijo `TD`) y su sucursal. El spec **no envía** la reserva (Turnstile necesita red): comprueba marca, comunas, línea `Gestionado con Llave 15` y que los bloques mostrados vengan de `/api/disponibilidad` con el `taller` de la página (`page.waitForResponse`).
 **Reglas:** R-e2e (excepción BG-D19) · No cambia: los specs existentes, `playwright.config.ts`.
 **Done when**
-- [ ] WHEN el spec abre `/vector-bikes/reservar` en el viewport de tablet THE SYSTEM SHALL mostrar `Vector Bikes`, las comunas `Vitacura` y `Las Condes` al elegir retiro y la línea `con llave15`
+- [ ] WHEN el spec abre `/vector-bikes/reservar` en el viewport de tablet THE SYSTEM SHALL mostrar `Vector Bikes`, las comunas `Vitacura` y `Las Condes` al elegir retiro y la línea `Gestionado con Llave 15`
 - [ ] WHEN abre `/taller-demo/reservar` THE SYSTEM SHALL mostrar `Taller Demo E2E`, las comunas del Taller Demo y ningún texto `Vitacura`
 - [ ] WHEN el spec elige un día en cada página THE SYSTEM SHALL mostrar los bloques que devuelve `/api/disponibilidad` con el `taller` de esa página, de 60 minutos en el Taller Demo
 - [ ] WHEN corre `pnpm test:tablet` completo THE SYSTEM SHALL pasar con los specs existentes sin cambios
@@ -1674,20 +1674,20 @@ git tag -l bg-44 | grep -qx bg-44   # expect: exit 0
 
 #### BG-45 — Alta documentada y cierre de la fase (E5-T5)
 **Archivos:** `scripts/platform-admin.ts` (nuevo) · `package.json` (solo el script) · `docs/nuevo-taller.md` (nuevo) · `README.md` · `tests/integration/platform-admin-script.test.ts` (nuevo)
-**Hacer:** `platform-admin.ts <correo> [--off]`: exporta `setPlatformAdmin(db, email, on, now)` (marca o quita y revoca sesiones); `main` con la guarda de BG-01; sale 0, 1 (correo inexistente), 2 (uso o sin conexión). `package.json`: `platform:admin` = `node --env-file-if-exists=.env scripts/platform-admin.ts`. `docs/nuevo-taller.md`: antes del alta (términos, privacidad, FASE §7), alta en `/plataforma`, primer ingreso del dueño, verificación (`pnpm bg:check`, `/<slug>/reservar`). `README.md`: `## Operación de llave15` con la tabla FASE §14 → prueba (al final de §9).
+**Hacer:** `platform-admin.ts <correo> [--off]`: exporta `setPlatformAdmin(db, email, on, now)` (marca o quita y revoca sesiones); `main` con la guarda de BG-01; sale 0, 1 (correo inexistente), 2 (uso o sin conexión). `package.json`: `platform:admin` = `node --env-file-if-exists=.env scripts/platform-admin.ts`. `docs/nuevo-taller.md`: antes del alta (términos, privacidad, FASE §7), alta en `/plataforma`, primer ingreso del dueño, verificación (`pnpm bg:check`, `/<slug>/reservar`). `README.md`: `## Operación de Llave 15` con la tabla FASE §14 → prueba (al final de §9).
 **Reglas:** R-shops · NN 4 · No cambia: ninguna dependencia.
 **Done when**
 - [ ] WHEN `setPlatformAdmin` recibe un correo existente THE SYSTEM SHALL marcar `is_platform_admin = true` y revocar sus sesiones, y con `on: false` SHALL quitar la marca
 - [ ] WHEN el correo no existe THE SYSTEM SHALL devolver `not_found` sin cambios, y `node scripts/platform-admin.ts` sin argumentos SHALL salir 2
 - [ ] WHEN se lee `docs/nuevo-taller.md` THE SYSTEM SHALL contener `## Antes de dar de alta`, `## Alta en /plataforma`, `## Primer ingreso del dueño` y `## Verificación`
-- [ ] WHEN se lee `README.md` THE SYSTEM SHALL contener `## Operación de llave15`
+- [ ] WHEN se lee `README.md` THE SYSTEM SHALL contener `## Operación de Llave 15`
 - [ ] WHEN se lee `package.json` THE SYSTEM SHALL tener `platform:admin` igual a `node --env-file-if-exists=.env scripts/platform-admin.ts`
 **Verify**
 ```bash
 pnpm test tests/integration/platform-admin-script.test.ts   # expect: exit 0, 0 failed
 node scripts/platform-admin.ts; test $? -eq 2   # expect: código 2 (uso) → la línea sale 0
 for s in '## Antes de dar de alta' '## Alta en /plataforma' '## Primer ingreso del dueño' '## Verificación'; do grep -qF "$s" docs/nuevo-taller.md || echo "$s"; done | grep -q .; test $? -eq 1   # expect: 1 = no falta ninguna sección → la línea sale 0
-grep -qF '## Operación de llave15' README.md   # expect: exit 0
+grep -qF '## Operación de Llave 15' README.md   # expect: exit 0
 test "$(node -p "require('./package.json').scripts['platform:admin']")" = "node --env-file-if-exists=.env scripts/platform-admin.ts"   # expect: exit 0
 node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
 pnpm format && pnpm gate   # expect: exit 0
@@ -1705,7 +1705,7 @@ git tag -l bg-45 | grep -qx bg-45   # expect: exit 0
 
 ### 9.1 Paridad y corte
 
-Dos migraciones a la vez: **(a) de datos** — Vector Bikes pasa de "el único taller implícito" a una fila de `shops` con `branch_id` en todas sus reservas; **(b) de dominio y despliegue** — el Replit actual pasa a ser llave15 en `llave15.cl` y `vectorbikes.cl` se muda a un Replit nuevo con el sitio de `web/vector-bikes/`.
+Dos migraciones a la vez: **(a) de datos** — Vector Bikes pasa de "el único taller implícito" a una fila de `shops` con `branch_id` en todas sus reservas; **(b) de dominio y despliegue** — el Replit actual pasa a ser Llave 15 en `llave15.cl` y `vectorbikes.cl` se muda a un Replit nuevo con el sitio de `web/vector-bikes/`.
 
 #### Parity set
 Leído del código en `8bca898` (`booking/*`, `handlers.ts`, `manual-booking.ts`, `email/*`, `tracking.ts`, `label.ts`, `task-handlers.ts`, `whatsapp/*`, `astro.config.mjs`, `public/robots.txt`).
@@ -1715,7 +1715,7 @@ Leído del código en `8bca898` (`booking/*`, `handlers.ts`, `manual-booking.ts`
 | p1 | Reglas de reserva de Vector Bikes: bloque 30, capacidad 4 bicis por día, antelación 120 min, horizonte 30 días, retiro = 2 bloques y 1 reserva, máx. 3 bicis, tarifa 15.000, comunas Vitacura y Las Condes, horarios L–V 15–20 (retiro 9–20), sáb. 10–14, dom. cerrado, feriados de `feriados-cl.json` | `slots.test.ts`, `multi-bike-slots.test.ts`, `pickup-hours.test.ts`, `create-booking.test.ts`, `concurrency.test.ts`, `manual-booking.test.ts` sin cambios de valores + `vector-bikes-profile.test.ts` | Exacta |
 | p2 | Código `VB-AAMMDD-HHMM` y sufijo `-n` | `create-booking.test.ts` | Exacta |
 | p3 | Respuestas de `/api/reservas` y `/api/disponibilidad` | `api.test.ts` | Exacta |
-| p4 | Correos de reserva, recordatorio, cancelación, reprogramación, recepción, retiro, cotización, repuesto, fecha y mantención de Vector Bikes | pruebas unitarias e integración de correos | Byte a byte salvo lo declarado en BG-18–21 (`con llave15`, remitente, logo) |
+| p4 | Correos de reserva, recordatorio, cancelación, reprogramación, recepción, retiro, cotización, repuesto, fecha y mantención de Vector Bikes | pruebas unitarias e integración de correos | Byte a byte salvo lo declarado en BG-18–21 (`Gestionado con Llave 15`, remitente, logo) |
 | p5 | Enlaces de cancelación, seguimiento, informe, aprobación y QR de etiqueta | `cancel-flow.test.ts`, `tracking*.test.ts`, `report-page.test.ts`, `approval-page.test.ts`, `label.test.ts`, `tracking-secret.test.ts`, `redirects.test.ts` | Funcionan antes y después del corte |
 | p6 | Informe del servicio (snapshot v1) | `reports.test.ts`, `report-view.test.ts` | Exacta salvo logo y pie declarados |
 | p7 | Numeración `OT-`, `VM-`, `OC-` por sucursal | `work-orders.test.ts`, `sales.test.ts`, `purchases.test.ts` | Exacta |
@@ -1760,7 +1760,7 @@ De guardia: **Andrés**. Se evalúan durante la primera semana después de cada 
 #### Decomisión
 Ninguna es un paso de §9 ni de `tasks.json`; cada una se ejecuta como un encargo propio (`docs/encargos/BG-DCn-*.md`) cuando se cumple su precondición.
 
-**`BG-DC1` — Retirar el sitio heredado del sistema.** Precondición: C7 hecho y 7 días con `check-redirects.ts https://vectorbikes.cl` en 0. Qué: `src/pages/index.astro` pasa a ser la portada mínima de llave15 (`PublicLayout`, `PLATFORM.name`, enlace `Ingresar` a `/admin/login`); se borran `src/pages/privacidad.astro`, `src/layouts/Base.astro`, `src/components/Landing.astro`, la excepción de frontera hacia `web/vector-bikes/src/content/site.ts` y las reglas de la portada en `global.css`; `astro.config.mjs` usa `APP_URL` como `site` y el sitemap solo `/`; `public/robots.txt` de llave15 (`Disallow: /taller`, `/admin`, `/plataforma`, `/api`); `tests/build/landing.test.ts` y `seo.test.ts` se reescriben (autorización del dueño en el encargo). Qué se conserva: `/<slug>/reservar`, `/<slug>/privacidad`, páginas por token. Done when: WHEN se pide `/` en `llave15.cl` THE SYSTEM SHALL mostrar la portada de llave15 con `Ingresar`, y `grep -r 'web/vector-bikes' src` SHALL no encontrar nada. Verify: `pnpm gate`.
+**`BG-DC1` — Retirar el sitio heredado del sistema.** Precondición: C7 hecho y 7 días con `check-redirects.ts https://vectorbikes.cl` en 0. Qué: `src/pages/index.astro` pasa a ser la portada mínima de Llave 15 (`PublicLayout`, `PLATFORM.name`, enlace `Ingresar` a `/admin/login`); se borran `src/pages/privacidad.astro`, `src/layouts/Base.astro`, `src/components/Landing.astro`, la excepción de frontera hacia `web/vector-bikes/src/content/site.ts` y las reglas de la portada en `global.css`; `astro.config.mjs` usa `APP_URL` como `site` y el sitemap solo `/`; `public/robots.txt` de Llave 15 (`Disallow: /taller`, `/admin`, `/plataforma`, `/api`); `tests/build/landing.test.ts` y `seo.test.ts` se reescriben (autorización del dueño en el encargo). Qué se conserva: `/<slug>/reservar`, `/<slug>/privacidad`, páginas por token. Done when: WHEN se pide `/` en `llave15.cl` THE SYSTEM SHALL mostrar la portada de Llave 15 con `Ingresar`, y `grep -r 'web/vector-bikes' src` SHALL no encontrar nada. Verify: `pnpm gate`.
 
 **`BG-DC2` — Retirar el secreto heredado del seguimiento.** Precondición: ninguna orden no terminada tiene fila con token derivado de `CANCEL_TOKEN_SECRET` (consulta en el encargo) y pasaron 30 días desde la última. Qué: `ensureTrackingLink` deja de probar `CANCEL_TOKEN_SECRET`; `CANCEL_TOKEN_SECRET` queda solo para cancelaciones. Done when: WHEN se emite un enlace de seguimiento THE SYSTEM SHALL derivarlo solo de `TRACKING_TOKEN_SECRET`. Verify: `pnpm test tests/integration/tracking-secret.test.ts` (ajustada en ese encargo) y `pnpm gate`.
 
@@ -1790,7 +1790,7 @@ Accesores solo en `src/lib/env.ts` (RC 11). Los scripts nuevos se cargan con `no
 
 | Variable | Propósito | Dónde se obtiene | Requerida desde | Secreta |
 |---|---|---|---|---|
-| `APP_URL` | Origen de llave15 para cookie, CSRF y enlaces; sin ella, `PUBLIC_SITE_URL` | `https://llave15.cl` en Secrets de Replit (C5) | Opcional desde BG-34; obligatoria en BG-DC3 | No |
+| `APP_URL` | Origen de Llave 15 para cookie, CSRF y enlaces; sin ella, `PUBLIC_SITE_URL` | `https://llave15.cl` en Secrets de Replit (C5) | Opcional desde BG-34; obligatoria en BG-DC3 | No |
 | `TRACKING_TOKEN_SECRET` | Secreto propio de los enlaces de seguimiento (≥ 32); sin ella, `CANCEL_TOKEN_SECRET` | `openssl rand -base64 48` en Secrets (C5) | Opcional desde BG-35 | Sí |
 | `PUBLIC_SITE_URL` | Origen heredado (`vectorbikes.cl`) aceptado durante la convivencia; `site` de la portada heredada | existente | existente; deja de usarse en CSRF en BG-DC3 | No |
 | `EMAIL_FROM` | Dirección de envío (`reservas@send.llave15.cl` desde C5); el nombre visible lo arma el sistema por taller | Resend | existente | No |
@@ -1883,13 +1883,13 @@ Runtimes y sistema (Node 24, pnpm 12.4.2 vía corepack, Postgres 16, Chromium): 
 ## 12. Estrategia de despliegue
 
 ### Hosting
-Replit Autoscale actual = llave15 (decisión 14), `.replit` intacto. Replit nuevo para `vectorbikes.cl` con el sitio de `web/vector-bikes/` (después `vector-bikes-web`), construido con `corepack pnpm@12.4.2 install --frozen-lockfile && corepack pnpm@12.4.2 build` en su propio repo (BG-DC4) o, mientras vive aquí, publicado desde un repo clonado con `web/vector-bikes/` como raíz (lo decide el dueño en C6; `docs/corte-bike-garage.md`). Se construye en el Mac; el dueño publica.
+Replit Autoscale actual = Llave 15 (decisión 14), `.replit` intacto. Replit nuevo para `vectorbikes.cl` con el sitio de `web/vector-bikes/` (después `vector-bikes-web`), construido con `corepack pnpm@12.4.2 install --frozen-lockfile && corepack pnpm@12.4.2 build` en su propio repo (BG-DC4) o, mientras vive aquí, publicado desde un repo clonado con `web/vector-bikes/` como raíz (lo decide el dueño en C6; `docs/corte-bike-garage.md`). Se construye en el Mac; el dueño publica.
 
 ### Environments
 | Entorno | Rama | URL | Base | Terceros |
 |---|---|---|---|---|
 | Local (Mac) | — | http://localhost:4321 (sistema), http://127.0.0.1:4398 (sitio en `test:web`) | `vector_bikes` (dev), `vector_bikes_e2e` | correo `console` |
-| Producción llave15 | `main` | `https://llave15.cl` (y `https://vectorbikes.cl` hasta C7) | Postgres de producción | Resend, Turnstile |
+| Producción Llave 15 | `main` | `https://llave15.cl` (y `https://vectorbikes.cl` hasta C7) | Postgres de producción | Resend, Turnstile |
 | Producción sitio | — | `https://vectorbikes.cl` desde C7 | ninguna | ninguno |
 
 ### CI/CD
@@ -1952,7 +1952,7 @@ El envío real de una reserva desde el navegador (Turnstile necesita red; la API
 | CSRF | `isAllowedOrigin` con `APP_URL` y, en convivencia, `PUBLIC_SITE_URL`; páginas por token sin `Origin` | BG-34 |
 | Turnstile y abuso | `cdata` = slug; límite por (taller, IP) | BG-30 |
 | Tokens | Solo hash; el de seguimiento acepta el heredado hasta BG-DC2 | BG-35 |
-| Datos personales | llave15 es encargado del tratamiento (Ley 21.719, FASE §7); logs sin PII; `bg:backfill` y `bg:check` imprimen solo conteos | `log.ts`, scripts |
+| Datos personales | Llave 15 es encargado del tratamiento (Ley 21.719, FASE §7); logs sin PII; `bg:backfill` y `bg:check` imprimen solo conteos | `log.ts`, scripts |
 | Comandos destructivos | Reinicio de la base dev y `git reset --hard`: confirmación del operador; `rm -rf`, `git push`, `git add -A`, `drizzle-kit push/drop/--custom` en `deny` | `.claude/settings.json` |
 | Producción | Claude nunca la toca; el dueño corre `bg:backfill`, `bg:check` y `platform:admin` contra producción | checklist §20.1 |
 
@@ -1979,7 +1979,7 @@ WCAG 2.2 AA. En `/<slug>/reservar`: un solo `h1` con el nombre del taller, `labe
 | 5xx | 0 | > 5 por hora o 1 de `/api/reservas` |
 | Rebotes | < 1 % | > 5 % en un día |
 
-**Costo:** un Replit nuevo y pequeño para `vectorbikes.cl` y el dominio `llave15.cl`; llave15 escala por taller sin publicaciones nuevas (FASE §11).
+**Costo:** un Replit nuevo y pequeño para `vectorbikes.cl` y el dominio `llave15.cl`; Llave 15 escala por taller sin publicaciones nuevas (FASE §11).
 
 ---
 
@@ -2005,7 +2005,7 @@ Si una no está instalada, se sigue con este blueprint y se anota en una línea.
 `workspace/` refleja la raíz del repo y lo copia el Bootstrap (§10). **En brownfield, los archivos de `workspace/` que ya existen en el repo son versiones fusionadas**: conservan el contenido del repo en `WORKSPACE_BASE` (`8bca898`) y agregan lo de esta fase; reemplazan a los actuales al copiarse, solo después de la guarda. Ningún paso edita un archivo de esta lista. Nunca se emite `.claude/commands/`. Los archivos bajo `workspace/` son la fuente literal; esta sección describe su contenido.
 
 ### 19.1 `CLAUDE.md`
-`workspace/CLAUDE.md` (< 200 líneas): el `CLAUDE.md` del repo completo, con: título y descripción de llave15 (primer taller: Vector Bikes); comandos nuevos (`node scripts/bg-expect-parity.ts`, `pnpm bg:backfill`, `pnpm bg:check`, `pnpm test:web`, `pnpm platform:admin`, con el paso desde el que existen) y la compuerta con `test:web`; "Estado del build" apuntando a `blueprints/bike-garage/` y a los encargos `docs/encargos/BG-NN-<tema>.md`; caminos de reserva y de alcance; fronteras con `src/server/shops/**` y `web/vector-bikes/**`; "Dónde vive cada cosa" con `schema-shops.ts` a la cabeza de la cadena de trece archivos, perfil y alcance del taller, `src/lib/time.ts`, `PLATFORM`; regla de código 14 reescrita (guardia) y regla 15 (alcance); tokens en `tokens.css`; variables `APP_URL` y `TRACKING_TOKEN_SECRET`; regla diferida `shops.md`; No negociable 6 enmendado (decisión 57) y 20–22 nuevos; "Reparto con Codex" literal.
+`workspace/CLAUDE.md` (< 200 líneas): el `CLAUDE.md` del repo completo, con: título y descripción de Llave 15 (primer taller: Vector Bikes); comandos nuevos (`node scripts/bg-expect-parity.ts`, `pnpm bg:backfill`, `pnpm bg:check`, `pnpm test:web`, `pnpm platform:admin`, con el paso desde el que existen) y la compuerta con `test:web`; "Estado del build" apuntando a `blueprints/bike-garage/` y a los encargos `docs/encargos/BG-NN-<tema>.md`; caminos de reserva y de alcance; fronteras con `src/server/shops/**` y `web/vector-bikes/**`; "Dónde vive cada cosa" con `schema-shops.ts` a la cabeza de la cadena de trece archivos, perfil y alcance del taller, `src/lib/time.ts`, `PLATFORM`; regla de código 14 reescrita (guardia) y regla 15 (alcance); tokens en `tokens.css`; variables `APP_URL` y `TRACKING_TOKEN_SECRET`; regla diferida `shops.md`; No negociable 6 enmendado (decisión 57) y 20–22 nuevos; "Reparto con Codex" literal.
 
 ### 19.2 `AGENTS.md`
 `workspace/AGENTS.md`: el del repo completo con los mismos cambios en comandos, orden de trabajo, reglas de código (14 y 16), fronteras, esquema, reglas por carpeta y No negociables 20–22.
@@ -2026,7 +2026,7 @@ El allowlist existente completo más: la línea literal `rsync -a blueprints/bik
 | `booking-engine.md` (fusionado) | sin cambios | configuración por taller (`BookingScope`), `src/lib/time.ts`, código con prefijo, lock por (sucursal, día) |
 | `server-api.md` (fusionado) | + `src/pages/[slug]/**`, `src/pages/plataforma/**` | `taller` en la API, `shop_not_found`, Turnstile `cdata`, límite por taller, `APP_URL` y dos orígenes, `/plataforma` |
 | `e2e.md` (fusionado) | sin cambios | excepción de la página de reservas (BG-D19); `global-setup.ts`/`fixtures.ts` los editan solo BG-04 y BG-33 |
-| `ui-design.md` (fusionado) | + `src/pages/[slug]/**` | `tokens.css`, `PublicLayout`, pie `con llave15`, portada heredada desde `web/vector-bikes/src/content/site.ts` |
+| `ui-design.md` (fusionado) | + `src/pages/[slug]/**` | `tokens.css`, `PublicLayout`, pie `Gestionado con Llave 15`, portada heredada desde `web/vector-bikes/src/content/site.ts` |
 | `taller-domain.md` (fusionado) | sin cambios | `PLATFORM` y perfil del taller en vez de `SITE` |
 | `taller-ui.md` (fusionado) | sin cambios | títulos con `PLATFORM.name`; "Mi taller" |
 | `shops.md` (nuevo) | `src/server/shops/**`, `src/pages/plataforma/**`, `scripts/bg-*.ts`, `scripts/platform-admin.ts`, `web/vector-bikes/**` | alcance, aislamiento, plataforma, slugs, sitio |
@@ -2088,8 +2088,8 @@ Ningún paquete con resolución no trivial nuevo.
 | Origen de las redirecciones | `web/vector-bikes/src/lib/redirects.ts` (BG-38) | `https://llave15.cl` | `check-redirects.ts`, `docs/corte-bike-garage.md`, `.env` de producción `APP_URL` | yes |
 | Slug de Vector Bikes | `scripts/vector-bikes-profile.ts` | `vector-bikes` | `site.ts` del sitio, `global-setup.ts`, URL de reserva, logo `/vector-bikes/logo`, spec BG-33 | yes |
 | Prefijos de código | perfiles | `VB`, `TD` | Verify y criterios de BG-04, BG-07, `global-setup.ts` | yes |
-| Pie del cliente | `src/lib/platform.ts` (`PLATFORM.footerLine`) | `con llave15` | `brand.ts`, `PublicLayout`, criterios BG-17–24, 31, 33 | yes |
-| Remitente | `src/server/email/brand.ts` (`senderFor`) | `<Taller> · llave15 <dirección>` | criterios BG-17–19, §5 | yes |
+| Pie del cliente | `src/lib/platform.ts` (`PLATFORM.footerLine`) | `Gestionado con Llave 15` | `brand.ts`, `PublicLayout`, criterios BG-17–24, 31, 33 | yes |
+| Remitente | `src/server/email/brand.ts` (`senderFor`) | `<Taller> · Llave 15 <dirección>` | criterios BG-17–19, §5 | yes |
 | Nueve patrones de la guardia | `tests/unit/shop-literals.test.ts` | `Vector Bikes`, `Vitacura`, `Las Condes`, `Kennedy`, `vectorbikes`, `vector.bikes`, `$15.000`, `85095780`, `8509 5780` | Verify de BG-01, BG-26, BG-27, BG-28 | yes |
 | Pruebas de siembra de BG-04 | §9 BG-04 | las quince + `tests/helpers/pglite.ts` | Verify y Checkpoint de BG-04, `tasks.json` `files`, épica 01 | yes |
 | Accesorio `SITE` de pruebas | `tests/helpers/shops.ts` (BG-18) | mismos campos y valores que `src/lib/site.ts` en `8bca898` | imports de `rescheduled-email`, `received-email`, `ready-email`, `pricing-emails`, `part-added-email`, `delivery-date-email`, `low-stock`, `lineas-aviso-repuesto` | yes |
@@ -2104,7 +2104,7 @@ Cada contrato se ejerce en el primer paso donde existen ambos lados: el backfill
 | Accesorio `SITE` de pruebas | BG-18 | BG-18 (pruebas que lo importan) | copia literal de `git show 8bca898:src/lib/site.ts` | n/a (datos) | yes |
 | `Elige Vitacura o Las Condes.`, `Elige Ñuñoa o Providencia.` | BG-08 | BG-08 | mensaje de hoy en `handlers.ts:176,185,195`; regla de unión de §5 | n/a (concatenación) | yes |
 | `TD-AAMMDD-HHMM`, `VB-AAMMDD-HHMM` | BG-07 | BG-07 | `nextCode` de `create-booking.ts:38` con el prefijo | n/a | yes |
-| `Taller Demo · llave15 <reservas@send.vectorbikes.cl>` | BG-17 | BG-17 | `EMAIL_FROM` de `tests/setup.ts` (`Vector Bikes <reservas@send.vectorbikes.cl>`); regla de §5 | n/a (concatenación) | yes |
+| `Taller Demo · Llave 15 <reservas@send.vectorbikes.cl>` | BG-17 | BG-17 | `EMAIL_FROM` de `tests/setup.ts` (`Vector Bikes <reservas@send.vectorbikes.cl>`); regla de §5 | n/a (concatenación) | yes |
 | `Te recordamos tu reserva en Taller Demo.` | BG-18 | BG-18 | `templates.ts:257` (`Te recordamos tu reserva en Vector Bikes.`) con el nombre del perfil | n/a | yes |
 | `$9.000` | BG-12, 25 | mismo paso | `formatClp` del repo (regex, sin `Intl`) | determinista | yes |
 | `10:00`, `11:00`, `12:00` (Taller Demo, lunes `2026-10-05`) | BG-06 | BG-06 | grilla de `slots.ts`: inicio + bloque mientras termine antes del cierre (13:00); `2026-10-05` es lunes (mismo día que usa `foundation.test.ts`) | luxon `weekday` | yes |
@@ -2134,7 +2134,7 @@ pnpm test:web                    # expect: exit 0
 sh scripts/smoke.sh              # expect: exit 0
 test "$(node -p "Object.keys(require('./tests/unit/shop-literals-baseline.json')).length")" = 0   # expect: exit 0 — guardia vacía
 git rev-parse --verify -q bg-16 >/dev/null && git diff --quiet 8bca898 bg-16 -- tests/build   # expect: exit 0 — el tag existe y la etapa 1 no tocó las pruebas del build
-node scripts/bg-expect-parity.ts --base 8bca898 --allow 'llave15' --allow '/vector-bikes/logo' --allow '/vector-bikes/reservar' --skip tests/unit/vector-bikes-profile.test.ts --skip tests/unit/permissions.test.ts   # expect: exit 0 — solo cambiaron las expectativas declaradas
+node scripts/bg-expect-parity.ts --base 8bca898 --allow 'Llave 15' --allow '/vector-bikes/logo' --allow '/vector-bikes/reservar' --skip tests/unit/vector-bikes-profile.test.ts --skip tests/unit/permissions.test.ts   # expect: exit 0 — solo cambiaron las expectativas declaradas
 pnpm gate                        # expect: exit 0
 ```
 **Criterios FASE §14 → prueba:** tabla al final de BG-45 (§9).
@@ -2153,9 +2153,9 @@ pnpm gate                        # expect: exit 0
 - [ ] **Lanzamiento — sitio y DNS:** Replit nuevo con `web/vector-bikes/` (C6) y DNS de `vectorbikes.cl` (C7); después, `node web/vector-bikes/scripts/check-redirects.ts https://vectorbikes.cl` sale 0.
 - [ ] **Lanzamiento — Make.com:** las cuatro tareas llaman a `https://llave15.cl/api/tareas/*` con el mismo `TASKS_SECRET`.
 - [ ] **Lanzamiento — marca de plataforma:** `pnpm platform:admin <correo de Andrés>` contra producción sale 0.
-- [ ] **Lanzamiento — documentos (FASE §7):** términos con cada taller, política de privacidad de llave15 y procedimiento de supresión, antes del segundo taller real.
+- [ ] **Lanzamiento — documentos (FASE §7):** términos con cada taller, política de privacidad de Llave 15 y procedimiento de supresión, antes del segundo taller real.
 - [ ] **Lanzamiento — tablet real y navegador:** recepción y control de calidad en el iPad con dos talleres en la base; una reserva real en `/vector-bikes/reservar` desde un teléfono.
-- [ ] **Lanzamiento — logo de llave15** (pendiente del dueño, FASE §12).
+- [ ] **Lanzamiento — logo de Llave 15** (pendiente del dueño, FASE §12).
 - [ ] **Decomisiones:** `BG-DC1` a `BG-DC4` según §9.1.
 - [ ] **Cierre de fase (FASE §14.11):** un segundo taller opera un mes junto a Vector Bikes sin cruces; `pnpm bg:check` sale 0 cada semana del mes.
 
@@ -2167,7 +2167,7 @@ pnpm gate                        # expect: exit 0
 | Enlaces ya enviados dejan de funcionar (FASE §11) | B | A | Un cliente reporta un enlace roto | Redirecciones permanentes (BG-38) + verificador contra el dominio real; secreto heredado del seguimiento (BG-35) |
 | Regresión visible para Vector Bikes (FASE §11) | M | A | `bg-expect-parity.ts` sale 1 | Paridad hasta la etapa 2; cambios declarados por paso |
 | SEO de vectorbikes.cl (FASE §11) | M | M | Search Console pierde páginas | El sitio nuevo conserva URLs, títulos y JSON-LD; sitemap igual |
-| Costo de operación (FASE §11) | B | B | Dos Replit y dos dominios | Replit pequeño para el sitio; llave15 escala sin publicaciones nuevas |
+| Costo de operación (FASE §11) | B | B | Dos Replit y dos dominios | Replit pequeño para el sitio; Llave 15 escala sin publicaciones nuevas |
 | Correos marcados como spam (FASE §11) | M | M | Rebotes en Resend | `send.llave15.cl` con SPF, DKIM y DMARC; criterio de aborto 5 % |
 | `$defaultFn` de drizzle-orm 0.45.2 con un `SQL` | B | A | La prueba de BG-03 falla en los criterios 4–5 | **Mitigado:** la coordinadora confirmó en `drizzle-orm` 0.45.2 (`insert.js`, línea 380) que el resultado de `defaultFn` se usa tal cual cuando es un `SQL`; la prueba de BG-03 lo vuelve a comprobar en PGlite |
 | La base dev tiene más de una sucursal | M | M | `pnpm bg:backfill` sale 1 (`ambiguous`) en BG-08 | Confirmación previa de BG-08: la coordinadora reinicia la base dev (§12) o la deja con una sucursal antes del paso |
@@ -2195,13 +2195,13 @@ Numeración propia de este blueprint (`BG-D#`). Las decisiones globales 1–57 v
 | BG-D10 | Logo en el almacenamiento (`shops/<id>/logo.png`), servido por `/<slug>/logo`; `bg:backfill --logo` sube el de Vector Bikes | Archivos estáticos por taller en `public/` | Un taller nuevo no exige publicar; FASE §5 (`logo_key`) | — |
 | BG-D11 | Los índices por taller conservan su nombre | Nombres nuevos | `users-schema.test.ts` y `customers.test.ts` afirman los nombres | — |
 | BG-D12 | `shops.timezone` fijado a `America/Santiago` por CHECK; el motor usa `TIMEZONE` de `src/lib/time.ts` | Zona por taller en el motor | Otros países están fuera (FASE §2.3) | Se abre otro país |
-| BG-D13 | `SITE` se borra; nace `PLATFORM` (llave15) y el perfil del taller. Las pruebas que leían `SITE` importan un accesorio `SITE` de `tests/helpers/shops.ts` con los valores de `8bca898` | Reutilizar `SITE` para llave15, o reescribir las expectativas de esas pruebas | Un solo nombre para dos cosas confunde; el accesorio deja intactas las colas de matcher | — |
+| BG-D13 | `SITE` se borra; nace `PLATFORM` (Llave 15) y el perfil del taller. Las pruebas que leían `SITE` importan un accesorio `SITE` de `tests/helpers/shops.ts` con los valores de `8bca898` | Reutilizar `SITE` para Llave 15, o reescribir las expectativas de esas pruebas | Un solo nombre para dos cosas confunde; el accesorio deja intactas las colas de matcher | — |
 | BG-D14 | El contenido de la portada de Vector Bikes vive desde BG-26 en `web/vector-bikes/src/content/site.ts`; la portada heredada del sistema lo importa hasta BG-DC1 (excepción de frontera) | Portada heredada con literales hasta el corte, o portada desde la base | Cumple "guardia vacía al cerrar la etapa 2" sin cortar `vectorbikes.cl` antes de la etapa 4; el contenido nace donde se va a quedar | — |
 | BG-D15 | `AppLayout` sigue cargando `global.css`; las reglas propias de la portada se podan en BG-DC1 | Partir `global.css` en la etapa 2 | `global.css` es el diseño aprobado (regla 7); FASE §9 solo separa los tokens | — |
-| BG-D16 | Todo correo (cliente y copias al taller) sale como `<Taller> · llave15 <dirección de EMAIL_FROM>`, `Reply-To` del taller, con la línea `con llave15` | Remitente distinto para el personal | Decisiones 8 y 10; una sola regla | — |
+| BG-D16 | Todo correo (cliente y copias al taller) sale como `<Taller> · Llave 15 <dirección de EMAIL_FROM>`, `Reply-To` del taller, con la línea `Gestionado con Llave 15` | Remitente distinto para el personal | Decisiones 8 y 10; una sola regla | — |
 | BG-D17 | La API recibe `taller` (cuerpo y consulta); sin él, un solo taller; desconocido → 404 `shop_not_found` | Rutas `/api/<slug>/…` | Mantiene las rutas y las respuestas congeladas | — |
 | BG-D18 | Turnstile por taller = `cdata` igual al slug; límite por (sucursal, IP) | Una clave de Turnstile por taller | Sin cuentas de Cloudflare por taller | Un taller pide su propio widget |
-| BG-D19 | Spec de navegador de `/<slug>/reservar` como excepción a "sin E2E fuera de `/taller`", sin enviar la reserva; `global-setup.ts` y `fixtures.ts` los editan BG-04 y BG-33 | Sin spec | El dueño aprobó la reserva dentro de llave15; la página es parte del sistema | — |
+| BG-D19 | Spec de navegador de `/<slug>/reservar` como excepción a "sin E2E fuera de `/taller`", sin enviar la reserva; `global-setup.ts` y `fixtures.ts` los editan BG-04 y BG-33 | Sin spec | El dueño aprobó la reserva dentro de Llave 15; la página es parte del sistema | — |
 | BG-D20 | `APP_URL` opcional con respaldo en `PUBLIC_SITE_URL`; CSRF acepta ambos orígenes hasta BG-DC3 | Cambiar de dominio de una vez | Convivencia sin cortar la sesión del personal en `vectorbikes.cl` | — |
 | BG-D21 | `TRACKING_TOKEN_SECRET` reemite el token heredado cuando la orden ya tiene fila; BG-DC2 lo retira | Reescribir los hash de las filas existentes | Reescribir rompería los enlaces enviados | — |
 | BG-D22 | `web/vector-bikes/` no es paquete del workspace: resuelve desde `node_modules` de la raíz; su `package.json` repite los pins para el repo nuevo; la raíz lo excluye de `tsconfig` y lo chequea con `pnpm test:web` dentro del gate | Paquete del workspace | Sin cambiar el lockfile ni agregar dependencias; sale a otro repo (BG-DC4) | — |
@@ -2213,7 +2213,7 @@ Numeración propia de este blueprint (`BG-D#`). Las decisiones globales 1–57 v
 | BG-D28 | 45 pasos (16 + 12 + 5 + 7 + 5), en el borde superior de FASE §10 | Pasos más grandes | Límite de 5 archivos, tres generaciones de contract, cuatro grupos de plantillas | — |
 | BG-D29 | Checkpoints con rutas nombradas (`git add -u` + nuevos por nombre en las excepciones); nunca `git add -A` | `git add -A` | Repo en iCloud con copias `* 2.*` (F2-D26) | El repo sale de iCloud |
 | BG-D30 | Lista de slugs reservados con una prueba que recorre las rutas de primer nivel | Lista fija sin prueba | Una ruta nueva sin reservar chocaría con un taller | — |
-| BG-D31 | El producto se llama **llave15** (siempre en minúscula) y su dominio es `llave15.cl` (dueño, 18-11-2026, antes de BG-02); los identificadores internos (`BG-NN`, `bg-NN`, `bg:*`, `blueprints/bike-garage/`, `feat/bike-garage`) se conservan | Renombrar también los identificadores internos | El nombre aún no estaba en `src/`; cambiar los identificadores rompería el historial y las referencias sin cambio visible | — |
+| BG-D31 | El producto se llama **Llave 15** (con espacio y mayúscula; `LLAVE 15` solo en el logo, según el manual de marca `docs/marca/`) y su dominio es `llave15.cl` (dueño, 18-11-2026, antes de BG-02); los identificadores internos (`BG-NN`, `bg-NN`, `bg:*`, `blueprints/bike-garage/`, `feat/bike-garage`) se conservan | Renombrar también los identificadores internos | El nombre aún no estaba en `src/`; cambiar los identificadores rompería el historial y las referencias sin cambio visible | — |
 
 ### 20.4 Qué construir después
 Desde la cerca de FASE §2.3:

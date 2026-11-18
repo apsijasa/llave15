@@ -1,13 +1,13 @@
 ---
 name: add-migration
-description: Cambiar el esquema de Postgres de llave15 (agregar tabla, columna, índice o check). Usar cuando se pide "agregar un campo", "nueva tabla", "cambiar el esquema" o "migración".
+description: Cambiar el esquema de Postgres de Llave 15 (agregar tabla, columna, índice o check). Usar cuando se pide "agregar un campo", "nueva tabla", "cambiar el esquema" o "migración".
 ---
 
 # Agregar una migración
 
 ## Cuándo usar
 - Cualquier cambio en `src/server/db/schema*.ts`.
-- Un campo nuevo en una tabla de `blueprint.md` §4 (fase 1, fase 2 o llave15).
+- Un campo nuevo en una tabla de `blueprint.md` §4 (fase 1, fase 2 o Llave 15).
 
 ## Pasos
 1. Elegir el archivo de la cadena donde vive la tabla: `schema-shops.ts` ← `schema.ts` ← `schema-taller.ts` ← `schema-inventory.ts` ← `schema-orders.ts` ← `schema-reports.ts` ← `schema-cash.ts` ← `schema-sales.ts` ← `schema-payments.ts` ← `schema-library-catalog.ts` ← `schema-library-knowledge.ts` ← `schema-library-procedures.ts` ← `schema-library-private.ts` (cada uno importa solo de los anteriores; < 400 líneas). Una tabla nueva va al arreglo de su archivo.

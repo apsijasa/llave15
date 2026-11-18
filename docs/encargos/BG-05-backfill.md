@@ -2,7 +2,7 @@ BG-05 · Migración de datos `pnpm bg:backfill` y ventana V-BG1
 
 ## Contexto y autorización (Andrés, 18-nov)
 
-Quinto paso de la fase llave15 (decisión 57; nombre en BG-D31). Cierra la ventana V-BG1 (expand): BG-03 agregó las columnas nulables y este paso entrega el script que, en producción, crea el taller Vector Bikes, enlaza su sucursal y completa `branch_id` en las siete tablas de reserva. El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-05 — Migración de datos `pnpm bg:backfill` y ventana V-BG1 (E1-T5)"**, y en `tasks.json` (tarea `E1-T5`). Ese bloque manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
+Quinto paso de la fase Llave 15 (decisión 57; nombre en BG-D31). Cierra la ventana V-BG1 (expand): BG-03 agregó las columnas nulables y este paso entrega el script que, en producción, crea el taller Vector Bikes, enlaza su sucursal y completa `branch_id` en las siete tablas de reserva. El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-05 — Migración de datos `pnpm bg:backfill` y ventana V-BG1 (E1-T5)"**, y en `tasks.json` (tarea `E1-T5`). Ese bloque manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
 
 Sin decisión nueva: BG-D8 (el perfil vive en `scripts/vector-bikes-profile.ts`, creado en BG-04; el correo de avisos sale de `SHOP_NOTIFY_EMAIL`) y BG-D10 (logo en el almacenamiento, `shops/<id>/logo.png`).
 

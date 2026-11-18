@@ -1,5 +1,5 @@
 ---
-description: Multi-taller de llave15 — alcance, aislamiento, plataforma, slugs y sitio de Vector Bikes
+description: Multi-taller de Llave 15 — alcance, aislamiento, plataforma, slugs y sitio de Vector Bikes
 paths:
   - "src/server/shops/**"
   - "src/pages/plataforma/**"

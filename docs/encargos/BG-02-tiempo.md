@@ -2,7 +2,7 @@ BG-02 · Helpers de tiempo en `src/lib/time.ts`
 
 ## Contexto y autorización (Andrés, 18-nov)
 
-Segundo paso de la fase llave15 (decisión 57; el producto se renombró de Bike Garage a llave15 en BG-D31). El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-02 — Helpers de tiempo en `src/lib/time.ts` (E1-T2)"**, y en `blueprints/bike-garage/tasks.json` (tarea `E1-T2`). Ese bloque manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
+Segundo paso de la fase Llave 15 (decisión 57; el producto se renombró de Bike Garage a Llave 15 en BG-D31). El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-02 — Helpers de tiempo en `src/lib/time.ts` (E1-T2)"**, y en `blueprints/bike-garage/tasks.json` (tarea `E1-T2`). Ese bloque manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
 
 Hoy `TIMEZONE` vive en `src/server/booking/rules.ts` y `localToday`, `addDays` y `localToInstant` en `src/server/booking/slots.ts`. El esquema de talleres (BG-03) y `src/lib/**` los necesitan sin importar `src/server/**`, así que se mueven a `src/lib/time.ts`. Sin decisión nueva.
 

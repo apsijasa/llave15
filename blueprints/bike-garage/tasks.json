@@ -502,14 +502,14 @@
     "acceptance": [
       "WHEN `profileForBranch` recibe la sucursal del Taller Demo THE SYSTEM SHALL devolver su nombre, contacto, dirección, horarios, correo de avisos y `instagramHandle` igual a `@tallerdemo`",
       "WHEN `profileForCancelToken`, o `profileForShareToken` con `seguimiento`, `informe` o `aprobacion`, reciben un token válido de una reserva u orden del Taller Demo THE SYSTEM SHALL devolver el perfil del Taller Demo, y con un token desconocido SHALL devolver `null`",
-      "WHEN `senderFor` recibe el perfil `Taller Demo` y `Vector Bikes <reservas@send.vectorbikes.cl>` THE SYSTEM SHALL devolver `Taller Demo · llave15 <reservas@send.vectorbikes.cl>`",
-      "WHEN `emailBrand` recibe un perfil THE SYSTEM SHALL devolver `replyTo` igual al correo del taller, `notifyEmail` igual a su correo de avisos y `footerLine` igual a `con llave15`",
+      "WHEN `senderFor` recibe el perfil `Taller Demo` y `Vector Bikes <reservas@send.vectorbikes.cl>` THE SYSTEM SHALL devolver `Taller Demo · Llave 15 <reservas@send.vectorbikes.cl>`",
+      "WHEN `emailBrand` recibe un perfil THE SYSTEM SHALL devolver `replyTo` igual al correo del taller, `notifyEmail` igual a su correo de avisos y `footerLine` igual a `Gestionado con Llave 15`",
       "WHEN se pide `GET /vector-bikes/logo` con `logo_key` guardado THE SYSTEM SHALL responder 200 con la imagen y `cache-control: public, max-age=86400`, y un taller sin logo o un slug desconocido SHALL responder 404",
-      "WHEN se lee `src/lib/platform.ts` THE SYSTEM SHALL exportar `PLATFORM` con `name` igual a `llave15`"
+      "WHEN se lee `src/lib/platform.ts` THE SYSTEM SHALL exportar `PLATFORM` con `name` igual a `Llave 15`"
     ],
     "verify": [
       "pnpm test tests/integration/shop-profile.test.ts   # expect: exit 0, 0 failed",
-      "grep -qF 'name: \"llave15\"' src/lib/platform.ts   # expect: exit 0",
+      "grep -qF 'name: \"Llave 15\"' src/lib/platform.ts   # expect: exit 0",
       "node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
@@ -530,17 +530,17 @@
     "dependencies": ["E2-T1"],
     "priority": "p0",
     "acceptance": [
-      "WHEN una reserva del Taller Demo se crea THE SYSTEM SHALL enviar la confirmación al cliente con remitente `Taller Demo · llave15 <reservas@send.vectorbikes.cl>`, `Reply-To` igual al correo del Taller Demo, el nombre y la dirección del Taller Demo en el cuerpo y en el ICS, y la línea `con llave15`",
+      "WHEN una reserva del Taller Demo se crea THE SYSTEM SHALL enviar la confirmación al cliente con remitente `Taller Demo · Llave 15 <reservas@send.vectorbikes.cl>`, `Reply-To` igual al correo del Taller Demo, el nombre y la dirección del Taller Demo en el cuerpo y en el ICS, y la línea `Gestionado con Llave 15`",
       "WHEN una reserva del Taller Demo se crea, cancela o reprograma THE SYSTEM SHALL mandar la copia al correo de avisos del Taller Demo y no a `SHOP_NOTIFY_EMAIL`",
-      "WHEN una reserva de Vector Bikes se crea THE SYSTEM SHALL producir el mismo asunto y cuerpo de hoy más la línea final `con llave15`",
+      "WHEN una reserva de Vector Bikes se crea THE SYSTEM SHALL producir el mismo asunto y cuerpo de hoy más la línea final `Gestionado con Llave 15`",
       "WHEN `reminderEmail` arma el recordatorio de una reserva del Taller Demo THE SYSTEM SHALL decir `Te recordamos tu reserva en Taller Demo.`",
-      "WHEN corre `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0",
+      "WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0",
       "WHEN se cuentan las líneas de `src/server/email/templates.ts` y `src/server/email/booking/templates.ts` THE SYSTEM SHALL tener menos de 400 cada uno"
     ],
     "verify": [
       "pnpm test tests/integration/booking-emails-isolation.test.ts tests/integration/email.test.ts tests/unit/multi-bike-email.test.ts tests/unit/rescheduled-email.test.ts tests/unit/email-brand.test.ts tests/integration/cancel-flow.test.ts tests/integration/reschedule-notification.test.ts tests/integration/reminders.test.ts   # expect: exit 0, 0 failed",
       "test \"$(wc -l < src/server/email/templates.ts | tr -d ' ')\" -lt 400 && test \"$(wc -l < src/server/email/booking/templates.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
-      "node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
+      "node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-18",
@@ -565,18 +565,18 @@
     "dependencies": ["E2-T2"],
     "priority": "p0",
     "acceptance": [
-      "WHEN se finaliza la recepción de una orden del Taller Demo THE SYSTEM SHALL enviar `Recibimos tu bicicleta` con el nombre, la dirección y el horario de recepción del Taller Demo, remitente `Taller Demo · llave15 <reservas@send.vectorbikes.cl>` y copia a su correo de avisos",
-      "WHEN una orden del Taller Demo queda lista para retirar THE SYSTEM SHALL enviar el aviso con la marca del Taller Demo y la línea `con llave15`",
-      "WHEN las plantillas reciben la marca de Vector Bikes THE SYSTEM SHALL producir el mismo `subject`, `html` y `text` de hoy más la línea `con llave15`",
+      "WHEN se finaliza la recepción de una orden del Taller Demo THE SYSTEM SHALL enviar `Recibimos tu bicicleta` con el nombre, la dirección y el horario de recepción del Taller Demo, remitente `Taller Demo · Llave 15 <reservas@send.vectorbikes.cl>` y copia a su correo de avisos",
+      "WHEN una orden del Taller Demo queda lista para retirar THE SYSTEM SHALL enviar el aviso con la marca del Taller Demo y la línea `Gestionado con Llave 15`",
+      "WHEN las plantillas reciben la marca de Vector Bikes THE SYSTEM SHALL producir el mismo `subject`, `html` y `text` de hoy más la línea `Gestionado con Llave 15`",
       "WHEN corre `pnpm test:tablet e2e/recepcion-completa.spec.ts e2e/control-calidad.spec.ts` THE SYSTEM SHALL pasar",
-      "WHEN corre `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0",
+      "WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0",
       "WHEN se cuentan las líneas de `reception.ts`, `qc.ts`, `templates.ts` y `garage/templates.ts` THE SYSTEM SHALL tener menos de 400 cada uno"
     ],
     "verify": [
       "pnpm test tests/integration/order-emails-isolation.test.ts tests/unit/received-email.test.ts tests/unit/ready-email.test.ts tests/unit/tracking-in-emails.test.ts tests/unit/pricing-emails.test.ts tests/unit/email-brand.test.ts tests/integration/received-notification.test.ts tests/integration/ready-notification.test.ts   # expect: exit 0, 0 failed",
       "for f in src/server/taller/reception.ts src/server/taller/qc.ts src/server/email/templates.ts src/server/email/garage/templates.ts; do test \"$(wc -l < \"$f\" | tr -d ' ')\" -lt 400 || echo \"$f\"; done | grep -q .; test $? -eq 1   # expect: 1 = ningún archivo llega a 400 → la línea sale 0",
       "pnpm build && pnpm test:tablet e2e/recepcion-completa.spec.ts e2e/control-calidad.spec.ts   # expect: exit 0, 0 failed",
-      "node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
+      "node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-19",
@@ -602,14 +602,14 @@
     "priority": "p0",
     "acceptance": [
       "WHEN se envía la cotización de una orden del Taller Demo THE SYSTEM SHALL usar el nombre del Taller Demo en el asunto y el cuerpo, su remitente y su copia de avisos",
-      "WHEN se agrega un repuesto a una orden del Taller Demo THE SYSTEM SHALL enviar `Agregamos un repuesto a tu orden` con la marca del Taller Demo y la línea `con llave15`",
-      "WHEN las dos plantillas reciben la marca de Vector Bikes THE SYSTEM SHALL producir el mismo `subject`, `html` y `text` de hoy más la línea `con llave15`",
-      "WHEN corre `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0"
+      "WHEN se agrega un repuesto a una orden del Taller Demo THE SYSTEM SHALL enviar `Agregamos un repuesto a tu orden` con la marca del Taller Demo y la línea `Gestionado con Llave 15`",
+      "WHEN las dos plantillas reciben la marca de Vector Bikes THE SYSTEM SHALL producir el mismo `subject`, `html` y `text` de hoy más la línea `Gestionado con Llave 15`",
+      "WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0"
     ],
     "verify": [
       "pnpm test tests/integration/quote-part-emails-isolation.test.ts tests/unit/quote-email.test.ts tests/unit/part-added-email.test.ts tests/unit/pricing-emails.test.ts tests/unit/email-brand.test.ts tests/integration/quotes.test.ts tests/integration/part-notice.test.ts   # expect: exit 0, 0 failed",
       "grep -q 'lib/site.ts' tests/unit/email-brand.test.ts tests/unit/part-added-email.test.ts; test $? -eq 1   # expect: 1 = ya no importan ni mockean src/lib/site.ts → la línea sale 0",
-      "node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
+      "node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-20",
@@ -636,11 +636,11 @@
       "WHEN se envía el recordatorio de mantención de una orden del Taller Demo THE SYSTEM SHALL usar el nombre y el remitente del Taller Demo",
       "WHEN `sendOverdueDigest` corre con órdenes atrasadas en los dos talleres THE SYSTEM SHALL enviar dos correos, cada uno a su correo de avisos y solo con sus órdenes",
       "WHEN `sendOverdueDigest` corre con un solo taller THE SYSTEM SHALL responder como hoy (`tasks-maintenance.test.ts` y `low-stock.test.ts` sin cambios de valores)",
-      "WHEN corre `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0"
+      "WHEN corre `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` THE SYSTEM SHALL salir 0"
     ],
     "verify": [
       "pnpm test tests/integration/notices-isolation.test.ts tests/unit/delivery-date-email.test.ts tests/unit/maintenance-email.test.ts tests/integration/delivery-notice.test.ts tests/integration/maintenance-plan.test.ts tests/integration/tasks-maintenance.test.ts tests/integration/low-stock.test.ts tests/integration/tasks-maintenance-reminders.test.ts   # expect: exit 0, 0 failed",
-      "node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
+      "node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-21",
@@ -664,7 +664,7 @@
     "acceptance": [
       "WHEN se lee `src/styles/tokens.css` THE SYSTEM SHALL contener los nueve tokens de `:root` en claro y oscuro con los mismos valores que `global.css` tenía en `8bca898`, y `global.css` SHALL importarlo y ya no declararlos",
       "WHEN se comparan los hex de `global.css` y `tokens.css` con los de `global.css` en `8bca898` THE SYSTEM SHALL encontrar exactamente el mismo conjunto",
-      "WHEN se renderiza `PublicLayout` con el perfil del Taller Demo THE SYSTEM SHALL mostrar `Taller Demo` en el encabezado, la línea `con llave15` al pie, `noindex` y ningún `application/ld+json`",
+      "WHEN se renderiza `PublicLayout` con el perfil del Taller Demo THE SYSTEM SHALL mostrar `Taller Demo` en el encabezado, la línea `Gestionado con Llave 15` al pie, `noindex` y ningún `application/ld+json`",
       "WHEN se renderiza `AppLayout` THE SYSTEM SHALL no incluir el FAQ, el JSON-LD ni el wordmark de la portada"
     ],
     "verify": [
@@ -692,16 +692,16 @@
     "dependencies": ["E2-T6"],
     "priority": "p0",
     "acceptance": [
-      "WHEN se abre `/seguimiento/<token>` de una orden del Taller Demo THE SYSTEM SHALL mostrar el nombre, la dirección y el horario de recepción del Taller Demo, la línea `con llave15`, `no-store`, `noindex` y `no-referrer`, sin ningún dato de Vector Bikes",
+      "WHEN se abre `/seguimiento/<token>` de una orden del Taller Demo THE SYSTEM SHALL mostrar el nombre, la dirección y el horario de recepción del Taller Demo, la línea `Gestionado con Llave 15`, `no-store`, `noindex` y `no-referrer`, sin ningún dato de Vector Bikes",
       "WHEN se abre `/aprobacion/<token>` de una propuesta del Taller Demo THE SYSTEM SHALL mostrar la marca del Taller Demo",
       "WHEN se abre `/reservas/cancelar?token=<token>` de una reserva del Taller Demo THE SYSTEM SHALL mostrar el correo del Taller Demo como contacto",
       "WHEN un token no existe THE SYSTEM SHALL responder 404 como hoy",
-      "WHEN corren `tracking-page.test.ts`, `approval-page.test.ts`, `cancel-flow.test.ts` y `pnpm test:tablet e2e/seguimiento-enlace.spec.ts` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'llave15'` SHALL salir 0"
+      "WHEN corren `tracking-page.test.ts`, `approval-page.test.ts`, `cancel-flow.test.ts` y `pnpm test:tablet e2e/seguimiento-enlace.spec.ts` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'Llave 15'` SHALL salir 0"
     ],
     "verify": [
       "pnpm test tests/integration/token-pages-isolation.test.ts tests/integration/tracking-page.test.ts tests/integration/approval-page.test.ts tests/integration/cancel-flow.test.ts   # expect: exit 0, 0 failed",
       "pnpm build && pnpm test:tablet e2e/seguimiento-enlace.spec.ts   # expect: exit 0, 0 failed",
-      "node scripts/bg-expect-parity.ts --allow 'llave15'   # expect: exit 0 — solo cambian expectativas declaradas",
+      "node scripts/bg-expect-parity.ts --allow 'Llave 15'   # expect: exit 0 — solo cambian expectativas declaradas",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-23",
@@ -720,17 +720,17 @@
     "dependencies": ["E2-T7"],
     "priority": "p0",
     "acceptance": [
-      "WHEN se abre `/informe/<token>` de una orden del Taller Demo THE SYSTEM SHALL mostrar el nombre, la dirección, el correo, el teléfono y las certificaciones del Taller Demo, su logo si lo tiene, y la línea `con llave15`",
+      "WHEN se abre `/informe/<token>` de una orden del Taller Demo THE SYSTEM SHALL mostrar el nombre, la dirección, el correo, el teléfono y las certificaciones del Taller Demo, su logo si lo tiene, y la línea `Gestionado con Llave 15`",
       "WHEN se abre el informe de una orden de Vector Bikes THE SYSTEM SHALL mostrar los mismos datos de hoy, con el logo servido desde `/vector-bikes/logo`",
-      "WHEN el personal del Taller Demo abre `/taller/ordenes/<id>/informe` THE SYSTEM SHALL armar el texto de WhatsApp con `en Taller Demo` y titular la página con `— llave15`",
-      "WHEN se genera la etiqueta de una orden THE SYSTEM SHALL titularla `Etiqueta <número> — llave15`",
-      "WHEN corren `report-page.test.ts`, `report-view.test.ts`, `report-page-brand.test.ts`, `report-view-brand.test.ts`, `label.test.ts` y `pnpm test:tablet e2e/etiqueta.spec.ts` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'` SHALL salir 0"
+      "WHEN el personal del Taller Demo abre `/taller/ordenes/<id>/informe` THE SYSTEM SHALL armar el texto de WhatsApp con `en Taller Demo` y titular la página con `— Llave 15`",
+      "WHEN se genera la etiqueta de una orden THE SYSTEM SHALL titularla `Etiqueta <número> — Llave 15`",
+      "WHEN corren `report-page.test.ts`, `report-view.test.ts`, `report-page-brand.test.ts`, `report-view-brand.test.ts`, `label.test.ts` y `pnpm test:tablet e2e/etiqueta.spec.ts` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'` SHALL salir 0"
     ],
     "verify": [
       "pnpm test tests/integration/report-brand-isolation.test.ts tests/integration/report-page.test.ts tests/integration/report-view.test.ts tests/integration/report-page-brand.test.ts tests/integration/report-view-brand.test.ts tests/integration/label.test.ts tests/integration/informe-mantencion-page.test.ts   # expect: exit 0, 0 failed",
       "grep -q 'lib/site.ts' tests/integration/report-view-brand.test.ts; test $? -eq 1   # expect: 1 = ya no mockea src/lib/site.ts → la línea sale 0",
       "pnpm build && pnpm test:tablet e2e/etiqueta.spec.ts   # expect: exit 0, 0 failed",
-      "node scripts/bg-expect-parity.ts --allow 'llave15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
+      "node scripts/bg-expect-parity.ts --allow 'Llave 15' --allow '/vector-bikes/logo'   # expect: exit 0 — solo cambian expectativas declaradas",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-24",
@@ -807,16 +807,16 @@
   },
   {
     "id": "E2-T11",
-    "title": "BG-27 Brand staff pages with llave15 and remove the site constant (declared exception)",
+    "title": "BG-27 Brand staff pages with Llave 15 and remove the site constant (declared exception)",
     "epic": "02-identidad",
     "dependencies": ["E2-T10"],
     "priority": "p0",
     "acceptance": [
       "WHEN se busca `lib/site.ts` en `src/`, `tests/` y `e2e/` THE SYSTEM SHALL no encontrar ningún importador, y `src/lib/site.ts` y `src/lib/faq.ts` SHALL no existir",
-      "WHEN se renderiza una página de `/taller` o `/admin` THE SYSTEM SHALL titularla con `— llave15` y el menú SHALL decir `llave15 · Taller`",
+      "WHEN se renderiza una página de `/taller` o `/admin` THE SYSTEM SHALL titularla con `— Llave 15` y el menú SHALL decir `Llave 15 · Taller`",
       "WHEN un texto de esas páginas va al cliente THE SYSTEM SHALL usar el nombre del taller del perfil de la sucursal del usuario",
       "WHEN `TallerLayout` y `/admin/login` se renderizan THE SYSTEM SHALL usar `AppLayout` y no `Base.astro`",
-      "WHEN corren `pnpm test`, `pnpm test:build` y `pnpm test:tablet` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'llave15' --skip tests/unit/vector-bikes-profile.test.ts` SHALL salir 0",
+      "WHEN corren `pnpm test`, `pnpm test:build` y `pnpm test:tablet` THE SYSTEM SHALL pasar, y `node scripts/bg-expect-parity.ts --allow 'Llave 15' --skip tests/unit/vector-bikes-profile.test.ts` SHALL salir 0",
       "WHEN se buscan los nueve patrones de la guardia en `src/pages`, `src/layouts` y `src/lib` THE SYSTEM SHALL no encontrar ninguno"
     ],
     "verify": [
@@ -826,7 +826,7 @@
       "grep -q 'AppLayout' src/layouts/TallerLayout.astro && { grep -q 'Base.astro' src/layouts/TallerLayout.astro; test $? -eq 1; }   # expect: exit 0",
       "pnpm test   # expect: exit 0, 0 failed",
       "pnpm build && pnpm test:build && pnpm test:tablet   # expect: exit 0, 0 failed",
-      "node scripts/bg-expect-parity.ts --allow 'llave15' --skip tests/unit/vector-bikes-profile.test.ts   # expect: exit 0 — solo cambian expectativas declaradas",
+      "node scripts/bg-expect-parity.ts --allow 'Llave 15' --skip tests/unit/vector-bikes-profile.test.ts   # expect: exit 0 — solo cambian expectativas declaradas",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-27",
@@ -1025,7 +1025,7 @@
     "dependencies": ["E3-T2"],
     "priority": "p0",
     "acceptance": [
-      "WHEN se pide `/taller-demo/reservar` THE SYSTEM SHALL responder 200 con `PublicLayout`, `Taller Demo` en el `h1`, la isla con las props del Taller Demo y la línea `con llave15`",
+      "WHEN se pide `/taller-demo/reservar` THE SYSTEM SHALL responder 200 con `PublicLayout`, `Taller Demo` en el `h1`, la isla con las props del Taller Demo y la línea `Gestionado con Llave 15`",
       "WHEN se pide `/no-existe/reservar` o la página de un taller `suspendido` THE SYSTEM SHALL responder 404",
       "WHEN se pide `/vector-bikes/reservar` THE SYSTEM SHALL mostrar la isla con los valores de Vector Bikes",
       "WHEN se pide `/taller-demo/privacidad` THE SYSTEM SHALL mostrar el aviso de privacidad con el nombre, la dirección y el correo del Taller Demo, sin datos de Vector Bikes",
@@ -1078,7 +1078,7 @@
     "dependencies": ["E3-T4"],
     "priority": "p1",
     "acceptance": [
-      "WHEN el spec abre `/vector-bikes/reservar` en el viewport de tablet THE SYSTEM SHALL mostrar `Vector Bikes`, las comunas `Vitacura` y `Las Condes` al elegir retiro y la línea `con llave15`",
+      "WHEN el spec abre `/vector-bikes/reservar` en el viewport de tablet THE SYSTEM SHALL mostrar `Vector Bikes`, las comunas `Vitacura` y `Las Condes` al elegir retiro y la línea `Gestionado con Llave 15`",
       "WHEN abre `/taller-demo/reservar` THE SYSTEM SHALL mostrar `Taller Demo E2E`, las comunas del Taller Demo y ningún texto `Vitacura`",
       "WHEN el spec elige un día en cada página THE SYSTEM SHALL mostrar los bloques que devuelve `/api/disponibilidad` con el `taller` de esa página, de 60 minutos en el Taller Demo",
       "WHEN corre `pnpm test:tablet` completo THE SYSTEM SHALL pasar con los specs existentes sin cambios"
@@ -1442,14 +1442,14 @@
       "WHEN `setPlatformAdmin` recibe un correo existente THE SYSTEM SHALL marcar `is_platform_admin = true` y revocar sus sesiones, y con `on: false` SHALL quitar la marca",
       "WHEN el correo no existe THE SYSTEM SHALL devolver `not_found` sin cambios, y `node scripts/platform-admin.ts` sin argumentos SHALL salir 2",
       "WHEN se lee `docs/nuevo-taller.md` THE SYSTEM SHALL contener `## Antes de dar de alta`, `## Alta en /plataforma`, `## Primer ingreso del dueño` y `## Verificación`",
-      "WHEN se lee `README.md` THE SYSTEM SHALL contener `## Operación de llave15`",
+      "WHEN se lee `README.md` THE SYSTEM SHALL contener `## Operación de Llave 15`",
       "WHEN se lee `package.json` THE SYSTEM SHALL tener `platform:admin` igual a `node --env-file-if-exists=.env scripts/platform-admin.ts`"
     ],
     "verify": [
       "pnpm test tests/integration/platform-admin-script.test.ts   # expect: exit 0, 0 failed",
       "node scripts/platform-admin.ts; test $? -eq 2   # expect: código 2 (uso) → la línea sale 0",
       "for s in '## Antes de dar de alta' '## Alta en /plataforma' '## Primer ingreso del dueño' '## Verificación'; do grep -qF \"$s\" docs/nuevo-taller.md || echo \"$s\"; done | grep -q .; test $? -eq 1   # expect: 1 = no falta ninguna sección → la línea sale 0",
-      "grep -qF '## Operación de llave15' README.md   # expect: exit 0",
+      "grep -qF '## Operación de Llave 15' README.md   # expect: exit 0",
       "test \"$(node -p \"require('./package.json').scripts['platform:admin']\")\" = \"node --env-file-if-exists=.env scripts/platform-admin.ts\"   # expect: exit 0",
       "node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió",
       "pnpm format && pnpm gate   # expect: exit 0"

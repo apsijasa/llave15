@@ -2,7 +2,7 @@ BG-03 · Esquema expand: `shops`, `shop_id`, `branch_id` en reservas
 
 ## Contexto y autorización (Andrés, 18-nov)
 
-Tercer paso de la fase llave15 (decisión 57; nombre en BG-D31) y primera generación de esquema de la ventana V-BG1 (expand). El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-03 — Esquema expand: `shops`, `shop_id`, `branch_id` en reservas (E1-T3)"**, y en `tasks.json` (tarea `E1-T3`). El esquema literal está en §4 del blueprint (`schema-shops.ts`, `onlyShopId`, `onlyBranchId`, `bookingBranchReference`, índices). Ese texto manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
+Tercer paso de la fase Llave 15 (decisión 57; nombre en BG-D31) y primera generación de esquema de la ventana V-BG1 (expand). El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-03 — Esquema expand: `shops`, `shop_id`, `branch_id` en reservas (E1-T3)"**, y en `tasks.json` (tarea `E1-T3`). El esquema literal está en §4 del blueprint (`schema-shops.ts`, `onlyShopId`, `onlyBranchId`, `bookingBranchReference`, índices). Ese texto manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
 
 Sin decisión nueva: BG-D1 (`shops` es la nueva cabeza de la cadena) y BG-D3 (valores por defecto de compatibilidad con `$defaultFn`; la coordinadora confirmó que drizzle-orm 0.45.2 acepta un `SQL` devuelto por `$defaultFn`, `insert.js` línea 380).
 

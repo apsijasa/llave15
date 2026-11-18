@@ -2,7 +2,7 @@ BG-04 · Siembra del taller Vector Bikes en las pruebas
 
 ## Contexto y autorización (Andrés, 18-nov)
 
-Cuarto paso de la fase llave15 (decisión 57; nombre en BG-D31). Es una excepción declarada al límite de cinco archivos (BG-D6): cuatro archivos propios y quince archivos de siembra que solo cambian líneas de siembra, nunca una expectativa. El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-04 — Siembra del taller Vector Bikes en las pruebas (E1-T4)"**, y en `tasks.json` (tarea `E1-T4`). El perfil literal de Vector Bikes y `DEMO_SHOP_PROFILE` están en §4. Ese texto manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
+Cuarto paso de la fase Llave 15 (decisión 57; nombre en BG-D31). Es una excepción declarada al límite de cinco archivos (BG-D6): cuatro archivos propios y quince archivos de siembra que solo cambian líneas de siembra, nunca una expectativa. El paso completo, con sus criterios EARS y su Verify, está en `blueprints/bike-garage/blueprint.md` §9, bloque **"BG-04 — Siembra del taller Vector Bikes en las pruebas (E1-T4)"**, y en `tasks.json` (tarea `E1-T4`). El perfil literal de Vector Bikes y `DEMO_SHOP_PROFILE` están en §4. Ese texto manda: si algo de este encargo y el blueprint difieren, gana el blueprint.
 
 BG-03 ya creó `shops`, `branches.shop_id` y `branch_id` nulable en las reservas, con valores por defecto de compatibilidad (BG-D3). Este paso hace que las pruebas siembren el taller como lo tendrá producción, sin cambiar lo que esperan.
 
