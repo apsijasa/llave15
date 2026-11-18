@@ -1,6 +1,6 @@
 # Epic 04: Separación y nuevo dominio
 
-> Después de esta épica Bike Garage arma enlaces, cookie y defensa CSRF con `APP_URL` (aceptando, durante la convivencia, el origen heredado `PUBLIC_SITE_URL`); el seguimiento tiene su propio secreto sin romper los enlaces ya enviados; las tareas diarias recorren todos los talleres activos en una llamada; el sitio nuevo de Vector Bikes vive en `web/vector-bikes/` (portada, privacidad, botón "Reservar" a `https://bikegarage.cl/vector-bikes/reservar` y redirecciones permanentes de las rutas antiguas), con sus pruebas dentro de `pnpm gate`; existe `pnpm bg:check` y el plan de corte del dominio está escrito.
+> Después de esta épica llave15 arma enlaces, cookie y defensa CSRF con `APP_URL` (aceptando, durante la convivencia, el origen heredado `PUBLIC_SITE_URL`); el seguimiento tiene su propio secreto sin romper los enlaces ya enviados; las tareas diarias recorren todos los talleres activos en una llamada; el sitio nuevo de Vector Bikes vive en `web/vector-bikes/` (portada, privacidad, botón "Reservar" a `https://llave15.cl/vector-bikes/reservar` y redirecciones permanentes de las rutas antiguas), con sus pruebas dentro de `pnpm gate`; existe `pnpm bg:check` y el plan de corte del dominio está escrito.
 
 | | |
 |---|---|
@@ -75,7 +75,7 @@ Ninguna tabla cambia. `order_tracking_tokens.token_hash` se lee para reemitir el
 - Durante la convivencia, el personal puede seguir en `vectorbikes.cl/taller`: la cookie es de host y CSRF acepta ambos orígenes hasta BG-DC3.
 - Un enlace de seguimiento ya enviado nunca se rompe: si la orden ya tiene fila, se reemite el token cuyo hash coincide (secreto propio o heredado).
 - El sitio construye en `web/vector-bikes/dist/`; `.gitignore` ya ignora `dist/`, `.astro/` y `*.log`.
-- `check-redirects.ts` afirma `Location` exacto `https://bikegarage.cl` + ruta + consulta, sin importar la URL base que recorre.
+- `check-redirects.ts` afirma `Location` exacto `https://llave15.cl` + ruta + consulta, sin importar la URL base que recorre.
 - Las tareas omiten talleres `suspendido` y conservan la forma de sus respuestas.
 
 Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/server-api.md`, `shops.md`, `ui-design.md`, `taller-domain.md`.
@@ -91,7 +91,7 @@ Full project rules: `CLAUDE.md`. Area rules: `.claude/rules/server-api.md`, `sho
 1. `tests/integration/app-url.test.ts` primero (fuentes de entorno explícitas).
 2. `env.ts`: `getAppEnv()`. `handlers.ts`: `isAllowedOrigin(request, appUrl?, legacyUrl?)` con los dos orígenes.
 3. Llamadas mecánicas (una línea cada una, `getSiteEnv().PUBLIC_SITE_URL` → `getAppEnv().APP_URL`): `src/pages/admin/login.astro` (cookie y redirección), `src/server/email/notifications.ts`, `src/pages/taller/ordenes/[id]/etiqueta.ts`, `src/pages/taller/ordenes/[id]/adicional.astro`, `src/pages/taller/ordenes/[id]/index.astro`, `src/pages/taller/ordenes/[id]/informe.astro`, `src/server/taller/part-notice.ts`, `src/pages/taller/index.astro`, `src/server/taller/quotes.ts`, `src/server/taller/reception.ts`, `src/server/taller/qc.ts`, `src/server/taller/maintenance-plan.ts`, `src/server/taller/delivery-notice.ts`.
-4. `.env.example`: `APP_URL=` con comentario (`# Origen de Bike Garage (https://bikegarage.cl); vacío = PUBLIC_SITE_URL.`).
+4. `.env.example`: `APP_URL=` con comentario (`# Origen de llave15 (https://llave15.cl); vacío = PUBLIC_SITE_URL.`).
 
 **Files**
 - `src/lib/env.ts` — edit
@@ -104,7 +104,7 @@ Reglas: `server-api.md`. RC 11. No negociable 4.
 
 **Acceptance**
 
-1. **WHEN** `APP_URL` es `https://bikegarage.cl` y `PUBLIC_SITE_URL` es `https://vectorbikes.cl` **THE SYSTEM SHALL** aceptar un POST con `Origin` de cualquiera de los dos, con o sin `www.`, y rechazar con 403 uno de otro origen o `null`
+1. **WHEN** `APP_URL` es `https://llave15.cl` y `PUBLIC_SITE_URL` es `https://vectorbikes.cl` **THE SYSTEM SHALL** aceptar un POST con `Origin` de cualquiera de los dos, con o sin `www.`, y rechazar con 403 uno de otro origen o `null`
 2. **WHEN** `APP_URL` está definido **THE SYSTEM SHALL** armar con él los enlaces de seguimiento, informe, aprobación, cancelación y el QR de la etiqueta
 3. **WHEN** `APP_URL` no está definido **THE SYSTEM SHALL** usar `PUBLIC_SITE_URL` como hoy
 4. **WHEN** el ingreso responde con `APP_URL` en `https` **THE SYSTEM SHALL** emitir la cookie de sesión con `secure`
@@ -235,7 +235,7 @@ Reglas: `ui-design.md`, `shops.md` (sitio). No cambia: textos, estructura y dato
 **Acceptance**
 
 1. **WHEN** corre `pnpm exec astro build --root web/vector-bikes` **THE SYSTEM SHALL** salir 0 y generar `web/vector-bikes/dist/client/index.html`
-2. **WHEN** se lee ese HTML **THE SYSTEM SHALL** contener el título y la descripción de la portada de hoy, el JSON-LD con los datos de Vector Bikes y un enlace `Reservar` a `https://bikegarage.cl/vector-bikes/reservar`
+2. **WHEN** se lee ese HTML **THE SYSTEM SHALL** contener el título y la descripción de la portada de hoy, el JSON-LD con los datos de Vector Bikes y un enlace `Reservar` a `https://llave15.cl/vector-bikes/reservar`
 3. **WHEN** se busca en ese HTML **THE SYSTEM SHALL** no encontrar el script de Turnstile ni la isla de reserva
 4. **WHEN** se comparan los hex de `web/vector-bikes/src/styles/site.css` con los de `src/styles/global.css` y `src/styles/tokens.css` **THE SYSTEM SHALL** no encontrar ninguno nuevo
 5. **WHEN** corren `pnpm exec astro check --root web/vector-bikes` y `pnpm exec vitest run --config web/vector-bikes/vitest.config.ts` **THE SYSTEM SHALL** salir 0
@@ -245,7 +245,7 @@ Reglas: `ui-design.md`, `shops.md` (sitio). No cambia: textos, estructura y dato
 ```bash
 pnpm exec astro check --root web/vector-bikes   # expect: exit 0
 pnpm exec astro build --root web/vector-bikes && test -f web/vector-bikes/dist/client/index.html   # expect: exit 0
-grep -qF 'href="https://bikegarage.cl/vector-bikes/reservar"' web/vector-bikes/dist/client/index.html   # expect: exit 0
+grep -qF 'href="https://llave15.cl/vector-bikes/reservar"' web/vector-bikes/dist/client/index.html   # expect: exit 0
 grep -q 'challenges.cloudflare.com' web/vector-bikes/dist/client/index.html; test $? -eq 1   # expect: 1 = sin Turnstile → la línea sale 0
 node -e "const fs = require('fs'); const hex = (f) => new Set(fs.readFileSync(f, 'utf8').match(/#[0-9A-Fa-f]{6}/g) || []); const base = new Set([...hex('src/styles/global.css'), ...hex('src/styles/tokens.css')]); const extra = [...hex('web/vector-bikes/src/styles/site.css')].filter((h) => !base.has(h)); if (extra.length > 0) console.error(extra.join(' ')); process.exit(extra.length > 0 ? 1 : 0)"   # expect: exit 0 — ningún hex nuevo
 pnpm exec vitest run --config web/vector-bikes/vitest.config.ts   # expect: exit 0, 0 failed
@@ -266,7 +266,7 @@ git tag -l bg-37 | grep -qx bg-37   # expect: exit 0
 
 1. Copia (comando): `cp public/robots.txt web/vector-bikes/public/robots.txt`.
 2. `web/vector-bikes/tests/redirects.test.ts` primero (`legacyRedirect` y el handler `ALL` con `Request` construidos en la prueba).
-3. `src/lib/redirects.ts`: `legacyRedirect(url)` — si `pathname` es `/taller`, `/admin`, `/seguimiento`, `/informe` o `/aprobacion`, o empieza con alguno seguido de `/`, o es `/reservas/cancelar`, devuelve `https://bikegarage.cl` + `pathname` + `search`; si no, `null`.
+3. `src/lib/redirects.ts`: `legacyRedirect(url)` — si `pathname` es `/taller`, `/admin`, `/seguimiento`, `/informe` o `/aprobacion`, o empieza con alguno seguido de `/`, o es `/reservas/cancelar`, devuelve `https://llave15.cl` + `pathname` + `search`; si no, `null`.
 4. `src/pages/[...path].ts`: `prerender = false`; `ALL`: con destino, 301 en `GET`/`HEAD` y 308 en los demás; sin destino, 404.
 5. `src/pages/privacidad.astro`: prerenderizada con el texto de hoy (`VECTOR_BIKES_SITE`).
 6. `scripts/check-redirects.ts <url-base>`: con `redirect: "manual"` pide `/taller`, `/taller/ordenes/abc?x=1`, `/admin/login?next=%2Ftaller`, `/seguimiento/TOKEN`, `/informe/TOKEN`, `/aprobacion/TOKEN`, `/reservas/cancelar?token=abc` (301 y `Location` exacto) y `/`, `/privacidad` (200), `/no-existe` (404); sale 0, 1 o 2 (uso o sin conexión). Importa `../src/lib/redirects.ts`.
@@ -282,9 +282,9 @@ Reglas: `ui-design.md`, `shops.md` (sitio). No cambia: URLs y SEO de la portada.
 
 **Acceptance**
 
-1. **WHEN** `legacyRedirect` recibe `/seguimiento/abc?utm=x` **THE SYSTEM SHALL** devolver `https://bikegarage.cl/seguimiento/abc?utm=x`, y lo mismo para rutas bajo `/taller`, `/admin`, `/informe` y `/aprobacion` y para `/reservas/cancelar?token=t`
+1. **WHEN** `legacyRedirect` recibe `/seguimiento/abc?utm=x` **THE SYSTEM SHALL** devolver `https://llave15.cl/seguimiento/abc?utm=x`, y lo mismo para rutas bajo `/taller`, `/admin`, `/informe` y `/aprobacion` y para `/reservas/cancelar?token=t`
 2. **WHEN** recibe `/`, `/privacidad`, `/talleres` o `/reservas` **THE SYSTEM SHALL** devolver `null`
-3. **WHEN** el endpoint recibe `GET /taller/ordenes/1?a=b` **THE SYSTEM SHALL** responder 301 con `Location` igual a `https://bikegarage.cl/taller/ordenes/1?a=b`, y un `POST /reservas/cancelar?token=t` SHALL responder 308 al mismo destino
+3. **WHEN** el endpoint recibe `GET /taller/ordenes/1?a=b` **THE SYSTEM SHALL** responder 301 con `Location` igual a `https://llave15.cl/taller/ordenes/1?a=b`, y un `POST /reservas/cancelar?token=t` SHALL responder 308 al mismo destino
 4. **WHEN** `node web/vector-bikes/scripts/check-redirects.ts` corre sin argumentos **THE SYSTEM SHALL** salir 2 con un mensaje de uso
 5. **WHEN** se construye el sitio **THE SYSTEM SHALL** generar `/privacidad` con el texto de privacidad de hoy de Vector Bikes
 
@@ -358,7 +358,7 @@ git tag -l bg-39 | grep -qx bg-39   # expect: exit 0
 
 **Depends on:** `E4-T6` · **Priority:** p1
 
-1. `docs/corte-bike-garage.md`: `## Precondiciones` (clave de la base rotada, `send.bikegarage.cl` verificado en Resend con SPF/DKIM/DMARC, widget de Turnstile para `bikegarage.cl` y `vectorbikes.cl`, Replit nuevo creado); `## Secuencia de corte` (C5: agregar `bikegarage.cl` al Replit actual, Secrets `APP_URL`, `TRACKING_TOKEN_SECRET`, `EMAIL_FROM`, `PUBLIC_TURNSTILE_SITE_KEY`, publicar `bg-40`, Make.com a `https://bikegarage.cl/api/tareas/*`; C6: publicar el sitio en el Replit nuevo y `node web/vector-bikes/scripts/check-redirects.ts <url replit.app>`; C7: DNS de `vectorbikes.cl` y `node web/vector-bikes/scripts/check-redirects.ts https://vectorbikes.cl`; `pnpm bg:check` después de cada publicación); `## Criterios de aborto` (los de `blueprint.md` §9.1, con umbrales y Andrés de guardia); `## Reversión` (por fase); `## Decomisión` (`BG-DC1` … `BG-DC4`).
+1. `docs/corte-bike-garage.md`: `## Precondiciones` (clave de la base rotada, `send.llave15.cl` verificado en Resend con SPF/DKIM/DMARC, widget de Turnstile para `llave15.cl` y `vectorbikes.cl`, Replit nuevo creado); `## Secuencia de corte` (C5: agregar `llave15.cl` al Replit actual, Secrets `APP_URL`, `TRACKING_TOKEN_SECRET`, `EMAIL_FROM`, `PUBLIC_TURNSTILE_SITE_KEY`, publicar `bg-40`, Make.com a `https://llave15.cl/api/tareas/*`; C6: publicar el sitio en el Replit nuevo y `node web/vector-bikes/scripts/check-redirects.ts <url replit.app>`; C7: DNS de `vectorbikes.cl` y `node web/vector-bikes/scripts/check-redirects.ts https://vectorbikes.cl`; `pnpm bg:check` después de cada publicación); `## Criterios de aborto` (los de `blueprint.md` §9.1, con umbrales y Andrés de guardia); `## Reversión` (por fase); `## Decomisión` (`BG-DC1` … `BG-DC4`).
 
 **Files**
 - `docs/corte-bike-garage.md` — new

@@ -21,5 +21,5 @@ paths:
 - Formularios con `label` visible; errores en texto con `aria-invalid`/`aria-describedby`; avisos de resultado con `role="status"`; grupos de opciones en `fieldset` con `legend` (los specs los ubican por ese nombre).
 - Toda página empieza con sesión → permiso; los enlaces y botones se ocultan según `can(...)`, pero el servidor vuelve a revisar. El grupo de menú "Inventario y caja" filtra cada enlace por su acción; "Mi taller" se muestra con `shop.manage` y "Plataforma" solo con `isPlatformAdmin`.
 - Un solo `h1` por página; controles nativos (`button`, `a`, `label` + `input`), nunca `div` clicable.
-- Títulos de página del personal con `PLATFORM.name` (`… — Bike Garage`) y la marca del menú `Bike Garage · Taller`; un texto que va al cliente (WhatsApp, cotización) usa el nombre del taller del perfil de la sucursal del usuario. Nunca el nombre del taller literal.
+- Títulos de página del personal con `PLATFORM.name` (`… — llave15`) y la marca del menú `llave15 · Taller`; un texto que va al cliente (WhatsApp, cotización) usa el nombre del taller del perfil de la sucursal del usuario. Nunca el nombre del taller literal.
 - Fuera de la recepción, al mecánico no se le muestran teléfono, correo ni RUT del cliente, ni costos de productos.

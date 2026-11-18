@@ -1,6 +1,6 @@
 # Epic 05: Administración de la plataforma
 
-> Después de esta épica existe la marca `users.is_platform_admin` con su pantalla `/plataforma` (lista de talleres con conteos de uso, sin datos de clientes); el administrador de plataforma crea un taller con su primer dueño y una plantilla de catálogo, lo suspende y lo reactiva; el dueño de cada taller edita "Mi taller" (perfil, horarios, capacidad, retiro, comunas, tarifa, correo de avisos y logo); `pnpm platform:admin` pone o quita la marca; `docs/nuevo-taller.md` y la sección `## Operación de Bike Garage` del `README.md` cierran la fase.
+> Después de esta épica existe la marca `users.is_platform_admin` con su pantalla `/plataforma` (lista de talleres con conteos de uso, sin datos de clientes); el administrador de plataforma crea un taller con su primer dueño y una plantilla de catálogo, lo suspende y lo reactiva; el dueño de cada taller edita "Mi taller" (perfil, horarios, capacidad, retiro, comunas, tarifa, correo de avisos y logo); `pnpm platform:admin` pone o quita la marca; `docs/nuevo-taller.md` y la sección `## Operación de llave15` del `README.md` cierran la fase.
 
 | | |
 |---|---|
@@ -258,7 +258,7 @@ git tag -l bg-44 | grep -qx bg-44   # expect: exit 0
 2. `scripts/platform-admin.ts <correo> [--off]`: exporta `setPlatformAdmin(db, email, on, now)` (marca o quita y revoca sesiones); `main` con la guarda de `import.meta.url`; sale 0, 1 (correo inexistente), 2 (uso o sin conexión); salida sin el correo completo.
 3. `package.json`: `"platform:admin": "node --env-file-if-exists=.env scripts/platform-admin.ts"`.
 4. `docs/nuevo-taller.md`: `## Antes de dar de alta` (términos con el taller, política de privacidad, procedimiento de supresión, FASE §7), `## Alta en /plataforma`, `## Primer ingreso del dueño`, `## Verificación` (`pnpm bg:check`, `/<slug>/reservar`).
-5. `README.md`: `## Operación de Bike Garage` (scripts `bg:backfill`, `bg:check`, `test:web`, `platform:admin`; ventanas; tabla de criterios FASE §14 → prueba de `blueprint.md` §9).
+5. `README.md`: `## Operación de llave15` (scripts `bg:backfill`, `bg:check`, `test:web`, `platform:admin`; ventanas; tabla de criterios FASE §14 → prueba de `blueprint.md` §9).
 
 **Files**
 - `scripts/platform-admin.ts` — new
@@ -274,7 +274,7 @@ Reglas: `shops.md`. No negociable 4.
 1. **WHEN** `setPlatformAdmin` recibe un correo existente **THE SYSTEM SHALL** marcar `is_platform_admin = true` y revocar sus sesiones, y con `on: false` SHALL quitar la marca
 2. **WHEN** el correo no existe **THE SYSTEM SHALL** devolver `not_found` sin cambios, y `node scripts/platform-admin.ts` sin argumentos SHALL salir 2
 3. **WHEN** se lee `docs/nuevo-taller.md` **THE SYSTEM SHALL** contener `## Antes de dar de alta`, `## Alta en /plataforma`, `## Primer ingreso del dueño` y `## Verificación`
-4. **WHEN** se lee `README.md` **THE SYSTEM SHALL** contener `## Operación de Bike Garage`
+4. **WHEN** se lee `README.md` **THE SYSTEM SHALL** contener `## Operación de llave15`
 5. **WHEN** se lee `package.json` **THE SYSTEM SHALL** tener `platform:admin` igual a `node --env-file-if-exists=.env scripts/platform-admin.ts`
 
 **Verify**
@@ -283,7 +283,7 @@ Reglas: `shops.md`. No negociable 4.
 pnpm test tests/integration/platform-admin-script.test.ts   # expect: exit 0, 0 failed
 node scripts/platform-admin.ts; test $? -eq 2   # expect: código 2 (uso) → la línea sale 0
 for s in '## Antes de dar de alta' '## Alta en /plataforma' '## Primer ingreso del dueño' '## Verificación'; do grep -qF "$s" docs/nuevo-taller.md || echo "$s"; done | grep -q .; test $? -eq 1   # expect: 1 = no falta ninguna sección → la línea sale 0
-grep -qF '## Operación de Bike Garage' README.md   # expect: exit 0
+grep -qF '## Operación de llave15' README.md   # expect: exit 0
 test "$(node -p "require('./package.json').scripts['platform:admin']")" = "node --env-file-if-exists=.env scripts/platform-admin.ts"   # expect: exit 0
 node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
 pnpm format && pnpm gate   # expect: exit 0

@@ -175,7 +175,7 @@ Reglas: `ui-design.md`, `server-api.md`. RC 14.
 
 **Acceptance**
 
-1. **WHEN** se pide `/taller-demo/reservar` **THE SYSTEM SHALL** responder 200 con `PublicLayout`, `Taller Demo` en el `h1`, la isla con las props del Taller Demo y la línea `con Bike Garage`
+1. **WHEN** se pide `/taller-demo/reservar` **THE SYSTEM SHALL** responder 200 con `PublicLayout`, `Taller Demo` en el `h1`, la isla con las props del Taller Demo y la línea `con llave15`
 2. **WHEN** se pide `/no-existe/reservar` o la página de un taller `suspendido` **THE SYSTEM SHALL** responder 404
 3. **WHEN** se pide `/vector-bikes/reservar` **THE SYSTEM SHALL** mostrar la isla con los valores de Vector Bikes
 4. **WHEN** se pide `/taller-demo/privacidad` **THE SYSTEM SHALL** mostrar el aviso de privacidad con el nombre, la dirección y el correo del Taller Demo, sin datos de Vector Bikes
@@ -244,7 +244,7 @@ git tag -l bg-32 | grep -qx bg-32   # expect: exit 0
 
 1. `e2e/fixtures.ts`: `SEED.demoShopId`, `SEED.demoBranchId` (uuid fijos).
 2. `e2e/global-setup.ts` (con `hasTable`): el Taller Demo E2E (`slug` `taller-demo`, `name` `Taller Demo E2E`, los valores de `DEMO_SHOP_PROFILE` escritos en el archivo, prefijo `TD`) y su sucursal, después del taller Vector Bikes.
-3. `e2e/reservar-taller.spec.ts`: proyecto `tablet`; **no envía** la reserva; comprueba marca, comunas al elegir retiro, línea `con Bike Garage` y que los bloques mostrados vengan de `/api/disponibilidad` con el `taller` de la página (`page.waitForResponse`); controles por rol y nombre accesible.
+3. `e2e/reservar-taller.spec.ts`: proyecto `tablet`; **no envía** la reserva; comprueba marca, comunas al elegir retiro, línea `con llave15` y que los bloques mostrados vengan de `/api/disponibilidad` con el `taller` de la página (`page.waitForResponse`); controles por rol y nombre accesible.
 
 **Files**
 - `e2e/reservar-taller.spec.ts` — new
@@ -255,7 +255,7 @@ Reglas: `e2e.md` (excepción BG-D19). No cambia: specs existentes, `playwright.c
 
 **Acceptance**
 
-1. **WHEN** el spec abre `/vector-bikes/reservar` en el viewport de tablet **THE SYSTEM SHALL** mostrar `Vector Bikes`, las comunas `Vitacura` y `Las Condes` al elegir retiro y la línea `con Bike Garage`
+1. **WHEN** el spec abre `/vector-bikes/reservar` en el viewport de tablet **THE SYSTEM SHALL** mostrar `Vector Bikes`, las comunas `Vitacura` y `Las Condes` al elegir retiro y la línea `con llave15`
 2. **WHEN** abre `/taller-demo/reservar` **THE SYSTEM SHALL** mostrar `Taller Demo E2E`, las comunas del Taller Demo y ningún texto `Vitacura`
 3. **WHEN** el spec elige un día en cada página **THE SYSTEM SHALL** mostrar los bloques que devuelve `/api/disponibilidad` con el `taller` de esa página, de 60 minutos en el Taller Demo
 4. **WHEN** corre `pnpm test:tablet` completo **THE SYSTEM SHALL** pasar con los specs existentes sin cambios

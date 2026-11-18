@@ -1,4 +1,4 @@
-# Bike Garage — instrucciones para agentes
+# llave15 — instrucciones para agentes
 
 Sistema multi-taller para talleres de bicicletas (primer taller: Vector Bikes, Vitacura): reservas en línea por taller (`/<slug>/reservar`), el área interna `/taller` (recepción en tablet, órdenes de trabajo, historial, inventario, caja y ventas de mostrador) y la administración de la plataforma (`/plataforma`): Astro 7 + Preact + Postgres (Drizzle) en Replit. El sitio informativo de Vector Bikes vive en `web/vector-bikes/`.
 
@@ -27,7 +27,7 @@ Sistema multi-taller para talleres de bicicletas (primer taller: Vector Bikes, V
 | Salud de la fase 2 | `pnpm f2:check` |
 | Biblioteca | `pnpm library:import [--dry-run]` · `pnpm library:export [ruta]` · `pnpm library:check` |
 
-Orden de trabajo de la fase Bike Garage: `blueprints/bike-garage/tasks.json` y `blueprints/bike-garage/epics/`; cada tarea llega como un encargo `docs/encargos/BG-NN-*.md`. `blueprints/vector-taller-f1/`, `blueprints/vector-taller-f2/` y `blueprints/vector-bikes/` son registros de fases terminadas y no se tocan. Todo comando se ejecuta desde la raíz del proyecto. El sandbox de Codex no tiene red ni Postgres (ni siquiera `127.0.0.1`): corre `format`, `check`, `test` y `build`; `db:migrate`, `db:check`, `bg:backfill`, `bg:check`, `test:tablet`, `test:web`, `smoke`, `gate` y los commits los hace la sesión coordinadora.
+Orden de trabajo de la fase llave15: `blueprints/bike-garage/tasks.json` y `blueprints/bike-garage/epics/`; cada tarea llega como un encargo `docs/encargos/BG-NN-*.md`. `blueprints/vector-taller-f1/`, `blueprints/vector-taller-f2/` y `blueprints/vector-bikes/` son registros de fases terminadas y no se tocan. Todo comando se ejecuta desde la raíz del proyecto. El sandbox de Codex no tiene red ni Postgres (ni siquiera `127.0.0.1`): corre `format`, `check`, `test` y `build`; `db:migrate`, `db:check`, `bg:backfill`, `bg:check`, `test:tablet`, `test:web`, `smoke`, `gate` y los commits los hace la sesión coordinadora.
 
 ## Reglas de código
 
@@ -100,7 +100,7 @@ Antes de tocar archivos en estas rutas, leer el archivo de reglas correspondient
 3. Nunca borrar reservas: se cambia `status`.
 4. Nunca commitear secretos ni `.env`; nunca registrar correos, teléfonos ni tokens sin redactar.
 5. Nunca editar a mano `drizzle/` (se regenera desde el esquema); nunca `drizzle-kit generate --custom`.
-6. No construir nada de los No-Objetivos de `blueprint.md` §1 (pago en línea, cuentas de clientes, reprogramación por el cliente, feriados 2027 inventados) ni de la cerca de la fase 2 (`blueprints/vector-taller-f2/FASE2.md` §2.5: pago en línea, Strava/kilómetros, asistente de WhatsApp, multi-sucursal, entre otros). Inventario, caja, proveedores, compras, gastos y ventas de mostrador se construyen desde la decisión 55. Bike Garage multi-taller (tabla `shops`, `branch_id` en las reservas, página de reservas por taller, separación del sitio) se construye desde la decisión 57 (`blueprints/bike-garage/FASE-BIKE-GARAGE.md`), dentro de su cerca §2.3; multi-sucursal sigue fuera. Specs de navegador solo en `/taller` y, por excepción BG-D19, en `/<slug>/reservar`.
+6. No construir nada de los No-Objetivos de `blueprint.md` §1 (pago en línea, cuentas de clientes, reprogramación por el cliente, feriados 2027 inventados) ni de la cerca de la fase 2 (`blueprints/vector-taller-f2/FASE2.md` §2.5: pago en línea, Strava/kilómetros, asistente de WhatsApp, multi-sucursal, entre otros). Inventario, caja, proveedores, compras, gastos y ventas de mostrador se construyen desde la decisión 55. llave15 multi-taller (tabla `shops`, `branch_id` en las reservas, página de reservas por taller, separación del sitio) se construye desde la decisión 57 (`blueprints/bike-garage/FASE-BIKE-GARAGE.md`), dentro de su cerca §2.3; multi-sucursal sigue fuera. Specs de navegador solo en `/taller` y, por excepción BG-D19, en `/<slug>/reservar`.
 7. Nunca marcar una tarea como hecha con una compuerta fallando, ni editar un comando de Verify para que pase.
 8. `branch_id` NOT NULL en toda tabla de operación, incluidas las de reserva desde BG-09.
 9. Nunca borrar una orden, línea, componente, aprobación, foto de informe, venta, compra, gasto ni movimiento: se marcan con `voided_at`.
