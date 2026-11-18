@@ -182,6 +182,7 @@ it("acepta los límites de configuración, suspensión y retiro con comunas", as
 });
 
 it("enlaza automáticamente la sucursal con un solo taller y queda nula con dos", async () => {
+  await test.db.delete(shops); // parte sin talleres, aunque la siembra traiga uno (BG-04)
   expect((await insertBranch("Sin taller")).shopId).toBeNull();
   const shop = await insertShop();
   expect((await insertBranch()).shopId).toBe(shop.id);
