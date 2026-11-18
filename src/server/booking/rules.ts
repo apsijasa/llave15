@@ -1,5 +1,7 @@
 /** Reglas del negocio. Única fuente de verdad para horarios, capacidad y tarifas. */
 
+import type { BookingConfig } from "./config.ts";
+
 export { TIMEZONE } from "../../lib/time.ts";
 export const BLOCK_MINUTES = 30;
 export const DAILY_CAPACITY = 4;
@@ -43,6 +45,10 @@ export const PICKUP_HOURS: typeof RECEPTION_HOURS = {
   5: { open: "09:00", close: "20:00" },
 };
 
-export function hoursFor(mode: BookingMode, weekday: number) {
-  return (mode === "retiro" ? PICKUP_HOURS : RECEPTION_HOURS)[weekday] ?? null;
+export function hoursFor(mode: BookingMode, weekday: number, config?: BookingConfig) {
+  if (mode === "retiro" && config?.pickupEnabled === false) return null;
+  // Solo se importa el tipo: config.ts arma el legado con estas constantes sin ciclo en ejecución.
+  const reception = config?.receptionHours ?? RECEPTION_HOURS;
+  const pickup = config?.pickupHours ?? PICKUP_HOURS;
+  return (mode === "retiro" ? pickup : reception)[weekday] ?? null;
 }

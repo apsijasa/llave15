@@ -1,15 +1,10 @@
 import { DateTime } from "luxon";
 import { addDays, localToday, localToInstant, TIMEZONE } from "../../lib/time.ts";
+import type { BookingConfig } from "./config.ts";
+import { LEGACY_BOOKING_CONFIG } from "./config.ts";
 import { HOLIDAYS } from "./holidays.ts";
-import {
-  BLOCK_MINUTES,
-  type BookingMode,
-  blocksFor,
-  DAILY_CAPACITY,
-  HORIZON_DAYS,
-  hoursFor,
-  MIN_NOTICE_MINUTES,
-} from "./rules.ts";
+import type { BookingMode } from "./rules.ts";
+import { blocksFor, hoursFor } from "./rules.ts";
 
 export { addDays, localToday, localToInstant } from "../../lib/time.ts";
 
@@ -25,6 +20,7 @@ export type DayInput = {
   usedCount: number;
   /** Bicicletas de esta reserva. Sin declarar es 1: así consultan la web y `/api/disponibilidad`. */
   bikeCount?: number;
+  config?: BookingConfig;
 };
 
 export type DayAvailability = {
@@ -60,19 +56,24 @@ function hhmmOf(minutes: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
-/** Inicios de bloque del día, cada 30 min, mientras el bloque termine antes del cierre. */
-export function gridForDate(date: string, mode: BookingMode = "taller"): string[] {
+/** Inicios de bloque del día según su duración, mientras el bloque termine antes del cierre. */
+export function gridForDate(
+  date: string,
+  mode: BookingMode = "taller",
+  config: BookingConfig = LEGACY_BOOKING_CONFIG,
+): string[] {
   const local = DateTime.fromISO(date, { zone: TIMEZONE });
   if (!local.isValid) {
     return [];
   }
-  const hours = hoursFor(mode, local.weekday);
+  const hours = hoursFor(mode, local.weekday, config);
   if (!hours) {
     return [];
   }
   const close = minutesOf(hours.close);
   const starts: string[] = [];
-  for (let start = minutesOf(hours.open); start + BLOCK_MINUTES <= close; start += BLOCK_MINUTES) {
+  const blockMinutes = config.blockMinutes;
+  for (let start = minutesOf(hours.open); start + blockMinutes <= close; start += blockMinutes) {
     const hhmm = hhmmOf(start);
     if (localToInstant(date, hhmm) !== null) {
       starts.push(hhmm);
@@ -94,16 +95,16 @@ function isTaken(input: DayInput, start: string): boolean {
   );
 }
 
-function isLate(date: string, start: string, now: Date): boolean {
+function isLate(date: string, start: string, now: Date, config: BookingConfig): boolean {
   const instant = localToInstant(date, start);
-  return instant !== null && instant.getTime() < now.getTime() + MIN_NOTICE_MINUTES * 60_000;
+  return instant !== null && instant.getTime() < now.getTime() + config.minNoticeMinutes * 60_000;
 }
 
 function stateFor(input: DayInput, grid: string[], index: number, start: string): BlockState {
   if (isTaken(input, start)) {
     return "taken";
   }
-  if (isLate(input.date, start, input.now)) {
+  if (isLate(input.date, start, input.now, input.config ?? LEGACY_BOOKING_CONFIG)) {
     return "late";
   }
   // Una reserva ocupa varios bloques seguidos: el retiro dos, y el taller uno por bici. Si los que
@@ -124,8 +125,9 @@ export function calendarClosure(
   date: string,
   blocked: DayInput["blocked"],
   mode: BookingMode = "taller",
+  config: BookingConfig = LEGACY_BOOKING_CONFIG,
 ): DayClosure | null {
-  if (gridForDate(date, mode).length === 0) {
+  if (gridForDate(date, mode, config).length === 0) {
     return { status: "closed", holidayName: null };
   }
   const holidayName = HOLIDAYS.get(date);
@@ -140,6 +142,7 @@ export function calendarClosure(
 
 /** Disponibilidad consultiva de un día. `createBooking` revalida todo dentro de la transacción. */
 export function computeDay(input: DayInput): DayAvailability {
+  const config = input.config ?? LEGACY_BOOKING_CONFIG;
   const closed = (status: DayStatus, holidayName: string | null = null): DayAvailability => ({
     date: input.date,
     status,
@@ -148,15 +151,15 @@ export function computeDay(input: DayInput): DayAvailability {
     blocks: [],
   });
 
-  if (input.date > addDays(localToday(input.now), HORIZON_DAYS)) {
+  if (input.date > addDays(localToday(input.now), config.horizonDays)) {
     return closed("closed");
   }
-  const closure = calendarClosure(input.date, input.blocked, input.mode);
+  const closure = calendarClosure(input.date, input.blocked, input.mode, config);
   if (closure !== null) {
     return closed(closure.status, closure.holidayName);
   }
-  const grid = gridForDate(input.date, input.mode);
-  if (input.usedCount + (input.bikeCount ?? 1) > DAILY_CAPACITY) {
+  const grid = gridForDate(input.date, input.mode, config);
+  if (input.usedCount + (input.bikeCount ?? 1) > config.dailyCapacity) {
     return closed("full");
   }
   return {
@@ -174,7 +177,8 @@ export function checkStart(input: DayInput & { start: string }): CheckStartResul
   if (day.status !== "open") {
     return { ok: false, reason: day.status };
   }
-  const grid = gridForDate(input.date, input.mode);
+  const config = input.config ?? LEGACY_BOOKING_CONFIG;
+  const grid = gridForDate(input.date, input.mode, config);
   const index = grid.indexOf(input.start);
   const block = day.blocks[index];
   if (index < 0 || block === undefined) {
@@ -193,6 +197,8 @@ export function checkStart(input: DayInput & { start: string }): CheckStartResul
     ok: true,
     blockStarts,
     startsAt,
-    endsAt: new Date(startsAt.getTime() + count * BLOCK_MINUTES * 60_000),
+    endsAt: DateTime.fromJSDate(startsAt)
+      .plus({ minutes: count * config.blockMinutes })
+      .toJSDate(),
   };
 }
