@@ -316,21 +316,23 @@
       "WHEN Vector Bikes y el Taller Demo reservan la misma fecha y hora THE SYSTEM SHALL aceptar ambas reservas",
       "WHEN la misma sucursal recibe un segundo bloque activo en la misma fecha y hora THE SYSTEM SHALL rechazarlo con `23505`",
       "WHEN dos talleres guardan un cliente con el mismo RUT, o una sucursal con el mismo nombre THE SYSTEM SHALL aceptarlo, y en el mismo taller SHALL rechazarlo con `23505` nombrando el índice de siempre",
-      "WHEN corren `foundation.test.ts`, `customers.test.ts`, `users-schema.test.ts` y `concurrency.test.ts` THE SYSTEM SHALL pasar sin cambios"
+      "WHEN corren `foundation.test.ts`, `customers.test.ts`, `users-schema.test.ts` y `concurrency.test.ts` THE SYSTEM SHALL pasar, sin cambios salvo las cinco pruebas de RUT de `customers.test.ts` declaradas (BG-D43)"
     ],
     "verify": [
       "pnpm test tests/integration/shops-unique.test.ts tests/integration/foundation.test.ts tests/integration/customers.test.ts tests/integration/users-schema.test.ts tests/integration/concurrency.test.ts   # expect: exit 0, 0 failed",
       "f=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -q 'DROP INDEX' \"$f\" && grep -q 'CREATE UNIQUE INDEX' \"$f\" && { grep -Eq 'DROP TABLE|DROP COLUMN|CREATE TABLE|RENAME' \"$f\"; test $? -eq 1; }   # expect: exit 0",
       "pnpm db:migrate   # expect: exit 0",
       "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
-      "node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió",
+      "node scripts/bg-expect-parity.ts --skip tests/integration/customers.test.ts   # expect: exit 0 — solo cambian las cinco pruebas de RUT global declaradas (BG-D43)",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-10",
     "files": [
       "src/server/db/schema.ts",
       "src/server/db/schema-taller.ts",
-      "tests/integration/shops-unique.test.ts"
+      "tests/integration/shops-unique.test.ts",
+      "src/server/taller/customers.ts",
+      "tests/integration/customers.test.ts"
     ],
     "status": "pending"
   },

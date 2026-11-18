@@ -801,27 +801,27 @@ git tag -l bg-09 | grep -qx bg-09   # expect: exit 0
 
 #### BG-10 — Contract B: índices únicos por taller (E1-T10)
 **Archivos:** `src/server/db/schema.ts` · `src/server/db/schema-taller.ts` · `tests/integration/shops-unique.test.ts` (nuevo)
-**Hacer:** redefinir con el mismo nombre (BG-D11) `uq_bookings_code`, `uq_booking_blocks_active_slot`, `uq_branches_name` y `uq_customers_rut` según §4. Una generación.
+**Hacer:** redefinir con el mismo nombre (BG-D11) `uq_bookings_code`, `uq_booking_blocks_active_slot`, `uq_branches_name` y `uq_customers_rut` según §4. Una generación. **Código (cuarto archivo):** `src/server/taller/customers.ts` — el `onConflictDoNothing` del alta apunta a (`branch_id`, `rut`), el índice nuevo (si no, PostgreSQL responde `42P10`). **Valores esperados que cambian (declarados, BG-D43):** cinco pruebas de `customers.test.ts` afirmaban el RUT único global de la fase 1 entre dos sucursales; FASE §5 lo hace por sucursal, así que pasan a afirmar que el mismo RUT en otra sucursal se acepta sin ver la ficha ajena y que en la misma se rechaza. La paridad corre con `--skip` de ese archivo.
 **Reglas:** R-db · NN 1, 5 · No cambia: nombres de índices.
 **Done when**
 - [ ] WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL recrear con el mismo nombre `uq_bookings_code` sobre (`branch_id`, `code`), `uq_booking_blocks_active_slot` sobre (`branch_id`, `service_date`, `block_start`) con `is_active = true`, `uq_branches_name` sobre (`shop_id`, `name`) y `uq_customers_rut` sobre (`branch_id`, `rut`) con `rut is not null`, sin tocar tablas ni columnas
 - [ ] WHEN Vector Bikes y el Taller Demo reservan la misma fecha y hora THE SYSTEM SHALL aceptar ambas reservas
 - [ ] WHEN la misma sucursal recibe un segundo bloque activo en la misma fecha y hora THE SYSTEM SHALL rechazarlo con `23505`
 - [ ] WHEN dos talleres guardan un cliente con el mismo RUT, o una sucursal con el mismo nombre THE SYSTEM SHALL aceptarlo, y en el mismo taller SHALL rechazarlo con `23505` nombrando el índice de siempre
-- [ ] WHEN corren `foundation.test.ts`, `customers.test.ts`, `users-schema.test.ts` y `concurrency.test.ts` THE SYSTEM SHALL pasar sin cambios
+- [ ] WHEN corren `foundation.test.ts`, `customers.test.ts`, `users-schema.test.ts` y `concurrency.test.ts` THE SYSTEM SHALL pasar, sin cambios salvo las cinco pruebas de RUT de `customers.test.ts` declaradas (BG-D43)
 **Verify**
 ```bash
 pnpm test tests/integration/shops-unique.test.ts tests/integration/foundation.test.ts tests/integration/customers.test.ts tests/integration/users-schema.test.ts tests/integration/concurrency.test.ts   # expect: exit 0, 0 failed
 f="$(ls drizzle/*.sql | sort | tail -1)"; grep -q 'DROP INDEX' "$f" && grep -q 'CREATE UNIQUE INDEX' "$f" && { grep -Eq 'DROP TABLE|DROP COLUMN|CREATE TABLE|RENAME' "$f"; test $? -eq 1; }   # expect: exit 0
 pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
-node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
+node scripts/bg-expect-parity.ts --skip tests/integration/customers.test.ts   # expect: exit 0 — solo cambian las cinco pruebas de RUT global declaradas (BG-D43)
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
 u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud
-git add -- src/server/db/schema.ts src/server/db/schema-taller.ts tests/integration/shops-unique.test.ts drizzle
+git add -- src/server/db/schema.ts src/server/db/schema-taller.ts src/server/taller/customers.ts tests/integration/shops-unique.test.ts tests/integration/customers.test.ts drizzle
 git commit -m "feat: bg-10 make unique indexes per shop" && git tag bg-10
 git tag -l bg-10 | grep -qx bg-10   # expect: exit 0
 ```
@@ -2392,6 +2392,7 @@ Numeración propia de este blueprint (`BG-D#`). Las decisiones globales 1–57 v
 | BG-D40 | La identidad visual entra en cuatro pasos nuevos, BG-46 … BG-49 (`E2-T13` … `E2-T16`, épica `02-identidad`), que se construyen después de BG-28 y antes de BG-29 (cada uno depende de BG-28 y del anterior; BG-29 depende además de BG-49), sin renumerar; `CLAUDE.md`, `AGENTS.md`, `ui-design.md` y `taller-ui.md` se actualizan en el bundle, en la raíz y en `workspace/`, con "hasta BG-46 / desde BG-47" (patrón BG-D2) | Renumerar BG-29 … BG-45, o un solo paso de identidad | BG-01 … BG-05 ya están construidos y los tags, los encargos y las decisiones citan los números; cuatro pasos respetan el límite de 5 archivos | — |
 | BG-D41 | `readRange`/`readDay` sin sucursal la resuelven con una subconsulta (única sucursal del único taller) dentro de sus tres consultas; con dos talleres no ven filas (falla cerrada). `createBooking` sin alcance sí lanza `ShopScopeError` (BG-07, coordinadora, 18-11-2026) | `singleShopScope` en `readRange` (dos consultas más) | `admin-month.test.ts` afirma tres consultas fijas por mes (paridad); leer vacío nunca cruza talleres y las páginas pasan el alcance desde la etapa 1 | Una pantalla con dos talleres muestra un calendario vacío por no pasar el alcance |
 | BG-D42 | La PK de `booking_days` cambia en dos generaciones: NOT NULL + `DROP TABLE "booking_days"`, y después `CREATE TABLE "booking_days"` con PK (`branch_id`, `service_date`) (BG-09, coordinadora, 18-11-2026) | Una generación (drizzle-kit 0.31 deja el `DROP CONSTRAINT` de la PK de columna comentado y la migración falla) o editar `drizzle/` a mano (prohibido) | Las filas de `booking_days` son solo anclas de bloqueo que `createBooking` recrea con `onConflictDoNothing`; se pierde nada; la ventana V-BG3 corre con el taller cerrado | drizzle-kit sabe nombrar la PK al cambiarla |
+| BG-D43 | El RUT del cliente es único por sucursal (`uq_customers_rut` en (`branch_id`, `rut`)); cinco pruebas de `customers.test.ts` que afirmaban el RUT global de la fase 1 cambian su valor esperado en BG-10 (coordinadora, 18-11-2026; FASE §5 aprobada) | Conservar el RUT global | Un ciclista que va a dos talleres no podría registrarse en el segundo y el rechazo revelaría que existe en otro; con un taller = una sucursal, por sucursal equivale a por taller | Llega multi-sucursal (fase 4): el RUT pasa a ser por taller con `shop_id` en `customers` |
 
 ### 20.4 Qué construir después
 Desde la cerca de FASE §2.3:

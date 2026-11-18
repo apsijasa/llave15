@@ -166,27 +166,36 @@ it("5: guarda RUT y teléfono normalizados, sucursal e instantes inyectados, sin
   expect(await test.db.select().from(auditLog)).toEqual([]);
 });
 
-it("el RUT global de otra sucursal devuelve duplicate con existing null", async () => {
+it("el mismo RUT en otra sucursal se acepta sin ver la ficha ajena", async () => {
   await create({ rut: "12345678-5" });
   expect(await findDuplicates(test.db, other.branchId, { ...input, rut: "12345678-5" })).toEqual({
     phone: null,
     rut: null,
   });
-  expect(await createCustomer(test.db, other, { ...input, rut: "12345678-5" }, NOW)).toEqual({
+  const local = await create({ rut: "12345678-5" }, other);
+  expect(local).toMatchObject({ branchId: other.branchId, rut: "12345678-5" });
+  expect(
+    await createCustomer(
+      test.db,
+      other,
+      { ...input, rut: local.rut, phoneE164: "+56987654321" },
+      NOW,
+    ),
+  ).toEqual({
     ok: false,
     code: "duplicate",
-    existing: null,
+    existing: { id: local.id, name: local.name },
   });
-  expect(await listCustomers(test.db, other)).toEqual([]);
-  expect(await test.db.select().from(customers)).toHaveLength(1);
+  expect(await listCustomers(test.db, other)).toEqual([local]);
+  expect(await test.db.select().from(customers)).toHaveLength(2);
 });
 
-it("el RUT de otra sucursal prevalece sobre un teléfono duplicado local", async () => {
+it("el RUT de otra sucursal no oculta el teléfono duplicado local ni deja cambios", async () => {
   await create({ rut: "12345678-5" }, other);
   const local = await create();
   const second = await create({ phoneE164: "+56987654321" });
   const conflicting = { ...input, rut: "12345678-5" };
-  const expected = { ok: false, code: "duplicate", existing: null };
+  const expected = { ok: false, code: "duplicate", existing: { id: local.id, name: local.name } };
   expect(await createCustomer(test.db, owner, conflicting, LATER)).toEqual(expected);
   expect(await updateCustomer(test.db, owner, second.id, conflicting, LATER)).toEqual(expected);
   expect(await listCustomers(test.db, owner)).toHaveLength(2);
@@ -220,17 +229,21 @@ it("resuelve la carrera de RUT sin insertar dos fichas", async () => {
   expect(await test.db.select().from(customers)).toHaveLength(1);
 });
 
-it("insertCustomer se puede usar dentro de una transacción sin permiso de gestión", async () => {
+it("insertCustomer en una transacción sin permiso de gestión respeta el RUT por sucursal", async () => {
   await create({ rut: "12345678-5" });
   await test.db.transaction(async (tx) => {
+    const result = await insertCustomer(tx, other.branchId, { ...input, rut: "12345678-5" }, NOW);
+    if (!result.ok) throw new Error("No se creó el cliente de la otra sucursal");
+    expect(result.customer).toMatchObject({ branchId: other.branchId, rut: "12345678-5" });
     expect(await insertCustomer(tx, other.branchId, { ...input, rut: "12345678-5" }, NOW)).toEqual({
       ok: false,
       code: "duplicate",
-      existing: null,
+      existing: { id: result.customer.id, name: result.customer.name },
     });
-    expect((await insertCustomer(tx, other.branchId, input, NOW)).ok).toBe(true);
+    const nextInput = { ...input, phoneE164: "+56987654321" };
+    expect((await insertCustomer(tx, other.branchId, nextInput, NOW)).ok).toBe(true);
   });
-  expect(await listCustomers(test.db, other)).toHaveLength(1);
+  expect(await listCustomers(test.db, other)).toHaveLength(2);
 });
 
 it("dos creaciones concurrentes no repiten teléfono sin confirmación", async () => {
@@ -316,13 +329,23 @@ it("edita sin confundirse consigo mismo y mantiene las reglas de duplicado", asy
   expect(await test.db.select().from(auditLog)).toEqual([]);
 });
 
-it("una edición con RUT de otra sucursal revierte y devuelve existing null", async () => {
-  await create({ rut: "12345678-5" });
+it("una edición acepta el RUT de otra sucursal y rechaza repetirlo en la misma", async () => {
+  const foreign = await create({ rut: "12345678-5" });
   const customer = await create({}, other);
+  const edited = { ...customer, rut: foreign.rut, updatedAt: LATER };
   expect(
     await updateCustomer(test.db, other, customer.id, { ...input, rut: "12345678-5" }, LATER),
-  ).toEqual({ ok: false, code: "duplicate", existing: null });
-  expect(await getCustomer(test.db, other, customer.id)).toEqual(customer);
+  ).toEqual({ ok: true, customer: edited });
+  expect(await getCustomer(test.db, other, customer.id)).toEqual(edited);
+  const second = await create({ phoneE164: "+56987654321" }, other);
+  const repeated = { ...input, rut: foreign.rut, phoneE164: second.phoneE164 };
+  expect(await updateCustomer(test.db, other, second.id, repeated, LATER)).toEqual({
+    ok: false,
+    code: "duplicate",
+    existing: { id: customer.id, name: customer.name },
+  });
+  expect(await getCustomer(test.db, other, second.id)).toEqual(second);
+  expect(await getCustomer(test.db, owner, foreign.id)).toEqual(foreign);
 });
 
 it("filtra lecturas, duplicados y ediciones por sucursal, con límite y orden recientes", async () => {
@@ -349,7 +372,7 @@ it("filtra lecturas, duplicados y ediciones por sucursal, con límite y orden re
   expect((await create({}, other)).branchId).toBe(other.branchId);
 });
 
-it("la base exige sucursal, RUT global único y un canal permitido", async () => {
+it("la base exige sucursal, RUT único por sucursal y un canal permitido", async () => {
   const first = await create({ rut: "12345678-5" });
   for (const discoveryChannel of DISCOVERY_CHANNELS) {
     await test.db.update(customers).set({ discoveryChannel }).where(eq(customers.id, first.id));
@@ -368,7 +391,8 @@ it("la base exige sucursal, RUT global único y un canal permitido", async () =>
       first.id,
     ]),
   ).rejects.toMatchObject({ code: "23503" });
+  await test.db.insert(customers).values({ ...input, branchId: other.branchId, rut: first.rut });
   await expect(
-    test.db.insert(customers).values({ ...input, branchId: other.branchId, rut: first.rut }),
+    test.db.insert(customers).values({ ...input, branchId: owner.branchId, rut: first.rut }),
   ).rejects.toMatchObject({ cause: { code: "23505", constraint: "uq_customers_rut" } });
 });

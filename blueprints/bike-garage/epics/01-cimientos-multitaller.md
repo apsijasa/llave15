@@ -561,6 +561,8 @@ git tag -l bg-09 | grep -qx bg-09   # expect: exit 0
 3. `pnpm db:generate` → pruebas → migrate → check.
 
 **Files**
+- `src/server/taller/customers.ts` — edit (`onConflictDoNothing` sobre (`branch_id`, `rut`))
+- `tests/integration/customers.test.ts` — edit (cinco valores declarados, BG-D43)
 - `src/server/db/schema.ts` — edit
 - `src/server/db/schema-taller.ts` — edit
 - `tests/integration/shops-unique.test.ts` — new
@@ -573,7 +575,7 @@ Reglas: `database.md`. No negociables 1, 5.
 2. **WHEN** Vector Bikes y el Taller Demo reservan la misma fecha y hora **THE SYSTEM SHALL** aceptar ambas reservas
 3. **WHEN** la misma sucursal recibe un segundo bloque activo en la misma fecha y hora **THE SYSTEM SHALL** rechazarlo con `23505`
 4. **WHEN** dos talleres guardan un cliente con el mismo RUT, o una sucursal con el mismo nombre **THE SYSTEM SHALL** aceptarlo, y en el mismo taller SHALL rechazarlo con `23505` nombrando el índice de siempre
-5. **WHEN** corren `foundation.test.ts`, `customers.test.ts`, `users-schema.test.ts` y `concurrency.test.ts` **THE SYSTEM SHALL** pasar sin cambios
+5. **WHEN** corren `foundation.test.ts`, `customers.test.ts`, `users-schema.test.ts` y `concurrency.test.ts` **THE SYSTEM SHALL** pasar, sin cambios salvo las cinco pruebas de RUT de `customers.test.ts` declaradas (BG-D43)
 
 **Verify**
 
@@ -582,7 +584,7 @@ pnpm test tests/integration/shops-unique.test.ts tests/integration/foundation.te
 f="$(ls drizzle/*.sql | sort | tail -1)"; grep -q 'DROP INDEX' "$f" && grep -q 'CREATE UNIQUE INDEX' "$f" && { grep -Eq 'DROP TABLE|DROP COLUMN|CREATE TABLE|RENAME' "$f"; test $? -eq 1; }   # expect: exit 0
 pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
-node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
+node scripts/bg-expect-parity.ts --skip tests/integration/customers.test.ts   # expect: exit 0 — solo cambian las cinco pruebas de RUT global declaradas (BG-D43)
 pnpm format && pnpm gate   # expect: exit 0
 ```
 
@@ -590,7 +592,7 @@ pnpm format && pnpm gate   # expect: exit 0
 
 ```bash
 u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud
-git add -- src/server/db/schema.ts src/server/db/schema-taller.ts tests/integration/shops-unique.test.ts drizzle
+git add -- src/server/db/schema.ts src/server/db/schema-taller.ts src/server/taller/customers.ts tests/integration/shops-unique.test.ts tests/integration/customers.test.ts drizzle
 git commit -m "feat: bg-10 make unique indexes per shop" && git tag bg-10
 git tag -l bg-10 | grep -qx bg-10   # expect: exit 0
 ```
