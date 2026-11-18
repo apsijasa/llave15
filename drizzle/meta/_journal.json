@@ -295,6 +295,13 @@
       "when": 1795032307002,
       "tag": "0041_awesome_firebird",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795034707261,
+      "tag": "0042_late_master_chief",
+      "breakpoints": true
     }
   ]
 }

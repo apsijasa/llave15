@@ -88,11 +88,11 @@ export const bookings = pgTable(
     ),
     check(
       "bookings_fee_check",
-      sql`(mode = 'taller' and pickup_fee_clp = 0) or (mode = 'retiro' and pickup_fee_clp = 15000)`,
+      sql`(mode = 'taller' and pickup_fee_clp = 0) or (mode = 'retiro' and pickup_fee_clp >= 0)`,
     ),
     check(
       "bookings_retiro_address_check",
-      sql`mode = 'taller' or (comuna in ('Vitacura', 'Las Condes') and address is not null)`,
+      sql`mode = 'taller' or (length(trim(comuna)) > 0 and address is not null)`,
     ),
     check("bookings_time_order_check", sql`ends_at > starts_at`),
   ],
