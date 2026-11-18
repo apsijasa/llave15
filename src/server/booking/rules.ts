@@ -1,6 +1,6 @@
 /** Reglas del negocio. Única fuente de verdad para horarios, capacidad y tarifas. */
 
-export const TIMEZONE = "America/Santiago";
+export { TIMEZONE } from "../../lib/time.ts";
 export const BLOCK_MINUTES = 30;
 export const DAILY_CAPACITY = 4;
 export const MIN_NOTICE_MINUTES = 120;

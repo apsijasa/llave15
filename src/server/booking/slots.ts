@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import { addDays, localToday, localToInstant, TIMEZONE } from "../../lib/time.ts";
 import { HOLIDAYS } from "./holidays.ts";
 import {
   BLOCK_MINUTES,
@@ -8,8 +9,9 @@ import {
   HORIZON_DAYS,
   hoursFor,
   MIN_NOTICE_MINUTES,
-  TIMEZONE,
 } from "./rules.ts";
+
+export { addDays, localToday, localToInstant } from "../../lib/time.ts";
 
 export type DayStatus = "open" | "closed" | "holiday" | "full" | "blocked";
 export type BlockState = "free" | "taken" | "late" | "noroom";
@@ -56,25 +58,6 @@ function minutesOf(hhmm: string): number {
 function hhmmOf(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   return `${String(hours).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-}
-
-/** Fecha local `YYYY-MM-DD` del instante dado. */
-export function localToday(now: Date): string {
-  return DateTime.fromJSDate(now).setZone(TIMEZONE).toFormat("yyyy-MM-dd");
-}
-
-/** Suma días sobre la fecha local, nunca sobre el instante. */
-export function addDays(date: string, days: number): string {
-  return DateTime.fromISO(date, { zone: TIMEZONE }).plus({ days }).toFormat("yyyy-MM-dd");
-}
-
-/** Instante de una hora local, o `null` si esa hora no existe (cambio de horario). */
-export function localToInstant(date: string, hhmm: string): Date | null {
-  const local = DateTime.fromISO(`${date}T${hhmm}`, { zone: TIMEZONE });
-  if (!local.isValid || local.toFormat("HH:mm") !== hhmm) {
-    return null;
-  }
-  return local.toJSDate();
 }
 
 /** Inicios de bloque del día, cada 30 min, mientras el bloque termine antes del cierre. */
