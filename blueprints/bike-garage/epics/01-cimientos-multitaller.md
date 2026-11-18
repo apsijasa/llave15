@@ -516,6 +516,8 @@ git ls-files --error-unmatch docs/ventanas/bg-v2.md   # expect: exit 0 — commi
 - `tests/helpers/legacy-db.ts` — new (siembra declarada)
 - `tests/integration/bg-backfill.test.ts`, `tests/integration/shop-config.test.ts`, `tests/integration/shops-schema.test.ts`, `tests/unit/email-brand.test.ts` — edit (siembra declarada)
 - `tests/integration/booking-isolation.test.ts` — edit (valor declarado)
+- `src/server/api/handlers.ts` — edit (`recordAttempt` con la sucursal del taller)
+- `tests/integration/{inventory-schema,cash-schema,sales-schema,payments-extension,cash-links-schema,dashboard,work-orders}.test.ts` — edit (siembra declarada: `shop_id` en sus `insert into branches`, sucursal en sus reservas)
 
 Reglas: `database.md`. No negociables 5, 8.
 
@@ -545,7 +547,7 @@ pnpm format && pnpm gate   # expect: exit 0
 
 ```bash
 u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud
-git add -- src/server/db/schema.ts tests/integration/shops-contract.test.ts tests/helpers/legacy-db.ts tests/integration/bg-backfill.test.ts tests/integration/shop-config.test.ts tests/integration/shops-schema.test.ts tests/integration/booking-isolation.test.ts tests/unit/email-brand.test.ts drizzle
+git add -- src/server/db/schema.ts tests/integration/shops-contract.test.ts tests/helpers/legacy-db.ts tests/integration/bg-backfill.test.ts tests/integration/shop-config.test.ts tests/integration/shops-schema.test.ts tests/integration/booking-isolation.test.ts tests/unit/email-brand.test.ts src/server/api/handlers.ts tests/integration/inventory-schema.test.ts tests/integration/cash-schema.test.ts tests/integration/sales-schema.test.ts tests/integration/payments-extension.test.ts tests/integration/cash-links-schema.test.ts tests/integration/dashboard.test.ts tests/integration/work-orders.test.ts drizzle
 git commit -m "feat: bg-09 make shop and branch columns not null" && git tag bg-09
 git tag -l bg-09 | grep -qx bg-09   # expect: exit 0
 ```

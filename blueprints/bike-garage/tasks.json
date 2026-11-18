@@ -293,7 +293,15 @@
       "tests/integration/shop-config.test.ts",
       "tests/integration/shops-schema.test.ts",
       "tests/integration/booking-isolation.test.ts",
-      "tests/unit/email-brand.test.ts"
+      "tests/unit/email-brand.test.ts",
+      "src/server/api/handlers.ts",
+      "tests/integration/inventory-schema.test.ts",
+      "tests/integration/cash-schema.test.ts",
+      "tests/integration/sales-schema.test.ts",
+      "tests/integration/payments-extension.test.ts",
+      "tests/integration/cash-links-schema.test.ts",
+      "tests/integration/dashboard.test.ts",
+      "tests/integration/work-orders.test.ts"
     ],
     "status": "pending"
   },

@@ -51,6 +51,7 @@ async function booking(phoneE164 = "+56912345678") {
   const [row] = await test.db
     .insert(bookings)
     .values({
+      branchId: owner.branchId,
       code: randomUUID(),
       serviceDate: "2026-10-08",
       mode: "taller",
@@ -70,7 +71,6 @@ async function booking(phoneE164 = "+56912345678") {
   if (!row) throw new Error("Falta la reserva de prueba.");
   return row;
 }
-
 function input(changes: Record<string, unknown> = {}) {
   return { customerId, bikeId, requestedService: "Revisar frenos", ...changes };
 }

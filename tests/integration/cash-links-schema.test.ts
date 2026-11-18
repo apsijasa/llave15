@@ -14,9 +14,12 @@ let userId: string;
 
 async function insert(table: Table, values: Values): Promise<Row> {
   const keys = Object.keys(values);
+  const shopColumn = table === "branches" ? "shop_id, " : "";
+  const shopValue =
+    table === "branches" ? "(select id from shops where slug = 'vector-bikes'), " : "";
   const result = await test.client.query<Row>(
-    `insert into ${table} (${keys.join(", ")})
-     values (${keys.map((_, index) => `$${index + 1}`).join(", ")}) returning *`,
+    `insert into ${table} (${shopColumn}${keys.join(", ")})
+     values (${shopValue}${keys.map((_, index) => `$${index + 1}`).join(", ")}) returning *`,
     Object.values(values),
   );
   const row = result.rows[0];

@@ -346,6 +346,7 @@ async function booking(serviceDate: string, status: string) {
   const [row] = await test.db
     .insert(bookings)
     .values({
+      branchId: identity.owner.branchId,
       code: randomUUID(),
       cancelTokenHash: randomUUID(),
       serviceDate,
