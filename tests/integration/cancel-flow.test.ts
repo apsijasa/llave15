@@ -6,7 +6,7 @@ import { createBooking } from "../../src/server/booking/create-booking.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { bookingBlocks, bookings } from "../../src/server/db/schema.ts";
 import { consoleOutbox } from "../../src/server/email/transport.ts";
-import { type TestDb, createTestDb } from "../helpers/pglite.ts";
+import { type TestDb, createBookingTestDb } from "../helpers/pglite.ts";
 
 /** 2026-09-15 12:00 hora local. */
 const NOW = new Date("2026-09-15T15:00:00.000Z");
@@ -50,7 +50,7 @@ describe("cancelación con token", () => {
 
   beforeEach(async () => {
     consoleOutbox.length = 0;
-    test = await createTestDb();
+    test = await createBookingTestDb();
     return () => test.close();
   });
 
@@ -163,7 +163,7 @@ describe("POST de cancelación sin Origin", () => {
 
   beforeEach(async () => {
     consoleOutbox.length = 0;
-    test = await createTestDb();
+    test = await createBookingTestDb();
     return () => test.close();
   });
 

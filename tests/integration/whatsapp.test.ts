@@ -9,7 +9,7 @@ import {
   sendTemplate,
 } from "../../src/server/whatsapp/service.ts";
 import { bookings, whatsappMessages } from "../../src/server/db/schema.ts";
-import { type TestDb, createTestDb } from "../helpers/pglite.ts";
+import { type TestDb, createBookingTestDb } from "../helpers/pglite.ts";
 
 const NOW = new Date("2026-09-15T20:00:00Z");
 const SECRET = "correct-secret-longer-than-thirty-two-characters";
@@ -22,7 +22,7 @@ describe("WhatsApp transaccional", () => {
     vi.stubEnv("WHATSAPP_PHONE_NUMBER_ID", "123456789");
     vi.stubEnv("WHATSAPP_REMINDER_TEMPLATE", "recordatorio_reserva");
     vi.stubEnv("WHATSAPP_READY_TEMPLATE", "bicicleta_lista");
-    test = await createTestDb();
+    test = await createBookingTestDb();
   });
   afterEach(async () => {
     await test.close();

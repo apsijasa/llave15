@@ -4,7 +4,7 @@ import { cancelBooking } from "../../src/server/booking/cancel-booking.ts";
 import { type CreateBookingInput, createBooking } from "../../src/server/booking/create-booking.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { bookingBlocks, bookings } from "../../src/server/db/schema.ts";
-import { type TestDb, createTestDb } from "../helpers/pglite.ts";
+import { type TestDb, createBookingTestDb } from "../helpers/pglite.ts";
 
 /** 2026-09-15 12:00 hora local. */
 const NOW = new Date("2026-09-15T15:00:00.000Z");
@@ -40,7 +40,7 @@ describe("createBooking", () => {
   let db: AppDb;
 
   beforeEach(async () => {
-    test = await createTestDb();
+    test = await createBookingTestDb();
     db = test.db;
     return () => test.close();
   });

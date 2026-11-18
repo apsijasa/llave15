@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { EnvError, getDbEnv, getEmailEnv } from "../../src/lib/env.ts";
 import { isUniqueViolation } from "../../src/server/db/client.ts";
 import { allTables, bookingBlocks, bookings } from "../../src/server/db/schema.ts";
-import { createTestDb } from "../helpers/pglite.ts";
+import { createBookingTestDb } from "../helpers/pglite.ts";
 
 const SERVICE_DATE = "2026-10-05";
 const BLOCK_START = "10:00:00";
@@ -45,7 +45,7 @@ describe("entorno", () => {
 
 describe("base de datos", () => {
   it("crea todas las tablas del esquema al migrar", async () => {
-    const { client, close } = await createTestDb();
+    const { client, close } = await createBookingTestDb();
     try {
       const result = await client.query<{ table_name: string }>(
         "select table_name from information_schema.tables where table_schema = 'public'",
@@ -60,7 +60,7 @@ describe("base de datos", () => {
   });
 
   it("rechaza un segundo bloque activo en la misma fecha y hora", async () => {
-    const { db, close } = await createTestDb();
+    const { db, close } = await createBookingTestDb();
     try {
       const inserted = await db
         .insert(bookings)

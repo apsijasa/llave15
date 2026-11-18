@@ -45,7 +45,8 @@ async function seedIdentity() {
   owner = { id: randomUUID(), branchId, role: "owner", name: "Dueño", email: "owner@example.test" };
   const customerId = randomUUID();
   const bikeId = randomUUID();
-  await test.db.execute(sql`insert into branches (id, name) values (${branchId}, 'Vitacura')`);
+  await test.db.execute(sql`insert into branches (id, shop_id, name)
+    values (${branchId}, (select id from shops where slug = 'vector-bikes'), 'Vitacura')`);
   await test.db.execute(sql`insert into users (id, branch_id, role, name, email, password_hash)
     values (${owner.id}, ${branchId}, 'owner', 'Dueño', ${owner.email}, 'hash')`);
   await test.db.execute(sql`insert into customers (id, branch_id, name, phone_e164)

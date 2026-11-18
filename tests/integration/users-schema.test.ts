@@ -25,7 +25,7 @@ async function expectSqlState(query: Promise<unknown>, code: string) {
 
 async function insertBranch(test: TestDb) {
   const result = await test.client.query<{ id: string }>(
-    "insert into branches (name) values ('Vitacura') returning id",
+    "insert into branches (shop_id, name) values ((select id from shops where slug = 'vector-bikes'), 'Vitacura') returning id",
   );
   return result.rows[0]?.id;
 }
@@ -41,18 +41,19 @@ async function insertUser(test: TestDb, branchId: string | undefined, role = "ow
 }
 
 async function insertBooking(test: TestDb, source?: string) {
+  const branchId = await insertBranch(test);
   const columns = source === undefined ? "" : ", source";
-  const values = source === undefined ? "" : ", $2";
+  const values = source === undefined ? "" : ", $3";
   return test.client.query<{ source: string }>(
     `insert into bookings (
-       code, service_date, mode, starts_at, ends_at, customer_name, phone_e164,
+       code, branch_id, service_date, mode, starts_at, ends_at, customer_name, phone_e164,
        email, bike, description, consent_at, cancel_token_hash${columns}
      ) values (
-       $1, '2026-10-05', 'taller', '2026-10-05T13:00:00Z', '2026-10-05T14:00:00Z',
+       $1, $2, '2026-10-05', 'taller', '2026-10-05T13:00:00Z', '2026-10-05T14:00:00Z',
        'Cliente de prueba', '+56912345678', 'cliente@ejemplo.cl', 'Ruta',
        'Mantención', '2026-10-01T12:00:00Z', $1${values}
      ) returning source`,
-    source === undefined ? ["booking-default"] : [`booking-${source}`, source],
+    source === undefined ? ["booking-default", branchId] : [`booking-${source}`, branchId, source],
   );
 }
 
@@ -177,7 +178,9 @@ it("exige nombres de sucursal únicos y numeración positiva", async () => {
   await insertBranch(test);
   await expectSqlState(insertBranch(test), "23505");
   await expectSqlState(
-    test.client.query("insert into branches (name, next_order_number) values ('Otra', 0)"),
+    test.client.query(
+      "insert into branches (shop_id, name, next_order_number) values ((select id from shops where slug = 'vector-bikes'), 'Otra', 0)",
+    ),
     "23514",
   );
   const result = await test.client.query<{ next_order_number: number }>(

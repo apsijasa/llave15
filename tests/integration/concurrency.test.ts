@@ -2,7 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type CreateBookingInput, createBooking } from "../../src/server/booking/create-booking.ts";
 import { bookingBlocks } from "../../src/server/db/schema.ts";
-import { type TestDb, createTestDb } from "../helpers/pglite.ts";
+import { type TestDb, createBookingTestDb } from "../helpers/pglite.ts";
 
 /** 2026-09-15 12:00 hora local. */
 const NOW = new Date("2026-09-15T15:00:00.000Z");
@@ -28,7 +28,7 @@ describe("concurrencia", () => {
   let test: TestDb;
 
   beforeAll(async () => {
-    test = await createTestDb();
+    test = await createBookingTestDb();
   });
 
   afterAll(async () => {

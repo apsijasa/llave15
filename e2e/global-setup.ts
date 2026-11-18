@@ -3,6 +3,7 @@ import { rmSync } from "node:fs";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { VECTOR_BIKES_PROFILE } from "../scripts/vector-bikes-profile.ts";
 import { hashPassword } from "../src/server/auth/admin-auth.ts";
 import { E2E_DATABASE_URL, E2E_STORAGE_DIR, SEED, USERS } from "./fixtures.ts";
 
@@ -51,15 +52,40 @@ async function truncateAll(sql: Sql): Promise<void> {
   }
 }
 
+async function seedShop(sql: Sql): Promise<string | null> {
+  if (!(await hasTable(sql, "shops"))) return null;
+  const p = VECTOR_BIKES_PROFILE;
+  const [shop] = await sql<{ id: string }[]>`
+    insert into shops (
+      slug, name, legal_name, rut, email, notify_email, phone, phone_display,
+      street_address, address_short, locality, region, maps_url, instagram_url,
+      certifications, timezone, reception_hours, pickup_hours, daily_capacity,
+      block_minutes, min_notice_minutes, horizon_days, pickup_enabled,
+      pickup_fee_clp, pickup_comunas, code_prefix, status
+    ) values (
+      ${p.slug}, ${p.name}, ${p.legalName}, ${p.rut}, ${p.email}, ${p.notifyEmail},
+      ${p.phone}, ${p.phoneDisplay}, ${p.streetAddress}, ${p.addressShort},
+      ${p.locality}, ${p.region}, ${p.mapsUrl}, ${p.instagramUrl},
+      ${sql.array([...p.certifications])}, ${p.timezone}, ${sql.json(p.receptionHours)},
+      ${sql.json(p.pickupHours)}, ${p.dailyCapacity}, ${p.blockMinutes},
+      ${p.minNoticeMinutes}, ${p.horizonDays}, ${p.pickupEnabled}, ${p.pickupFeeClp},
+      ${sql.array([...p.pickupComunas])}, ${p.codePrefix}, ${p.status}
+    ) returning id
+  `;
+  if (!shop) throw new Error("No se pudo sembrar el taller E2E");
+  return shop.id;
+}
+
 async function seedUsers(sql: Sql): Promise<boolean> {
   if (!(await hasTable(sql, "branches")) || !(await hasTable(sql, "users"))) {
     return false;
   }
   const ownerHash = await hashPassword(USERS.owner.password);
   const mechanicHash = await hashPassword(USERS.mechanic.password);
+  const shopId = await seedShop(sql);
   await sql`
-    insert into branches (id, name, next_order_number)
-    values (${SEED.branchId}, 'Vitacura', 1)
+    insert into branches (id, shop_id, name, next_order_number)
+    values (${SEED.branchId}, ${shopId}, 'Vitacura', 1)
   `;
   await sql`
     insert into users (id, branch_id, email, password_hash, name, role) values
@@ -94,10 +120,10 @@ async function seedBookings(sql: Sql): Promise<void> {
   for (const row of rows) {
     await sql`
       insert into bookings (
-        id, code, service_date, mode, status, starts_at, ends_at, customer_name, phone_e164,
+        id, branch_id, code, service_date, mode, status, starts_at, ends_at, customer_name, phone_e164,
         email, bike, description, consent_at, cancel_token_hash
       ) values (
-        ${row.id}, ${row.code}, ${serviceDate}, 'taller', 'confirmed', ${startsAt}, ${endsAt},
+        ${row.id}, ${SEED.branchId}, ${row.code}, ${serviceDate}, 'taller', 'confirmed', ${startsAt}, ${endsAt},
         ${row.name}, ${row.phone}, ${row.email}, ${row.bike}, 'Mantención general y frenos',
         ${new Date()}, ${randomBytes(32).toString("hex")}
       )

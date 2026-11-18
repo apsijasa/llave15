@@ -7,7 +7,7 @@ import {
 } from "../../src/server/api/handlers.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { bookings } from "../../src/server/db/schema.ts";
-import { type TestDb, createTestDb } from "../helpers/pglite.ts";
+import { type TestDb, createBookingTestDb } from "../helpers/pglite.ts";
 
 /** 2026-09-15 12:00 hora local. */
 const NOW = new Date("2026-09-15T15:00:00.000Z");
@@ -54,7 +54,7 @@ describe("API pública", () => {
   let ctx: HandlerContext;
 
   beforeEach(async () => {
-    test = await createTestDb();
+    test = await createBookingTestDb();
     ctx = { db: test.db, now: NOW, ip: "203.0.113.7", fetchFn: fakeFetch(true) };
     return () => test.close();
   });

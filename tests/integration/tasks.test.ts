@@ -7,7 +7,7 @@ import { createBooking } from "../../src/server/booking/create-booking.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { bookings } from "../../src/server/db/schema.ts";
 import { consoleOutbox } from "../../src/server/email/transport.ts";
-import { type TestDb, createTestDb } from "../helpers/pglite.ts";
+import { type TestDb, createBookingTestDb } from "../helpers/pglite.ts";
 
 const NOW = new Date("2026-09-15T13:00:00.000Z");
 const SECRET = "test-tasks-secret-0123456789abcdef0123";
@@ -53,7 +53,7 @@ describe("tarea de recordatorios", () => {
     logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     consoleOutbox.length = 0;
-    test = await createTestDb();
+    test = await createBookingTestDb();
     return () => test.close();
   });
 

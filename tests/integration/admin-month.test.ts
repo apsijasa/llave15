@@ -5,7 +5,7 @@ import { agendaForDate, createBlock, parseDate } from "../../src/server/admin/ag
 import { type MonthView, monthOverview, parseMonth } from "../../src/server/admin/month.ts";
 import { createBooking } from "../../src/server/booking/create-booking.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
-import { type TestDb, createTestDb } from "../helpers/pglite.ts";
+import { type TestDb, createBookingTestDb } from "../helpers/pglite.ts";
 
 /** 2026-09-15 12:00 hora local: horizonte hasta el 2026-10-15. */
 const NOW = new Date("2026-09-15T15:00:00.000Z");
@@ -75,7 +75,7 @@ describe("vista de mes del panel", () => {
   let test: TestDb;
 
   beforeEach(async () => {
-    test = await createTestDb();
+    test = await createBookingTestDb();
     await book(test.db, "2026-09-16", "15:00", "+56911111111");
     await book(test.db, "2026-09-16", "16:00", "+56922222222");
     for (const [index, start] of ["15:00", "16:00", "17:00", "18:00"].entries()) {
