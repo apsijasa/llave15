@@ -20,6 +20,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env scripts/db-migrate.ts",
     "db:check": "node --env-file-if-exists=.env scripts/db-check.ts",
+    "bg:backfill": "node --env-file-if-exists=.env scripts/bg-backfill.ts",
     "admin:set-password": "node --env-file-if-exists=.env scripts/admin-set-password.ts",
     "reminders:send": "node --env-file-if-exists=.env scripts/reminders-send.ts",
     "library:import": "node --env-file-if-exists=.env scripts/library-import.ts",
