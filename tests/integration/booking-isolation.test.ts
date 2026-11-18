@@ -101,7 +101,8 @@ describe("reservas aisladas por taller", () => {
         vector.scope,
       ),
     ).toEqual({ ok: false, code: "phone_limit" });
-    expect(await test.db.select().from(bookingDays)).toHaveLength(1);
+    // Desde BG-09 cada sucursal tiene su propia fila de día (BG-D42): una de Vector Bikes y una del Taller Demo.
+    expect(await test.db.select().from(bookingDays)).toHaveLength(2);
     expect(await test.db.select().from(bookings)).toHaveLength(2);
   });
 

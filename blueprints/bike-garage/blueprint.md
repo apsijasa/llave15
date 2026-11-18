@@ -264,7 +264,7 @@ const bookingBranchReference = () =>
 ```
 
 ### Migraciones
-`pnpm db:generate` emite el SQL con nombre elegido por drizzle-kit ("la migración que emite `pnpm db:generate`"). Cuatro generaciones: BG-03 (aditiva: tabla, columnas nulables, índices no únicos), BG-09 (`SET NOT NULL` y PK de `booking_days`), BG-10 (índices únicos reemplazados), BG-11 (dos CHECK reemplazados). Nunca `--custom`, nunca editar `drizzle/`; si drizzle-kit pregunta algo, detenerse. Los datos se migran con un script TypeScript idempotente (`pnpm bg:backfill`, BG-05), no con SQL. `pnpm db:migrate` solo contra la base dev. Replit propaga el esquema al publicar, sin datos y sin correr `drizzle/` (`database.md`). Ventanas: V-BG1 (expand, `bg-05`), V-BG2 (migrar datos + código con alcance, `bg-08`), V-BG3 (contract: las tres migraciones de BG-09, BG-10 y BG-11, `bg-11`) (BG-D5).
+`pnpm db:generate` emite el SQL con nombre elegido por drizzle-kit ("la migración que emite `pnpm db:generate`"). Cinco generaciones: BG-03 (aditiva: tabla, columnas nulables, índices no únicos), BG-09 en dos (`SET NOT NULL` con `DROP TABLE "booking_days"`, y `booking_days` de nuevo con su PK compuesta; BG-D42), BG-10 (índices únicos reemplazados), BG-11 (dos CHECK reemplazados). Nunca `--custom`, nunca editar `drizzle/`; si drizzle-kit pregunta algo, detenerse. Los datos se migran con un script TypeScript idempotente (`pnpm bg:backfill`, BG-05), no con SQL. `pnpm db:migrate` solo contra la base dev. Replit propaga el esquema al publicar, sin datos y sin correr `drizzle/` (`database.md`). Ventanas: V-BG1 (expand, `bg-05`), V-BG2 (migrar datos + código con alcance, `bg-08`), V-BG3 (contract: las tres migraciones de BG-09, BG-10 y BG-11, `bg-11`) (BG-D5).
 
 ### Datos iniciales
 Producción: `pnpm bg:backfill --logo public/brand/vector-bikes-logo.png` crea el taller `vector-bikes` con los valores de hoy (`scripts/vector-bikes-profile.ts`; el correo de avisos sale de `SHOP_NOTIFY_EMAIL` de producción), enlaza la sucursal y completa `branch_id` en las siete tablas (V-BG2). Pruebas: `createTestDb()` siembra el taller Vector Bikes (sin sucursal); `createBookingTestDb()` además la sucursal `Vitacura`; `seedTwoShops()` agrega el Taller Demo (`tests/helpers/shops.ts`, `two-shops.ts`). E2E: `global-setup.ts` siembra el taller y su sucursal (BG-04) y el Taller Demo E2E (BG-33).
@@ -771,10 +771,10 @@ git ls-files --error-unmatch docs/ventanas/bg-v2.md   # expect: exit 0 — commi
 
 #### BG-09 — Contract A: NOT NULL y clave de `booking_days` (E1-T9)
 **Archivos:** `src/server/db/schema.ts` · `tests/integration/shops-contract.test.ts` (nuevo)
-**Hacer:** `.notNull()` en `branches.shopId` y en `bookingBranchReference()`; `booking_days` con `primaryKey({ columns: [t.branchId, t.serviceDate] })` (deja de ser PK `service_date`). Una generación. Los valores por defecto de compatibilidad se conservan (BG-D3).
+**Hacer:** `.notNull()` en `branches.shopId` y en `bookingBranchReference()`; `booking_days` con `primaryKey({ columns: [t.branchId, t.serviceDate] })` (deja de ser PK `service_date`). **Dos generaciones (BG-D42):** drizzle-kit 0.31 no sabe borrar la PK de columna (deja el `DROP CONSTRAINT` comentado), así que la primera generación pone los NOT NULL y quita `booking_days` del esquema (`DROP TABLE`), y la segunda la vuelve a agregar con la PK compuesta (`CREATE TABLE`); las filas son anclas de bloqueo que `createBooking` recrea. **Siembra declarada (no cuenta):** `tests/helpers/legacy-db.ts` (nuevo: `createLegacyTestDb()`, la base migrada hasta `0038`, como producción antes de V-BG3), `tests/integration/bg-backfill.test.ts`, `tests/integration/shop-config.test.ts` y `tests/integration/shops-schema.test.ts` (sus filas sin taller o sin sucursal pasan a esa base) y `tests/unit/email-brand.test.ts` (`branchId` de la fixture con un id). **Valor esperado que cambia (declarado):** en `booking-isolation.test.ts` la tabla `booking_days` pasa de 1 a 2 filas en el límite telefónico por sucursal: desde la PK compuesta cada taller tiene su fila de día (cierra el hueco de BG-07); la paridad corre con `--skip` de ese archivo. Los valores por defecto de compatibilidad se conservan (BG-D3).
 **Reglas:** R-db · NN 5, 8 · No cambia: tablas, columnas, nombres de índices.
 **Done when**
-- [ ] WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL dejar NOT NULL `branches.shop_id` y `branch_id` en las siete tablas de reserva, y la clave primaria de `booking_days` en (`branch_id`, `service_date`), sin crear ni borrar tablas ni columnas
+- [ ] WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL dejar NOT NULL `branches.shop_id` y `branch_id` en las siete tablas de reserva, y la clave primaria de `booking_days` en (`branch_id`, `service_date`), sin borrar columnas; `booking_days`, que solo guarda anclas de bloqueo, se borra y se vuelve a crear con esa clave en una segunda generación (BG-D42)
 - [ ] WHEN se inserta una sucursal sin `shop_id` en una base con dos talleres THE SYSTEM SHALL rechazarla con código `23502`
 - [ ] WHEN se inserta una reserva sin `branch_id` en una base con dos sucursales THE SYSTEM SHALL rechazarla con código `23502`
 - [ ] WHEN dos sucursales guardan el mismo `service_date` en `booking_days` THE SYSTEM SHALL aceptar ambas, y la misma sucursal dos veces SHALL rechazarse con `23505`
@@ -784,17 +784,17 @@ git ls-files --error-unmatch docs/ventanas/bg-v2.md   # expect: exit 0 — commi
 ```bash
 pnpm bg:backfill --dry-run | grep -qF '"pending":0'   # expect: exit 0 — la base dev ya está completa (BG-08)
 pnpm test tests/integration/shops-contract.test.ts tests/integration/booking-isolation.test.ts tests/integration/users-schema.test.ts   # expect: exit 0, 0 failed
-f="$(ls drizzle/*.sql | sort | tail -1)"; grep -q 'SET NOT NULL' "$f" && { grep -Eq 'DROP TABLE|DROP COLUMN|CREATE TABLE|RENAME' "$f"; test $? -eq 1; }   # expect: exit 0
+a="$(ls drizzle/*.sql | sort | tail -2 | head -1)"; b="$(ls drizzle/*.sql | sort | tail -1)"; grep -q 'SET NOT NULL' "$a" && test "$(grep -c 'DROP TABLE' "$a")" = 1 && grep -q 'DROP TABLE "booking_days"' "$a" && { grep -Eq 'DROP COLUMN|CREATE TABLE|RENAME' "$a"; test $? -eq 1; } && grep -q 'CREATE TABLE "booking_days"' "$b" && { grep -Eq 'DROP|SET NOT NULL|RENAME' "$b"; test $? -eq 1; }   # expect: exit 0 — dos generaciones: NOT NULL y borrado de booking_days, después booking_days con su clave (BG-D42)
 pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
 test "$(wc -l < src/server/db/schema.ts | tr -d ' ')" -lt 400   # expect: exit 0
-node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
+node scripts/bg-expect-parity.ts --skip tests/integration/booking-isolation.test.ts   # expect: exit 0 — la única expectativa que cambia es la declarada en booking-isolation (BG-D42)
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
 ```bash
 u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud
-git add -- src/server/db/schema.ts tests/integration/shops-contract.test.ts drizzle
+git add -- src/server/db/schema.ts tests/integration/shops-contract.test.ts tests/helpers/legacy-db.ts tests/integration/bg-backfill.test.ts tests/integration/shop-config.test.ts tests/integration/shops-schema.test.ts tests/integration/booking-isolation.test.ts tests/unit/email-brand.test.ts drizzle
 git commit -m "feat: bg-09 make shop and branch columns not null" && git tag bg-09
 git tag -l bg-09 | grep -qx bg-09   # expect: exit 0
 ```
@@ -835,14 +835,14 @@ git tag -l bg-10 | grep -qx bg-10   # expect: exit 0
 - [ ] WHEN `createBooking` recibe un retiro del Taller Demo en `Ñuñoa` THE SYSTEM SHALL guardarlo con `pickup_fee_clp = 9000`
 - [ ] WHEN se guarda una reserva `taller` con `pickup_fee_clp` 100, o un retiro con comuna vacía o sin dirección THE SYSTEM SHALL rechazarla con código `23514`
 - [ ] WHEN corren `create-booking.test.ts`, `multi-bike-booking.test.ts` y `manual-booking.test.ts` THE SYSTEM SHALL pasar sin cambios
-- [ ] WHEN se lee `docs/ventanas/bg-v3.md` THE SYSTEM SHALL nombrar las tres migraciones más nuevas de `drizzle/` y contener `## Precondiciones`, `## Pasos en Replit` y `## Verificación después de publicar`
+- [ ] WHEN se lee `docs/ventanas/bg-v3.md` THE SYSTEM SHALL nombrar las cuatro migraciones más nuevas de `drizzle/` y contener `## Precondiciones`, `## Pasos en Replit` y `## Verificación después de publicar`
 **Verify**
 ```bash
 pnpm test tests/integration/shops-checks.test.ts tests/integration/create-booking.test.ts tests/integration/multi-bike-booking.test.ts tests/integration/manual-booking.test.ts   # expect: exit 0, 0 failed
 f="$(ls drizzle/*.sql | sort | tail -1)"; grep -q 'DROP CONSTRAINT "bookings_fee_check"' "$f" && grep -q 'DROP CONSTRAINT "bookings_retiro_address_check"' "$f" && test "$(grep -c 'ALTER TABLE' "$f")" = 4   # expect: exit 0 — solo las cuatro sentencias de los dos CHECK
 pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
-n=0; for f in $(ls drizzle/*.sql | sort | tail -3); do grep -qF "$(basename "$f")" docs/ventanas/bg-v3.md && n=$((n + 1)); done; test "$n" = 3   # expect: exit 0
+n=0; for f in $(ls drizzle/*.sql | sort | tail -4); do grep -qF "$(basename "$f")" docs/ventanas/bg-v3.md && n=$((n + 1)); done; test "$n" = 4   # expect: exit 0
 grep -qF '## Precondiciones' docs/ventanas/bg-v3.md && grep -qF '## Pasos en Replit' docs/ventanas/bg-v3.md && grep -qF '## Verificación después de publicar' docs/ventanas/bg-v3.md   # expect: exit 0
 node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
 pnpm format && pnpm gate   # expect: exit 0
@@ -2391,6 +2391,7 @@ Numeración propia de este blueprint (`BG-D#`). Las decisiones globales 1–57 v
 | BG-D39 | Voz: los textos visibles de hoy se conservan (las pruebas los afirman); cambian solo los de la firma (BG-49) y se agrega el descriptor del ingreso (BG-48); la tabla de microcopia y la guía de iconos del manual son para pantallas nuevas; los montos siguen con `formatClp` | Reescribir los textos con el manual | Paridad declarada por paso; reescribir cambiaría cientos de expectativas sin que el dueño lo pidiera | El dueño pide la reescritura |
 | BG-D40 | La identidad visual entra en cuatro pasos nuevos, BG-46 … BG-49 (`E2-T13` … `E2-T16`, épica `02-identidad`), que se construyen después de BG-28 y antes de BG-29 (cada uno depende de BG-28 y del anterior; BG-29 depende además de BG-49), sin renumerar; `CLAUDE.md`, `AGENTS.md`, `ui-design.md` y `taller-ui.md` se actualizan en el bundle, en la raíz y en `workspace/`, con "hasta BG-46 / desde BG-47" (patrón BG-D2) | Renumerar BG-29 … BG-45, o un solo paso de identidad | BG-01 … BG-05 ya están construidos y los tags, los encargos y las decisiones citan los números; cuatro pasos respetan el límite de 5 archivos | — |
 | BG-D41 | `readRange`/`readDay` sin sucursal la resuelven con una subconsulta (única sucursal del único taller) dentro de sus tres consultas; con dos talleres no ven filas (falla cerrada). `createBooking` sin alcance sí lanza `ShopScopeError` (BG-07, coordinadora, 18-11-2026) | `singleShopScope` en `readRange` (dos consultas más) | `admin-month.test.ts` afirma tres consultas fijas por mes (paridad); leer vacío nunca cruza talleres y las páginas pasan el alcance desde la etapa 1 | Una pantalla con dos talleres muestra un calendario vacío por no pasar el alcance |
+| BG-D42 | La PK de `booking_days` cambia en dos generaciones: NOT NULL + `DROP TABLE "booking_days"`, y después `CREATE TABLE "booking_days"` con PK (`branch_id`, `service_date`) (BG-09, coordinadora, 18-11-2026) | Una generación (drizzle-kit 0.31 deja el `DROP CONSTRAINT` de la PK de columna comentado y la migración falla) o editar `drizzle/` a mano (prohibido) | Las filas de `booking_days` son solo anclas de bloqueo que `createBooking` recrea con `onConflictDoNothing`; se pierde nada; la ventana V-BG3 corre con el taller cerrado | drizzle-kit sabe nombrar la PK al cambiarla |
 
 ### 20.4 Qué construir después
 Desde la cerca de FASE §2.3:

@@ -267,7 +267,7 @@
     "dependencies": ["E1-T8"],
     "priority": "p0",
     "acceptance": [
-      "WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL dejar NOT NULL `branches.shop_id` y `branch_id` en las siete tablas de reserva, y la clave primaria de `booking_days` en (`branch_id`, `service_date`), sin crear ni borrar tablas ni columnas",
+      "WHEN `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` THE SYSTEM SHALL dejar NOT NULL `branches.shop_id` y `branch_id` en las siete tablas de reserva, y la clave primaria de `booking_days` en (`branch_id`, `service_date`), sin borrar columnas; `booking_days`, que solo guarda anclas de bloqueo, se borra y se vuelve a crear con esa clave en una segunda generación (BG-D42)",
       "WHEN se inserta una sucursal sin `shop_id` en una base con dos talleres THE SYSTEM SHALL rechazarla con código `23502`",
       "WHEN se inserta una reserva sin `branch_id` en una base con dos sucursales THE SYSTEM SHALL rechazarla con código `23502`",
       "WHEN dos sucursales guardan el mismo `service_date` en `booking_days` THE SYSTEM SHALL aceptar ambas, y la misma sucursal dos veces SHALL rechazarse con `23505`",
@@ -277,17 +277,23 @@
     "verify": [
       "pnpm bg:backfill --dry-run | grep -qF '\"pending\":0'   # expect: exit 0 — la base dev ya está completa (BG-08)",
       "pnpm test tests/integration/shops-contract.test.ts tests/integration/booking-isolation.test.ts tests/integration/users-schema.test.ts   # expect: exit 0, 0 failed",
-      "f=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -q 'SET NOT NULL' \"$f\" && { grep -Eq 'DROP TABLE|DROP COLUMN|CREATE TABLE|RENAME' \"$f\"; test $? -eq 1; }   # expect: exit 0",
+      "a=\"$(ls drizzle/*.sql | sort | tail -2 | head -1)\"; b=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -q 'SET NOT NULL' \"$a\" && test \"$(grep -c 'DROP TABLE' \"$a\")\" = 1 && grep -q 'DROP TABLE \"booking_days\"' \"$a\" && { grep -Eq 'DROP COLUMN|CREATE TABLE|RENAME' \"$a\"; test $? -eq 1; } && grep -q 'CREATE TABLE \"booking_days\"' \"$b\" && { grep -Eq 'DROP|SET NOT NULL|RENAME' \"$b\"; test $? -eq 1; }   # expect: exit 0 — dos generaciones: NOT NULL y borrado de booking_days, después booking_days con su clave (BG-D42)",
       "pnpm db:migrate   # expect: exit 0",
       "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
       "test \"$(wc -l < src/server/db/schema.ts | tr -d ' ')\" -lt 400   # expect: exit 0",
-      "node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió",
+      "node scripts/bg-expect-parity.ts --skip tests/integration/booking-isolation.test.ts   # expect: exit 0 — la única expectativa que cambia es la declarada en booking-isolation (BG-D42)",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-09",
     "files": [
       "src/server/db/schema.ts",
-      "tests/integration/shops-contract.test.ts"
+      "tests/integration/shops-contract.test.ts",
+      "tests/helpers/legacy-db.ts",
+      "tests/integration/bg-backfill.test.ts",
+      "tests/integration/shop-config.test.ts",
+      "tests/integration/shops-schema.test.ts",
+      "tests/integration/booking-isolation.test.ts",
+      "tests/unit/email-brand.test.ts"
     ],
     "status": "pending"
   },
@@ -331,14 +337,14 @@
       "WHEN `createBooking` recibe un retiro del Taller Demo en `Ñuñoa` THE SYSTEM SHALL guardarlo con `pickup_fee_clp = 9000`",
       "WHEN se guarda una reserva `taller` con `pickup_fee_clp` 100, o un retiro con comuna vacía o sin dirección THE SYSTEM SHALL rechazarla con código `23514`",
       "WHEN corren `create-booking.test.ts`, `multi-bike-booking.test.ts` y `manual-booking.test.ts` THE SYSTEM SHALL pasar sin cambios",
-      "WHEN se lee `docs/ventanas/bg-v3.md` THE SYSTEM SHALL nombrar las tres migraciones más nuevas de `drizzle/` y contener `## Precondiciones`, `## Pasos en Replit` y `## Verificación después de publicar`"
+      "WHEN se lee `docs/ventanas/bg-v3.md` THE SYSTEM SHALL nombrar las cuatro migraciones más nuevas de `drizzle/` y contener `## Precondiciones`, `## Pasos en Replit` y `## Verificación después de publicar`"
     ],
     "verify": [
       "pnpm test tests/integration/shops-checks.test.ts tests/integration/create-booking.test.ts tests/integration/multi-bike-booking.test.ts tests/integration/manual-booking.test.ts   # expect: exit 0, 0 failed",
       "f=\"$(ls drizzle/*.sql | sort | tail -1)\"; grep -q 'DROP CONSTRAINT \"bookings_fee_check\"' \"$f\" && grep -q 'DROP CONSTRAINT \"bookings_retiro_address_check\"' \"$f\" && test \"$(grep -c 'ALTER TABLE' \"$f\")\" = 4   # expect: exit 0 — solo las cuatro sentencias de los dos CHECK",
       "pnpm db:migrate   # expect: exit 0",
       "pnpm db:check   # expect: exit 0, {\"ok\":true,...}",
-      "n=0; for f in $(ls drizzle/*.sql | sort | tail -3); do grep -qF \"$(basename \"$f\")\" docs/ventanas/bg-v3.md && n=$((n + 1)); done; test \"$n\" = 3   # expect: exit 0",
+      "n=0; for f in $(ls drizzle/*.sql | sort | tail -4); do grep -qF \"$(basename \"$f\")\" docs/ventanas/bg-v3.md && n=$((n + 1)); done; test \"$n\" = 4   # expect: exit 0",
       "grep -qF '## Precondiciones' docs/ventanas/bg-v3.md && grep -qF '## Pasos en Replit' docs/ventanas/bg-v3.md && grep -qF '## Verificación después de publicar' docs/ventanas/bg-v3.md   # expect: exit 0",
       "node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió",
       "pnpm format && pnpm gate   # expect: exit 0"

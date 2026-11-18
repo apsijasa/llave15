@@ -12,7 +12,7 @@ import {
   whatsappMessages,
 } from "../../src/server/db/schema.ts";
 import type { TestDb } from "../helpers/pglite.ts";
-import { createTestDb } from "../helpers/pglite.ts";
+import { createLegacyTestDb } from "../helpers/legacy-db.ts";
 
 function sqlState(error: unknown): string | undefined {
   const seen = new Set<unknown>();
@@ -57,7 +57,8 @@ const shopValues = {
 
 let test: TestDb;
 beforeEach(async () => {
-  test = await createTestDb();
+  // Prueba el esquema expand de BG-03: columnas nulables, como la base antes de V-BG3 (BG-D42).
+  test = await createLegacyTestDb();
 });
 afterEach(async () => {
   await test.close();

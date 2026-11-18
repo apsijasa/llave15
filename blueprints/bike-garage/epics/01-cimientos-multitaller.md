@@ -507,17 +507,21 @@ git ls-files --error-unmatch docs/ventanas/bg-v2.md   # expect: exit 0 — commi
 
 1. `tests/integration/shops-contract.test.ts` primero (`23502` con dos talleres o sucursales; PK compuesta `23505`).
 2. `schema.ts`: `.notNull()` en `branches.shopId` y en `bookingBranchReference()`; `booking_days` con `primaryKey({ columns: [t.branchId, t.serviceDate] })`. Los valores por defecto de compatibilidad se conservan.
-3. `pnpm db:generate` (si pregunta, detenerse) → pruebas → migrate (después de comprobar la base dev completa) → check.
+3. **Dos generaciones (BG-D42):** `pnpm db:generate` con `booking_days` fuera del esquema (NOT NULL + `DROP TABLE`), y otra vez con `booking_days` y su PK compuesta (`CREATE TABLE`); si pregunta, detenerse → pruebas → migrate (después de comprobar la base dev completa) → check.
+4. Siembra declarada (no cuenta): `tests/helpers/legacy-db.ts` (`createLegacyTestDb()`, migrada hasta `0038`), `bg-backfill.test.ts`, `shop-config.test.ts` y `shops-schema.test.ts` (filas sin taller o sucursal en esa base) y `email-brand.test.ts` (`branchId` con un id). Valor declarado: `booking-isolation.test.ts` pasa de 1 a 2 filas de `booking_days` (una por taller); paridad con `--skip` de ese archivo.
 
 **Files**
 - `src/server/db/schema.ts` — edit
 - `tests/integration/shops-contract.test.ts` — new
+- `tests/helpers/legacy-db.ts` — new (siembra declarada)
+- `tests/integration/bg-backfill.test.ts`, `tests/integration/shop-config.test.ts`, `tests/integration/shops-schema.test.ts`, `tests/unit/email-brand.test.ts` — edit (siembra declarada)
+- `tests/integration/booking-isolation.test.ts` — edit (valor declarado)
 
 Reglas: `database.md`. No negociables 5, 8.
 
 **Acceptance**
 
-1. **WHEN** `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` **THE SYSTEM SHALL** dejar NOT NULL `branches.shop_id` y `branch_id` en las siete tablas de reserva, y la clave primaria de `booking_days` en (`branch_id`, `service_date`), sin crear ni borrar tablas ni columnas
+1. **WHEN** `pnpm db:migrate` aplica la migración que emite `pnpm db:generate` **THE SYSTEM SHALL** dejar NOT NULL `branches.shop_id` y `branch_id` en las siete tablas de reserva, y la clave primaria de `booking_days` en (`branch_id`, `service_date`), sin borrar columnas; `booking_days`, que solo guarda anclas de bloqueo, se borra y se vuelve a crear con esa clave en una segunda generación (BG-D42)
 2. **WHEN** se inserta una sucursal sin `shop_id` en una base con dos talleres **THE SYSTEM SHALL** rechazarla con código `23502`
 3. **WHEN** se inserta una reserva sin `branch_id` en una base con dos sucursales **THE SYSTEM SHALL** rechazarla con código `23502`
 4. **WHEN** dos sucursales guardan el mismo `service_date` en `booking_days` **THE SYSTEM SHALL** aceptar ambas, y la misma sucursal dos veces SHALL rechazarse con `23505`
@@ -529,11 +533,11 @@ Reglas: `database.md`. No negociables 5, 8.
 ```bash
 pnpm bg:backfill --dry-run | grep -qF '"pending":0'   # expect: exit 0 — la base dev ya está completa (BG-08)
 pnpm test tests/integration/shops-contract.test.ts tests/integration/booking-isolation.test.ts tests/integration/users-schema.test.ts   # expect: exit 0, 0 failed
-f="$(ls drizzle/*.sql | sort | tail -1)"; grep -q 'SET NOT NULL' "$f" && { grep -Eq 'DROP TABLE|DROP COLUMN|CREATE TABLE|RENAME' "$f"; test $? -eq 1; }   # expect: exit 0
+a="$(ls drizzle/*.sql | sort | tail -2 | head -1)"; b="$(ls drizzle/*.sql | sort | tail -1)"; grep -q 'SET NOT NULL' "$a" && test "$(grep -c 'DROP TABLE' "$a")" = 1 && grep -q 'DROP TABLE "booking_days"' "$a" && { grep -Eq 'DROP COLUMN|CREATE TABLE|RENAME' "$a"; test $? -eq 1; } && grep -q 'CREATE TABLE "booking_days"' "$b" && { grep -Eq 'DROP|SET NOT NULL|RENAME' "$b"; test $? -eq 1; }   # expect: exit 0 — dos generaciones: NOT NULL y borrado de booking_days, después booking_days con su clave (BG-D42)
 pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
 test "$(wc -l < src/server/db/schema.ts | tr -d ' ')" -lt 400   # expect: exit 0
-node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
+node scripts/bg-expect-parity.ts --skip tests/integration/booking-isolation.test.ts   # expect: exit 0 — la única expectativa que cambia es la declarada en booking-isolation (BG-D42)
 pnpm format && pnpm gate   # expect: exit 0
 ```
 
@@ -541,7 +545,7 @@ pnpm format && pnpm gate   # expect: exit 0
 
 ```bash
 u="$(git ls-files --others --exclude-standard)" && test -z "$(printf '%s\n' "$u" | grep -E ' 2(\.[^/]*)?$')"   # expect: exit 0 — sin duplicados de iCloud
-git add -- src/server/db/schema.ts tests/integration/shops-contract.test.ts drizzle
+git add -- src/server/db/schema.ts tests/integration/shops-contract.test.ts tests/helpers/legacy-db.ts tests/integration/bg-backfill.test.ts tests/integration/shop-config.test.ts tests/integration/shops-schema.test.ts tests/integration/booking-isolation.test.ts tests/unit/email-brand.test.ts drizzle
 git commit -m "feat: bg-09 make shop and branch columns not null" && git tag bg-09
 git tag -l bg-09 | grep -qx bg-09   # expect: exit 0
 ```
@@ -596,7 +600,7 @@ git tag -l bg-10 | grep -qx bg-10   # expect: exit 0
 1. `tests/integration/shops-checks.test.ts` primero.
 2. `schema.ts`: los dos CHECK de "Data model" (salen `Vitacura` y `Las Condes`).
 3. `pnpm db:generate` → pruebas → migrate → check.
-4. `docs/ventanas/bg-v3.md`: las tres migraciones de E1-T9, T10 y T11 (nombres reales), el aviso de cambio destructivo que mostrará Replit, `## Precondiciones` (`pnpm bg:backfill --dry-run` con `"pending":0` en producción, taller cerrado, respaldo del día), `## Pasos en Replit`, `## Verificación después de publicar`.
+4. `docs/ventanas/bg-v3.md`: las cuatro migraciones de E1-T9 (dos), T10 y T11 (nombres reales), el aviso de cambio destructivo que mostrará Replit, `## Precondiciones` (`pnpm bg:backfill --dry-run` con `"pending":0` en producción, taller cerrado, respaldo del día), `## Pasos en Replit`, `## Verificación después de publicar`.
 
 **Files**
 - `src/server/db/schema.ts` — edit
@@ -611,7 +615,7 @@ Reglas: `database.md`. No negociable 5.
 2. **WHEN** `createBooking` recibe un retiro del Taller Demo en `Ñuñoa` **THE SYSTEM SHALL** guardarlo con `pickup_fee_clp = 9000`
 3. **WHEN** se guarda una reserva `taller` con `pickup_fee_clp` 100, o un retiro con comuna vacía o sin dirección **THE SYSTEM SHALL** rechazarla con código `23514`
 4. **WHEN** corren `create-booking.test.ts`, `multi-bike-booking.test.ts` y `manual-booking.test.ts` **THE SYSTEM SHALL** pasar sin cambios
-5. **WHEN** se lee `docs/ventanas/bg-v3.md` **THE SYSTEM SHALL** nombrar las tres migraciones más nuevas de `drizzle/` y contener `## Precondiciones`, `## Pasos en Replit` y `## Verificación después de publicar`
+5. **WHEN** se lee `docs/ventanas/bg-v3.md` **THE SYSTEM SHALL** nombrar las cuatro migraciones más nuevas de `drizzle/` y contener `## Precondiciones`, `## Pasos en Replit` y `## Verificación después de publicar`
 
 **Verify**
 
@@ -620,7 +624,7 @@ pnpm test tests/integration/shops-checks.test.ts tests/integration/create-bookin
 f="$(ls drizzle/*.sql | sort | tail -1)"; grep -q 'DROP CONSTRAINT "bookings_fee_check"' "$f" && grep -q 'DROP CONSTRAINT "bookings_retiro_address_check"' "$f" && test "$(grep -c 'ALTER TABLE' "$f")" = 4   # expect: exit 0 — solo las cuatro sentencias de los dos CHECK
 pnpm db:migrate   # expect: exit 0
 pnpm db:check   # expect: exit 0, {"ok":true,...}
-n=0; for f in $(ls drizzle/*.sql | sort | tail -3); do grep -qF "$(basename "$f")" docs/ventanas/bg-v3.md && n=$((n + 1)); done; test "$n" = 3   # expect: exit 0
+n=0; for f in $(ls drizzle/*.sql | sort | tail -4); do grep -qF "$(basename "$f")" docs/ventanas/bg-v3.md && n=$((n + 1)); done; test "$n" = 4   # expect: exit 0
 grep -qF '## Precondiciones' docs/ventanas/bg-v3.md && grep -qF '## Pasos en Replit' docs/ventanas/bg-v3.md && grep -qF '## Verificación después de publicar' docs/ventanas/bg-v3.md   # expect: exit 0
 node scripts/bg-expect-parity.ts   # expect: exit 0 — ninguna expectativa de una prueba existente cambió
 pnpm format && pnpm gate   # expect: exit 0

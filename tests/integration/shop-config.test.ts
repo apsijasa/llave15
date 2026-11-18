@@ -16,6 +16,7 @@ import {
 import { shops } from "../../src/server/db/schema-shops.ts";
 import { branches } from "../../src/server/db/schema.ts";
 import { ShopScopeError, scopeForBranch, singleShopScope } from "../../src/server/shops/scope.ts";
+import { createLegacyTestDb, NO_SHOP } from "../helpers/legacy-db.ts";
 import type { TestDb } from "../helpers/pglite.ts";
 import { createTestDb } from "../helpers/pglite.ts";
 import { DEMO_SHOP_PROFILE, insertBranchForShop, seedShop } from "../helpers/shops.ts";
@@ -235,10 +236,12 @@ describe("alcance del taller", () => {
   });
 
   it("devuelve null para una sucursal inexistente o sin taller asociado", async () => {
+    await test.close();
+    test = await createLegacyTestDb(); // la sucursal huérfana solo cabe antes de V-BG3
     expect(await scopeForBranch(test.db, "00000000-0000-0000-0000-000000000000")).toBeNull();
     const [orphan] = await test.db
       .insert(branches)
-      .values({ name: "Sin taller", shopId: null })
+      .values({ name: "Sin taller", shopId: NO_SHOP })
       .returning();
     if (!orphan) throw new Error("Falta la sucursal de prueba");
     expect(await scopeForBranch(test.db, orphan.id)).toBeNull();

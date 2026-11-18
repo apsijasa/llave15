@@ -14,7 +14,7 @@ import {
 import { backfillFirstShop } from "../../src/server/shops/backfill.ts";
 import type { ObjectStorage } from "../../src/server/storage/storage.ts";
 import type { TestDb } from "../helpers/pglite.ts";
-import { createTestDb } from "../helpers/pglite.ts";
+import { createLegacyTestDb, NO_BRANCH, NO_SHOP } from "../helpers/legacy-db.ts";
 import { DEMO_SHOP_PROFILE, seedShop, VECTOR_BIKES_PROFILE } from "../helpers/shops.ts";
 
 const now = new Date("2026-11-18T12:00:00Z");
@@ -30,7 +30,7 @@ const tables = {
 };
 let test: TestDb;
 beforeEach(async () => {
-  test = await createTestDb();
+  test = await createLegacyTestDb();
   await test.db.delete(shops);
 });
 afterEach(async () => {
@@ -41,7 +41,7 @@ async function seedLegacyBooking() {
   const [booking] = await test.db
     .insert(bookings)
     .values({
-      branchId: null,
+      branchId: NO_BRANCH,
       code: "VB-001",
       serviceDate: "2026-11-23",
       mode: "taller",
@@ -62,33 +62,35 @@ async function seedLegacyBooking() {
 async function seedLegacyRows() {
   const [branch] = await test.db
     .insert(branches)
-    .values({ name: "Sucursal inicial", shopId: null })
+    .values({ name: "Sucursal inicial", shopId: NO_SHOP })
     .returning();
   if (!branch) throw new Error("Falta la sucursal de prueba");
   const booking = await seedLegacyBooking();
   await test.db.insert(bookingBikes).values({
-    branchId: null,
+    branchId: NO_BRANCH,
     bookingId: booking.id,
     position: 2,
     bike: "Ruta",
     description: "Mantención",
   });
   await test.db.insert(bookingBlocks).values({
-    branchId: null,
+    branchId: NO_BRANCH,
     bookingId: booking.id,
     serviceDate: booking.serviceDate,
     blockStart: "10:00",
   });
-  await test.db.insert(bookingDays).values({ branchId: null, serviceDate: booking.serviceDate });
+  await test.db
+    .insert(bookingDays)
+    .values({ branchId: NO_BRANCH, serviceDate: booking.serviceDate });
   await test.db.insert(blockedPeriods).values({
-    branchId: null,
+    branchId: NO_BRANCH,
     serviceDate: booking.serviceDate,
     reason: "Bloqueo de prueba",
   });
-  await test.db.insert(bookingRequests).values({ branchId: null, ipHash: "test-hash" });
+  await test.db.insert(bookingRequests).values({ branchId: NO_BRANCH, ipHash: "test-hash" });
   await test.db
     .insert(whatsappMessages)
-    .values({ branchId: null, bookingId: booking.id, type: "ready" });
+    .values({ branchId: NO_BRANCH, bookingId: booking.id, type: "ready" });
   return branch;
 }
 
@@ -184,7 +186,7 @@ it("dry-run informa los conteos sin escribir ni subir el logo y no exige correo"
 
 it("rechaza dos sucursales sin taller sin escribir ni subir un logo", async () => {
   await seedLegacyRows();
-  await test.db.insert(branches).values({ name: "Segunda sucursal", shopId: null });
+  await test.db.insert(branches).values({ name: "Segunda sucursal", shopId: NO_SHOP });
   const before = await snapshot();
   const { storage } = fakeStorage();
   expect(

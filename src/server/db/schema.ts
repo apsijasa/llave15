@@ -7,6 +7,7 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   text,
   time,
   timestamp,
@@ -29,9 +30,9 @@ const onlyBranchId = () =>
 
 const bookingBranchReference = () =>
   uuid("branch_id")
+    .notNull()
     .references((): AnyPgColumn => branches.id, { onDelete: "restrict" })
     .$defaultFn(onlyBranchId);
-// BG-09 agrega .notNull() a esta función y a branches.shopId.
 
 export const bookings = pgTable(
   "bookings",
@@ -151,11 +152,15 @@ export const bookingBlocks = pgTable(
   ],
 );
 
-export const bookingDays = pgTable("booking_days", {
-  branchId: bookingBranchReference(),
-  serviceDate: date("service_date", { mode: "string" }).primaryKey(),
-  createdAt: createdAt(),
-});
+export const bookingDays = pgTable(
+  "booking_days",
+  {
+    branchId: bookingBranchReference(),
+    serviceDate: date("service_date", { mode: "string" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.branchId, t.serviceDate] })],
+);
 
 export const blockedPeriods = pgTable(
   "blocked_periods",
@@ -184,6 +189,7 @@ export const branches = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     shopId: uuid("shop_id")
+      .notNull()
       .references(() => shops.id, { onDelete: "restrict" })
       .$defaultFn(onlyShopId),
     name: text("name").notNull(),
