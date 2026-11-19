@@ -1,6 +1,4 @@
 ---
-import { SITE } from "../../lib/site.ts";
-
 type ReportPhoto = { photoId: string; thumbKey: string };
 interface ReportSnapshot {
   version: 1;
@@ -40,8 +38,16 @@ interface ReportSnapshot {
 interface Props {
   snapshot: ReportSnapshot;
   photos: Record<string, string>;
+  brand?: {
+    name: string;
+    addressShort: string;
+    email: string;
+    phoneDisplay: string;
+    certifications: readonly string[];
+    logoPath: string | null;
+  };
 }
-const { snapshot, photos } = Astro.props;
+const { snapshot, photos, brand } = Astro.props;
 const { bike } = snapshot;
 const amount = (value: number) => `$${new Intl.NumberFormat("es-CL").format(Math.round(value))}`;
 const total = amount(snapshot.totalClp);
@@ -113,10 +119,10 @@ const photoGroups = [
     <dt>IVA ({snapshot.vatRatePercent}%)</dt><dd class="mono">{amount(snapshot.vatClp)}</dd>
     <dt>Total</dt><dd class="mono">{total}</dd>
   </dl> : <p class="tabular-nums">{total}</p>}</section>
-  <section aria-label="Contacto del taller">
-    <p>{SITE.name} · {SITE.addressShort} · {SITE.email} · {SITE.phoneDisplay}</p>
-    {SITE.certifications.length > 0 && <p>Certificaciones: {SITE.certifications.join(" · ")}</p>}
-  </section>
+  {brand && <section aria-label="Contacto del taller">
+    <p>{brand.name} · {brand.addressShort} · {brand.email} · {brand.phoneDisplay}</p>
+    {brand.certifications.length > 0 && <p>Certificaciones: {brand.certifications.join(" · ")}</p>}
+  </section>}
 </article>
 
 <style>

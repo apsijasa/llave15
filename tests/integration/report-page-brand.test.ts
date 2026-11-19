@@ -1,8 +1,10 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
+import { eq } from "drizzle-orm";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { SessionUser } from "../../src/server/auth/admin-auth.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { workOrders } from "../../src/server/db/schema-orders.ts";
+import { shops } from "../../src/server/db/schema-shops.ts";
 import { bikes, customers } from "../../src/server/db/schema-taller.ts";
 import { branches, users } from "../../src/server/db/schema.ts";
 import type { ObjectStorage } from "../../src/server/storage/storage.ts";
@@ -30,7 +32,7 @@ vi.mock("../../src/server/storage/storage.ts", () => ({
 const { default: ReportPage } = await import("../../src/pages/informe/[token].astro");
 const SITE = "https://vectorbikes.cl";
 const NOW = new Date("2026-11-12T15:00:00Z");
-const LOGO = '<img src="/brand/vector-bikes-logo.png" alt="Vector Bikes"';
+const LOGO = '<img src="/vector-bikes/logo" alt="Vector Bikes"';
 let test: TestDb;
 
 async function seedReport(): Promise<string> {
@@ -106,6 +108,10 @@ async function render(token: string) {
 beforeEach(async () => {
   test = await createTestDb();
   holder.db = test.db;
+  await test.db
+    .update(shops)
+    .set({ logoKey: "shops/vector-bikes/logo.png" })
+    .where(eq(shops.slug, "vector-bikes"));
   return async () => {
     holder.db = null;
     await test.close();

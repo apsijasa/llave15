@@ -1,20 +1,9 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ReportSnapshot } from "../../src/server/taller/reports.ts";
+import { SITE } from "../helpers/shops.ts";
 
-const brand = vi.hoisted(() => ({ certifications: [] as readonly string[] }));
-vi.mock("../../src/lib/site.ts", async (original) => {
-  const { SITE, ...rest } = await original<typeof import("../../src/lib/site.ts")>();
-  return {
-    ...rest,
-    SITE: {
-      ...SITE,
-      get certifications() {
-        return brand.certifications;
-      },
-    },
-  };
-});
+const brand = { ...SITE, certifications: [] as readonly string[] };
 
 const snapshot: ReportSnapshot = {
   version: 1,
@@ -53,7 +42,7 @@ async function render(certifications: readonly string[]) {
   brand.certifications = certifications;
   const { default: ReportView } = await import("../../src/components/taller/ReportView.astro");
   const container = await AstroContainer.create();
-  return container.renderToString(ReportView, { props: { snapshot, photos: {} } });
+  return container.renderToString(ReportView, { props: { snapshot, photos: {}, brand } });
 }
 
 it.each([{ certifications: [] }, { certifications: ["Shimano Service Center", "SRAM Technical"] }])(

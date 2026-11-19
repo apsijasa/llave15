@@ -7,10 +7,12 @@ import ReportView from "../../../../components/taller/ReportView.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { getSiteEnv } from "../../../../lib/env.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
+import { profileForBranch } from "../../../../server/shops/profile.ts";
 import { getStorage } from "../../../../server/storage/storage.ts";
 import { whatsappShareLink } from "../../../../server/taller/approvals.ts";
 import {
@@ -59,6 +61,8 @@ const id = z.uuid().safeParse(Astro.params.id);
 if (!id.success) return notFound();
 const detail = await orderDetail(db, user, id.data);
 if (!detail.ok) return detail.code === "forbidden" ? forbidden() : notFound();
+const profile = await profileForBranch(db, user.branchId);
+if (!profile) return notFound();
 let report = await getReportForStaff(db, user, id.data);
 let plan = (await getMaintenancePlan(db, user, id.data)) ?? {
   nextMaintenanceDate: suggestedMaintenanceDate(now),
@@ -108,7 +112,7 @@ if (Astro.request.method === "POST") {
       if (detail.customer.phoneE164)
         whatsapp = whatsappShareLink(
           detail.customer.phoneE164,
-          `Hola ${firstName}, aquí está el informe del servicio de tu bicicleta en Vector Bikes: ${link}`,
+          `Hola ${firstName}, aquí está el informe del servicio de tu bicicleta en ${profile.name}: ${link}`,
         );
       report = await getReportForStaff(db, user, id.data);
       if (report)
@@ -142,7 +146,7 @@ const { order } = detail;
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---
 
-<TallerLayout title={`${number} · Informe — Vector Bikes`} description="Informe final del servicio de la bicicleta." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Informe — ${PLATFORM.name}`} description="Informe final del servicio de la bicicleta." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={`${number} · Informe`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="informe" tabs={tabs} />
@@ -166,6 +170,6 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
         <div class="field"><label for="nextMaintenanceNote">Nota para el cliente (opcional)</label><input id="nextMaintenanceNote" name="nextMaintenanceNote" type="text" maxlength="300" value={plan.nextMaintenanceNote} aria-invalid={fieldErrors.has("nextMaintenanceNote")} aria-describedby={fieldErrors.has("nextMaintenanceNote") ? "form-error" : undefined} /></div>
       </div><button class="btn" type="submit">{report ? "Regenerar informe" : "Generar informe"}</button></fieldset>
     </form></Card>
-    {report && <Card><ReportView snapshot={report.snapshot} photos={photos} /></Card>}
+    {report && <Card><ReportView snapshot={report.snapshot} photos={photos} brand={profile} /></Card>}
   </div>
 </TallerLayout>

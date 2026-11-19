@@ -1,4 +1,5 @@
 import QRCode from "qrcode";
+import { PLATFORM } from "../../lib/platform.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import type { AppDb } from "../db/client.ts";
 import { formatOrderNumber, getOrderHeader } from "./orders.ts";
@@ -40,7 +41,7 @@ export function renderLabelHtml(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>Etiqueta ${label} — Vector Bikes</title>
+  <title>Etiqueta ${label} — ${PLATFORM.name}</title>
   <style>
     @page { size: ${width}mm auto; margin: 0; }
     body { width: ${width}mm; margin: 0; font-family: sans-serif; color: black; background: white; }

@@ -6,6 +6,7 @@ import { hashPassword, loginAdmin } from "../../src/server/auth/admin-auth.ts";
 import type { SessionUser } from "../../src/server/auth/admin-auth.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { workOrders } from "../../src/server/db/schema-orders.ts";
+import { shops } from "../../src/server/db/schema-shops.ts";
 import { bikes, customers } from "../../src/server/db/schema-taller.ts";
 import { branches, users } from "../../src/server/db/schema.ts";
 import type { ObjectStorage } from "../../src/server/storage/storage.ts";
@@ -137,6 +138,10 @@ async function getPlan() {
 beforeEach(async () => {
   test = await createTestDb();
   holder.db = test.db;
+  await test.db
+    .update(shops)
+    .set({ logoKey: "shops/vector-bikes/logo.png" })
+    .where(eq(shops.slug, "vector-bikes"));
   for (const level of ["info", "warn", "error"] as const) vi.spyOn(log, level);
   await seedOwner();
   await seedOrder();
@@ -195,7 +200,7 @@ it("genera por POST, guarda el plan y lo muestra con el logo en el informe públ
   expect(body.indexOf("Próxima mantención sugerida")).toBeGreaterThan(
     body.indexOf("Próximas revisiones"),
   );
-  expect(body.indexOf("/brand/vector-bikes-logo.png")).toBeLessThan(body.indexOf("<h1"));
+  expect(body.indexOf("/vector-bikes/logo")).toBeLessThan(body.indexOf("<h1"));
   expect(JSON.stringify(info.mock.calls)).not.toContain(token);
 });
 
