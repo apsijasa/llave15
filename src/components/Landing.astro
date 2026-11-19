@@ -2,26 +2,16 @@
 import BookingIsland from "./islands/BookingIsland.tsx";
 import type { IslandShop } from "./islands/booking-state.ts";
 import { formatClp } from "./islands/booking-state.ts";
-import { FAQ } from "../lib/faq.ts";
-import { SITE, whatsappHref } from "../lib/site.ts";
+import { VECTOR_BIKES_SITE } from "../../web/vector-bikes/src/content/site.ts";
+import { whatsappHref } from "../lib/site.ts";
 
 interface Props {
   siteKey: string;
 }
 
 const { siteKey } = Astro.props;
-const shop: IslandShop = {
-  slug: "vector-bikes",
-  name: SITE.name,
-  addressShort: SITE.addressShort,
-  pickupEnabled: true,
-  pickupComunas: ["Vitacura", "Las Condes"],
-  pickupFeeClp: 15000,
-  horizonDays: 14,
-  blockMinutes: 30,
-  codePrefix: "VB",
-  privacyHref: "/privacidad",
-};
+const shop: IslandShop = VECTOR_BIKES_SITE.islandShop;
+const { weekdays, saturday: saturdayHours } = VECTOR_BIKES_SITE.receptionHours;
 
 /** Misma geometría que `drawScale` del prototipo: eje 10:00–20:00, tick cada 30 min. */
 const AXIS_FROM = 10 * 60;
@@ -39,9 +29,9 @@ const ticks = Array.from({ length: AXIS_SPAN / 30 + 1 }, (_, index) => {
   return { left: ((minutes - AXIS_FROM) / AXIS_SPAN) * 100, major: minutes % 60 === 0 };
 });
 
-const week = segment(15 * 60, 20 * 60);
-const saturday = segment(10 * 60, 14 * 60);
-/** Mismo origen que el botón flotante de Base.astro: el entorno, no SITE. */
+const week = segment(weekdays.from, weekdays.to);
+const saturday = segment(saturdayHours.from, saturdayHours.to);
+/** Mismo origen que el botón flotante de Base.astro: el entorno. */
 const whatsapp = whatsappHref(import.meta.env.PUBLIC_WHATSAPP_NUMBER);
 const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
   left: ((hour - 10) / 10) * 100,
@@ -52,7 +42,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
 <section class="hero">
   <div class="wrap">
     <div>
-      <span class="label">Taller de bicicletas · Vitacura</span>
+      <span class="label">{VECTOR_BIKES_SITE.heroLabel}</span>
       <h1>Mecánica de precisión.</h1>
       <p class="lede">Reserva tu hora, déjala en nuestro local o te la vamos a buscar.</p>
       <div class="actions">
@@ -112,7 +102,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
       <div class="step">
         <span class="n">1 / 3</span>
         <h3>Eliges tu bloque</h3>
-        <p>Bloques de 30 minutos. Nos cuentas qué le pasa a tu bici o qué quieres hacerle.</p>
+        <p>{VECTOR_BIKES_SITE.blockDescription}</p>
       </div>
       <div class="step">
         <span class="n">2 / 3</span>
@@ -138,9 +128,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
       <div>
         <h2>Elige día y bloque.</h2>
         <p>
-          Recibimos bicicletas de lunes a viernes de 15:00 a 20:00 y los sábados de 10:00 a 14:00.
-          El retiro a domicilio parte a las 09:00 de lunes a viernes. Puedes reservar desde dos horas
-          antes y hasta 30 días adelante.
+          {VECTOR_BIKES_SITE.bookingDescription}
         </p>
       </div>
     </div>
@@ -154,7 +142,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
           Escribir por WhatsApp
         </a>
       )}
-      <a class="btn ghost" href={`tel:${SITE.phone}`}>Llamar al taller</a>
+      <a class="btn ghost" href={`tel:${VECTOR_BIKES_SITE.phone}`}>Llamar al taller</a>
     </noscript>
     <BookingIsland client:visible siteKey={siteKey} shop={shop} />
   </div>
@@ -179,7 +167,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
     <dl class="spec">
       <div class="row"><dt>Cobertura</dt><dd>{shop.pickupComunas.join(" y ")}</dd></div>
       <div class="row"><dt>Incluye</dt><dd>Retiro y devolución</dd></div>
-      <div class="row"><dt>Duración</dt><dd>Ocupa 1 hora de agenda (2 bloques)</dd></div>
+      <div class="row"><dt>Duración</dt><dd>{VECTOR_BIKES_SITE.pickupDuration}</dd></div>
       <div class="row"><dt>Pago</dt><dd>Al devolverla. Llevamos POS para tarjeta</dd></div>
     </dl>
   </div>
@@ -189,20 +177,20 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
   <div class="wrap split">
     <div>
       <h2 class="label">Taller</h2>
-      <p class="addr" style="margin-top:14px">Avenida Kennedy 7666<br />Vitacura, Santiago</p>
+      <p class="addr" style="margin-top:14px">{VECTOR_BIKES_SITE.streetAddress}<br />{VECTOR_BIKES_SITE.addressCity}</p>
       <p style="margin-top:12px">
-        <a href={SITE.mapsUrl} rel="noopener" target="_blank">Abrir en Google Maps ↗</a>
+        <a href={VECTOR_BIKES_SITE.mapsUrl} rel="noopener" target="_blank">Abrir en Google Maps ↗</a>
       </p>
       <p style="margin-top:12px">
-        <a href={`tel:${SITE.phone}`}>{SITE.phoneDisplay}</a>
+        <a href={`tel:${VECTOR_BIKES_SITE.phone}`}>{VECTOR_BIKES_SITE.phoneDisplay}</a>
       </p>
-      {SITE.certifications.length > 0 && <p style="margin-top:12px">Certificaciones: {SITE.certifications.join(" · ")}</p>}
+      {VECTOR_BIKES_SITE.certifications.length > 0 && <p style="margin-top:12px">Certificaciones: {VECTOR_BIKES_SITE.certifications.join(" · ")}</p>}
     </div>
     <div>
       <span class="label">Horario de recepción</span>
       <table class="hours-table">
-        <tr><th scope="row">Lunes a viernes</th><td>15:00 – 20:00</td></tr>
-        <tr><th scope="row">Sábado</th><td>10:00 – 14:00</td></tr>
+        <tr><th scope="row">Lunes a viernes</th><td>{weekdays.range}</td></tr>
+        <tr><th scope="row">Sábado</th><td>{saturdayHours.range}</td></tr>
         <tr><th scope="row">Domingo y feriados</th><td>Cerrado</td></tr>
       </table>
     </div>
@@ -217,7 +205,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
     </div>
     <div class="faq">
       {
-        FAQ.map(({ q, a }, index) => (
+        VECTOR_BIKES_SITE.faq.map(({ q, a }, index) => (
           <details open={index === 0}>
             <summary>{q}</summary>
             <p>{a}</p>

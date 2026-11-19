@@ -4,6 +4,7 @@ export type IslandShop = {
   slug: string;
   name: string;
   addressShort: string;
+  email?: string;
   pickupEnabled: boolean;
   pickupComunas: string[];
   pickupFeeClp: number;

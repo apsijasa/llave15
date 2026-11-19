@@ -119,6 +119,7 @@ export function DayFieldset({
   onPick: (date: string) => void;
   onRetry: () => void;
 }) {
+  const shop = useContext(ShopContext);
   const empty = availability.status === "ready" && days.every((day) => day.status !== "open");
   return (
     <fieldset aria-busy={availability.status === "loading"}>
@@ -136,7 +137,8 @@ export function DayFieldset({
       )}
       {empty && (
         <p class="ruler-note">
-          No hay días disponibles en las próximas dos semanas. Escríbenos a info@vectorbikes.cl.
+          No hay días disponibles en las próximas dos semanas.{" "}
+          {shop?.email ? `Escríbenos a ${shop.email}.` : "Escríbenos para coordinar otra fecha."}
         </p>
       )}
       {days.length > 0 && (
