@@ -24,7 +24,9 @@ Rama `feat/bike-garage`, sobre el último commit (tag `bg-23`). Prueba nueva pri
 
 Cinco archivos escritos a mano:
 
-1. `src/components/taller/ReportView.astro`: recibe `brand` ya formateado (`{ name, addressShort, email, phoneDisplay, certifications, logoPath }`) como prop, en vez de `SITE` (líneas ~117-118). No importa `src/server/**` ni `src/lib/site.ts`.
+1. `src/components/taller/ReportView.astro`: recibe `brand` ya formateado (`{ name, addressShort, email, phoneDisplay, certifications, logoPath }`) como prop **opcional**, en vez de `SITE` (líneas ~117-118). Con `brand`, la línea de contacto y las certificaciones salen de la marca; **sin `brand`, esas dos líneas no se renderizan** (`tests/integration/report-pricing.test.ts:121` renderiza `ReportView` solo con `snapshot` y `photos`, revisa montos y no se toca). No importa `src/server/**` ni `src/lib/site.ts`.
+
+**Primer pase (19-nov, revertido):** `brand` era obligatorio y `report-pricing.test.ts` falló cinco veces con `Cannot read properties of undefined (reading 'name')` en `ReportView.astro`. Lo demás del primer pase estaba bien; repítelo con `brand` opcional.
 2. `src/pages/informe/[token].astro`: con un informe válido, resuelve `profileForShareToken(db, "informe", token)` y renderiza con `AppLayout` según BG-D47 (logo del perfil, título `Informe de servicio — <nombre del taller>`, `ReportView` con la marca del perfil, la línea `PLATFORM.footerLine` al final). Token desconocido, inválido o con límite: mismo código y mensaje de hoy, título `… — Llave 15`, sin marca de ningún taller.
 3. `src/pages/taller/ordenes/[id]/informe.astro`: título `<número> · Informe — Llave 15` (`PLATFORM.name`); el texto de WhatsApp (línea ~111) usa el nombre del perfil de la sucursal del usuario (`profileForBranch(db, user.branchId)`); pasa a `ReportView` la marca del mismo perfil.
 4. `src/server/taller/label.ts`: el título de la etiqueta es `Etiqueta <número> — Llave 15` (`PLATFORM.name`).
