@@ -1,16 +1,16 @@
+import { vectorBikesBrand } from "../helpers/shops.ts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking } from "../../src/server/db/schema.ts";
 import { quoteEmail } from "../../src/server/email/order-templates.ts";
 import {
   bookingRescheduledEmail,
   customerConfirmationEmail,
-  readyForPickupEmail,
-  receivedBikeEmail,
   reminderEmail,
   shopCancellationEmail,
   shopNewBookingEmail,
   shopRescheduledEmail,
-} from "../../src/server/email/templates.ts";
+} from "../../src/server/email/booking/templates.ts";
+import { readyForPickupEmail, receivedBikeEmail } from "../../src/server/email/templates.ts";
 
 const brand = vi.hoisted(() => ({ certifications: [] as readonly string[] }));
 vi.mock("../../src/lib/site.ts", async (original) => {
@@ -25,6 +25,13 @@ vi.mock("../../src/lib/site.ts", async (original) => {
     },
   };
 });
+
+const bookingBrand = {
+  ...vectorBikesBrand(),
+  get certifications() {
+    return brand.certifications;
+  },
+};
 
 const NOW = new Date("2026-11-12T15:00:00Z");
 const BOOKING: Booking = {
@@ -77,13 +84,17 @@ const CASES = [
   [
     "customerConfirmationEmail",
     () =>
-      customerConfirmationEmail(BOOKING, "https://vectorbikes.cl/reservas/cancelar?token=prueba"),
+      customerConfirmationEmail(
+        bookingBrand,
+        BOOKING,
+        "https://vectorbikes.cl/reservas/cancelar?token=prueba",
+      ),
   ],
-  ["bookingRescheduledEmail", () => bookingRescheduledEmail(BOOKING, PREVIOUS)],
-  ["reminderEmail", () => reminderEmail(BOOKING)],
-  ["shopNewBookingEmail", () => shopNewBookingEmail(BOOKING)],
-  ["shopRescheduledEmail", () => shopRescheduledEmail(BOOKING, PREVIOUS)],
-  ["shopCancellationEmail", () => shopCancellationEmail(BOOKING)],
+  ["bookingRescheduledEmail", () => bookingRescheduledEmail(bookingBrand, BOOKING, PREVIOUS)],
+  ["reminderEmail", () => reminderEmail(bookingBrand, BOOKING)],
+  ["shopNewBookingEmail", () => shopNewBookingEmail(bookingBrand, BOOKING)],
+  ["shopRescheduledEmail", () => shopRescheduledEmail(bookingBrand, BOOKING, PREVIOUS)],
+  ["shopCancellationEmail", () => shopCancellationEmail(bookingBrand, BOOKING)],
   ["receivedBikeEmail", () => receivedBikeEmail(ORDER)],
   ["readyForPickupEmail", () => readyForPickupEmail(ORDER)],
   ["quoteEmail", () => quoteEmail(ORDER)],

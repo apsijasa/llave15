@@ -212,7 +212,13 @@ export async function createManualBooking(
       const extra = declaredBikes(data)
         .slice(1)
         .map((bike, index) => ({ position: index + 2, ...bike }));
-      await (deps.notify ?? notifyBookingCreated)(result.booking, result.cancelToken, {}, extra);
+      await (deps.notify ?? notifyBookingCreated)(
+        result.booking,
+        result.cancelToken,
+        {},
+        extra,
+        db,
+      );
     } catch {
       log.error("email.failed", { kind: "manual_booking", code: result.booking.code });
     }

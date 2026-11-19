@@ -106,7 +106,7 @@ export async function performCancellation(
       : { view, booking: summarize(booking) };
   }
 
-  const notify = deps.notify ?? ((cancelled: Booking) => notifyBookingCancelled(cancelled));
+  const notify = deps.notify ?? ((cancelled: Booking) => notifyBookingCancelled(cancelled, {}, db));
   try {
     await notify(result.booking);
   } catch (error) {

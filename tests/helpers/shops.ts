@@ -1,3 +1,6 @@
+import { VECTOR_BIKES_PROFILE } from "../../scripts/vector-bikes-profile.ts";
+import { PLATFORM } from "../../src/lib/platform.ts";
+import type { EmailBrand } from "../../src/server/email/brand.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { shops } from "../../src/server/db/schema-shops.ts";
 import { branches } from "../../src/server/db/schema.ts";
@@ -67,4 +70,36 @@ export async function insertBranchForShop(db: AppDb, shopId: string, name: strin
   const [branch] = await db.insert(branches).values({ shopId, name }).returning();
   if (!branch) throw new Error("No se pudo sembrar la sucursal de prueba");
   return branch;
+}
+
+/** Datos del taller. Única fuente de verdad para direcciones, contacto y enlaces. */
+export const SITE = {
+  name: "Vector Bikes",
+  url: "https://vectorbikes.cl",
+  logoPath: "/brand/vector-bikes-logo.png",
+  certifications: [] as const as readonly string[],
+  streetAddress: "Avenida Kennedy 7666",
+  addressShort: "Av. Kennedy 7666, Vitacura",
+  locality: "Vitacura",
+  region: "Región Metropolitana",
+  country: "CL",
+  email: "info@vectorbikes.cl",
+  phone: "+56985095780",
+  phoneDisplay: "+56 9 8509 5780",
+  instagramUrl: "https://instagram.com/vector.bikes",
+  instagramHandle: "@vector.bikes",
+  mapsUrl: "https://www.google.com/maps/search/?api=1&query=Avenida+Kennedy+7666+Vitacura",
+} as const;
+
+/** La marca de reserva del primer taller, con los valores de su siembra. */
+export function vectorBikesBrand(): EmailBrand {
+  return {
+    shopName: VECTOR_BIKES_PROFILE.name,
+    replyTo: VECTOR_BIKES_PROFILE.email,
+    notifyEmail: VECTOR_BIKES_PROFILE.notifyEmail,
+    phoneDisplay: VECTOR_BIKES_PROFILE.phoneDisplay,
+    addressShort: VECTOR_BIKES_PROFILE.addressShort,
+    logoPath: `/${VECTOR_BIKES_PROFILE.slug}/logo`,
+    footerLine: PLATFORM.footerLine,
+  };
 }

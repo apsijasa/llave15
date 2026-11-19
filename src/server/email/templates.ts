@@ -1,10 +1,10 @@
 import { DateTime } from "luxon";
 import { SITE } from "../../lib/site.ts";
 import { RECEPTION_HOURS, TIMEZONE } from "../booking/rules.ts";
-import type { Booking } from "../db/schema.ts";
 import type { PricingMode } from "../taller/rules.ts";
 import { amountRows, pricingFromNet } from "./amounts.ts";
 import type { OrderPricing } from "./amounts.ts";
+import type { EmailBrand } from "./brand.ts";
 
 export type RenderedEmail = { subject: string; html: string; text: string };
 
@@ -58,73 +58,15 @@ export function formatClp(amount: number): string {
   return `$${String(Math.round(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
-function local(instant: Date): DateTime {
-  return DateTime.fromJSDate(instant).setZone(TIMEZONE).setLocale("es-CL");
-}
-
-function formatDate(instant: Date): string {
-  return local(instant).toFormat("cccc d 'de' LLLL 'de' yyyy");
-}
-
-function formatRange(booking: Booking): string {
-  return `${local(booking.startsAt).toFormat("HH:mm")} a ${local(booking.endsAt).toFormat("HH:mm")} hrs`;
-}
-
-function scheduleRows(booking: Booking): Row[] {
-  const rows: Row[] = [
-    ["Código", booking.code],
-    ["Fecha", formatDate(booking.startsAt)],
-    ["Horario", formatRange(booking)],
-  ];
-  if (booking.mode === "retiro") {
-    rows.push(["Modalidad", "Retiro a domicilio"]);
-    rows.push(["Dirección de retiro", `${booking.address ?? ""}, ${booking.comuna ?? ""}`]);
-    rows.push(["Retiro y entrega", formatClp(booking.pickupFeeClp)]);
-  } else {
-    rows.push(["Modalidad", "Entrega en el taller"]);
-    rows.push(["Dirección del taller", SITE.addressShort]);
-  }
-  return rows;
-}
-
 export type BookingBikeLine = { position: number; bike: string; description: string };
 
-/**
- * Con una bicicleta, las dos filas de siempre. Con dos o tres, cada una con su número, igual que
- * en la pantalla del taller. El recargo del retiro no se repite: es uno por reserva.
- */
-function bikeRows(booking: Booking, extra: BookingBikeLine[] = []): Row[] {
-  if (extra.length === 0) {
-    return [
-      ["Bicicleta", booking.bike],
-      ["Qué necesita", booking.description],
-    ];
-  }
-  const all = [{ position: 1, bike: booking.bike, description: booking.description }, ...extra];
-  return all.flatMap(({ position, bike, description }): Row[] => [
-    [`Bicicleta ${position}`, bike],
-    [`Qué necesita la bici ${position}`, description],
-  ]);
-}
+type RenderBrand = EmailBrand & { certifications?: readonly string[] };
 
-function rescheduledRows(
-  booking: Booking,
-  previous: { serviceDate: string; start: string },
-): Row[] {
-  const previousDate = DateTime.fromISO(previous.serviceDate, { zone: TIMEZONE }).toJSDate();
-  return [
-    ["Fecha anterior", formatDate(previousDate)],
-    ["Horario anterior", `${previous.start} hrs`],
-    ...scheduleRows(booking).map(
-      ([label, value]): Row => [
-        label === "Fecha" ? "Nueva fecha" : label === "Horario" ? "Nuevo horario" : label,
-        value,
-      ],
-    ),
-  ];
-}
-
-function renderHtml(content: EmailContent): string {
+function renderHtml(content: EmailContent, brand?: RenderBrand): string {
+  const name = brand?.shopName ?? SITE.name;
+  const address = brand?.addressShort ?? SITE.addressShort;
+  const email = brand?.replyTo ?? SITE.email;
+  const certifications = brand ? (brand.certifications ?? []) : SITE.certifications;
   const paragraph = (text: string) =>
     `<p style="margin:0 0 12px;line-height:1.55">${escapeHtml(text)}</p>`;
   const rows = content.rows
@@ -139,21 +81,20 @@ function renderHtml(content: EmailContent): string {
   return [
     '<!doctype html><html lang="es-CL"><body style="margin:0;background:#F6F6F4">',
     '<div style="max-width:560px;margin:0 auto;padding:24px;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#0C0D0E">',
-    `<p style="margin:0 0 16px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#5A5E63">${escapeHtml(SITE.name)}</p>`,
+    `<p style="margin:0 0 16px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#5A5E63">${escapeHtml(name)}</p>`,
     `<h1 style="margin:0 0 16px;font-size:22px;font-weight:600">${escapeHtml(content.heading)}</h1>`,
     content.intro.map(paragraph).join(""),
     `<table role="presentation" style="border-collapse:collapse;border-top:1px solid #D9D9D5;border-bottom:1px solid #D9D9D5;margin:16px 0;width:100%">${rows}</table>`,
     content.notes.map(paragraph).join(""),
     link,
-    `<p style="margin:24px 0 0;font-size:13px;color:#5A5E63">${escapeHtml(`${SITE.name} · ${SITE.addressShort} · ${SITE.email}`)}</p>`,
-    SITE.certifications.length > 0
-      ? paragraph(`Certificaciones: ${SITE.certifications.join(" · ")}`)
-      : "",
+    `<p style="margin:24px 0 0;font-size:13px;color:#5A5E63">${escapeHtml(`${name} · ${address} · ${email}`)}</p>`,
+    certifications.length > 0 ? paragraph(`Certificaciones: ${certifications.join(" · ")}`) : "",
+    brand ? paragraph(brand.footerLine) : "",
     "</div></body></html>",
   ].join("");
 }
 
-function renderText(content: EmailContent): string {
+function renderText(content: EmailContent, brand?: RenderBrand): string {
   const lines = [content.heading, "", ...content.intro, ""];
   for (const [label, value] of content.rows) {
     lines.push(`${label}: ${value}`);
@@ -162,121 +103,16 @@ function renderText(content: EmailContent): string {
   if (content.link) {
     lines.push("", `${content.link.label}: ${content.link.href}`);
   }
-  lines.push("", `${SITE.name} · ${SITE.addressShort} · ${SITE.email}`);
+  lines.push(
+    "",
+    `${brand?.shopName ?? SITE.name} · ${brand?.addressShort ?? SITE.addressShort} · ${brand?.replyTo ?? SITE.email}`,
+  );
+  if (brand) lines.push(brand.footerLine);
   return lines.join("\n");
 }
 
-export function render(subject: string, content: EmailContent): RenderedEmail {
-  return { subject, html: renderHtml(content), text: renderText(content) };
-}
-
-const EXTRA_WORK_NOTE =
-  "El diagnóstico y los repuestos se cotizan en el taller. Si encontramos un problema extra, te llamamos antes de hacer cualquier trabajo que no estaba en tu descripción: te explicamos la solución y tú decides.";
-
-/** Confirmación al cliente, con el enlace de cancelación de un solo uso. */
-export function customerConfirmationEmail(
-  booking: Booking,
-  cancelUrl: string,
-  extra: BookingBikeLine[] = [],
-): RenderedEmail {
-  const firstName = booking.customerName.split(" ")[0] ?? booking.customerName;
-  return render(`Reserva confirmada ${booking.code} · ${SITE.name}`, {
-    heading: "Tu reserva está confirmada",
-    intro: [`Hola ${firstName}, te esperamos. Estos son los datos de tu reserva.`],
-    rows: [...scheduleRows(booking), ...bikeRows(booking, extra)],
-    notes: [
-      EXTRA_WORK_NOTE,
-      "Adjuntamos la reserva para tu calendario. Si no puedes venir, cancélala con el enlace de abajo para liberar el horario.",
-    ],
-    link: { label: "Cancelar mi reserva", href: cancelUrl },
-  });
-}
-
-/** Aviso al taller de una reserva nueva, con los datos de contacto completos. */
-export function shopNewBookingEmail(
-  booking: Booking,
-  extra: BookingBikeLine[] = [],
-): RenderedEmail {
-  return render(`Nueva reserva ${booking.code}`, {
-    heading: "Nueva reserva",
-    intro: ["Entró una reserva desde el sitio."],
-    rows: [
-      ...scheduleRows(booking),
-      ["Cliente", booking.customerName],
-      ["Teléfono", booking.phoneE164],
-      ["Correo", booking.email ?? "Sin correo"],
-      ...bikeRows(booking, extra),
-    ],
-    notes: [],
-  });
-}
-
-/** Cambio de horario al cliente, con la misma referencia y sin regenerar enlaces. */
-export function bookingRescheduledEmail(
-  booking: Booking,
-  previous: { serviceDate: string; start: string },
-  extra: BookingBikeLine[] = [],
-): RenderedEmail {
-  const firstName = booking.customerName.split(" ")[0] ?? booking.customerName;
-  return render(`Cambiamos tu reserva · ${booking.code} · ${SITE.name}`, {
-    heading: "Cambiamos tu reserva",
-    intro: [`Hola ${firstName}, estos son los datos actualizados de tu reserva.`],
-    rows: [...rescheduledRows(booking, previous), ...bikeRows(booking, extra)],
-    notes: [
-      EXTRA_WORK_NOTE,
-      "Adjuntamos la reserva actualizada para tu calendario.",
-      "Si no puedes venir, cancela con el enlace del correo de confirmación o responde este correo.",
-    ],
-  });
-}
-
-/** Aviso al taller del horario anterior, el nuevo y los datos de contacto. */
-export function shopRescheduledEmail(
-  booking: Booking,
-  previous: { serviceDate: string; start: string },
-  extra: BookingBikeLine[] = [],
-): RenderedEmail {
-  return render(`Reserva reprogramada ${booking.code}`, {
-    heading: "Reserva reprogramada",
-    intro: ["Se cambió la fecha o el horario de una reserva."],
-    rows: [
-      ...rescheduledRows(booking, previous),
-      ["Cliente", booking.customerName],
-      ["Teléfono", booking.phoneE164],
-      ["Correo", booking.email ?? "Sin correo"],
-      ...bikeRows(booking, extra),
-    ],
-    notes: [],
-  });
-}
-
-/** Recordatorio al cliente el día anterior. Sin enlace: el token solo existe en la confirmación. */
-export function reminderEmail(booking: Booking, extra: BookingBikeLine[] = []): RenderedEmail {
-  return render(`Recordatorio: tu reserva ${booking.code} es mañana · ${SITE.name}`, {
-    heading: "Te esperamos mañana",
-    intro: ["Te recordamos tu reserva en Vector Bikes."],
-    rows: [...scheduleRows(booking), ...bikeRows(booking, extra)],
-    notes: [
-      EXTRA_WORK_NOTE,
-      "Si no puedes venir, cancela con el enlace del correo de confirmación o responde este correo.",
-    ],
-  });
-}
-
-/** Aviso al taller de una reserva cancelada. */
-export function shopCancellationEmail(booking: Booking): RenderedEmail {
-  const by = booking.cancelledBy === "admin" ? "el taller" : "el cliente";
-  return render(`Reserva cancelada ${booking.code}`, {
-    heading: "Reserva cancelada",
-    intro: [`La reserva fue cancelada por ${by}. El horario quedó libre.`],
-    rows: [
-      ...scheduleRows(booking),
-      ["Cliente", booking.customerName],
-      ["Teléfono", booking.phoneE164],
-      ["Correo", booking.email ?? "Sin correo"],
-    ],
-    notes: [],
-  });
+export function render(subject: string, content: EmailContent, brand?: RenderBrand): RenderedEmail {
+  return { subject, html: renderHtml(content, brand), text: renderText(content, brand) };
 }
 
 /** Horario de retiro desde `RECEPTION_HOURS`, agrupando los días seguidos que coinciden. */

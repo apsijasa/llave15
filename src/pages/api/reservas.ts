@@ -6,10 +6,12 @@ import { notifyBookingCreated } from "../../server/email/notifications.ts";
 
 export const prerender = false;
 
-export const POST: APIRoute = ({ request, clientAddress }) =>
-  handleCreateBooking(request, {
-    db: getDb(),
+export const POST: APIRoute = ({ request, clientAddress }) => {
+  const db = getDb();
+  return handleCreateBooking(request, {
+    db,
     now: new Date(),
     ip: clientIp(request, clientAddress),
-    onCreated: notifyBookingCreated,
+    onCreated: (booking, token) => notifyBookingCreated(booking, token, {}, [], db),
   });
+};

@@ -1,19 +1,25 @@
 import { createEvent } from "ics";
 import { type EmailEnv, getEmailEnv, getSiteEnv } from "../../lib/env.ts";
 import { errorMessage, log } from "../../lib/log.ts";
+import { PLATFORM } from "../../lib/platform.ts";
 import { SITE } from "../../lib/site.ts";
+import type { AppDb } from "../db/client.ts";
+import { profileForBranch } from "../shops/profile.ts";
+import type { ShopProfile } from "../shops/profile.ts";
+import { emailBrand, senderFor } from "./brand.ts";
+import type { EmailBrand } from "./brand.ts";
 import type { Booking } from "../db/schema.ts";
 import type { OrderNoticeSender } from "../whatsapp/order-notices.ts";
 import type { BookingBikeLine } from "./templates.ts";
 import {
-  type RenderedEmail,
-  escapeHtml,
   bookingRescheduledEmail,
   customerConfirmationEmail,
   shopCancellationEmail,
   shopNewBookingEmail,
   shopRescheduledEmail,
-} from "./templates.ts";
+} from "./booking/templates.ts";
+import { escapeHtml } from "./templates.ts";
+import type { RenderedEmail } from "./templates.ts";
 import { type EmailMessage, type EmailTransport, createTransport } from "./transport.ts";
 
 export type NotifyDeps = {
@@ -38,17 +44,21 @@ export function icsSequence(updatedAt: Date): number {
 }
 
 /** Evento de calendario en UTC; el cliente de correo lo muestra en la zona del usuario. */
-export function buildIcs(booking: Booking, sequence = 0): string {
+export function buildIcs(
+  booking: Booking,
+  sequence = 0,
+  profile?: Pick<ShopProfile, "name" | "streetAddress" | "locality">,
+): string {
   const { error, value } = createEvent({
     uid: `${booking.code}@vectorbikes.cl`,
     sequence,
     productId: "vectorbikes/reservas",
-    title: `${SITE.name} · Reserva ${booking.code}`,
+    title: `${profile?.name ?? SITE.name} · Reserva ${booking.code}`,
     description: `Reserva ${booking.code}. Bicicleta: ${booking.bike}.`,
     location:
       booking.mode === "retiro"
         ? `${booking.address ?? ""}, ${booking.comuna ?? ""}`
-        : `${SITE.streetAddress}, ${SITE.locality}`,
+        : `${profile?.streetAddress ?? SITE.streetAddress}, ${profile?.locality ?? SITE.locality}`,
     start: booking.startsAt.getTime(),
     startInputType: "utc",
     startOutputType: "utc",
@@ -130,24 +140,54 @@ export async function sendShopCopy(
   }
 }
 
+/** Sin base, solo la compatibilidad de BG-D45; con base nunca se inventa un perfil. */
+async function bookingIdentity(booking: Booking, env: EmailEnv, db?: AppDb) {
+  if (!db) {
+    const brand: EmailBrand & { certifications: readonly string[] } = {
+      shopName: SITE.name,
+      replyTo: env.EMAIL_REPLY_TO,
+      notifyEmail: env.SHOP_NOTIFY_EMAIL,
+      phoneDisplay: SITE.phoneDisplay,
+      addressShort: SITE.addressShort,
+      logoPath: SITE.logoPath,
+      footerLine: PLATFORM.footerLine,
+      certifications: SITE.certifications,
+    };
+    return { brand, env, profile: undefined };
+  }
+  const profile = await profileForBranch(db, booking.branchId);
+  if (!profile) throw new Error("No se encontró el perfil del taller de la reserva.");
+  const brand = { ...emailBrand(profile), certifications: profile.certifications };
+  return {
+    brand,
+    profile,
+    env: { ...env, EMAIL_FROM: senderFor(profile, env.EMAIL_FROM), EMAIL_REPLY_TO: brand.replyTo },
+  };
+}
+
 /** Post-commit: confirmación al cliente (con .ics y enlace de cancelación) y aviso al taller. */
 export async function notifyBookingCreated(
   booking: Booking,
   cancelToken: string,
   deps: NotifyDeps = {},
   bikes: BookingBikeLine[] = [],
+  db?: AppDb,
 ): Promise<void> {
-  const env = deps.env ?? getEmailEnv();
+  const { brand, env, profile } = await bookingIdentity(booking, deps.env ?? getEmailEnv(), db);
   const transport = deps.transport ?? createTransport(env);
   const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
 
   if (booking.email !== null) {
     const confirmation = message(
       booking.email,
-      customerConfirmationEmail(booking, cancelUrlFor(cancelToken, siteUrl), bikes),
+      customerConfirmationEmail(brand, booking, cancelUrlFor(cancelToken, siteUrl), bikes),
     );
     confirmation.attachments = [
-      { filename: ICS_FILENAME, content: buildIcs(booking), contentType: "text/calendar" },
+      {
+        filename: ICS_FILENAME,
+        content: buildIcs(booking, 0, profile),
+        contentType: "text/calendar",
+      },
     ];
     await deliver(transport, "confirmation", booking.code, confirmation);
   }
@@ -155,7 +195,7 @@ export async function notifyBookingCreated(
     transport,
     "shop_new_booking",
     booking.code,
-    message(env.SHOP_NOTIFY_EMAIL, shopNewBookingEmail(booking, bikes)),
+    message(brand.notifyEmail, shopNewBookingEmail(brand, booking, bikes)),
   );
 }
 
@@ -163,14 +203,15 @@ export async function notifyBookingCreated(
 export async function notifyBookingCancelled(
   booking: Booking,
   deps: NotifyDeps = {},
+  db?: AppDb,
 ): Promise<void> {
-  const env = deps.env ?? getEmailEnv();
+  const { brand, env } = await bookingIdentity(booking, deps.env ?? getEmailEnv(), db);
   const transport = deps.transport ?? createTransport(env);
   await deliver(
     transport,
     "shop_cancellation",
     booking.code,
-    message(env.SHOP_NOTIFY_EMAIL, shopCancellationEmail(booking)),
+    message(brand.notifyEmail, shopCancellationEmail(brand, booking)),
   );
 }
 
@@ -180,15 +221,19 @@ export async function notifyBookingRescheduled(
   previous: { serviceDate: string; start: string },
   deps: NotifyDeps = {},
   bikes: BookingBikeLine[] = [],
+  db?: AppDb,
 ): Promise<void> {
-  const env = deps.env ?? getEmailEnv();
+  const { brand, env, profile } = await bookingIdentity(booking, deps.env ?? getEmailEnv(), db);
   const transport = deps.transport ?? createTransport(env);
   if (booking.email !== null) {
-    const rescheduled = message(booking.email, bookingRescheduledEmail(booking, previous, bikes));
+    const rescheduled = message(
+      booking.email,
+      bookingRescheduledEmail(brand, booking, previous, bikes),
+    );
     rescheduled.attachments = [
       {
         filename: ICS_FILENAME,
-        content: buildIcs(booking, icsSequence(booking.updatedAt)),
+        content: buildIcs(booking, icsSequence(booking.updatedAt), profile),
         contentType: "text/calendar",
       },
     ];
@@ -198,6 +243,6 @@ export async function notifyBookingRescheduled(
     transport,
     "shop_rescheduled",
     booking.code,
-    message(env.SHOP_NOTIFY_EMAIL, shopRescheduledEmail(booking, previous, bikes)),
+    message(brand.notifyEmail, shopRescheduledEmail(brand, booking, previous, bikes)),
   );
 }

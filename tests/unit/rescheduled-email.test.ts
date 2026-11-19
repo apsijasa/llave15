@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { SITE } from "../../src/lib/site.ts";
+import { SITE, vectorBikesBrand } from "../helpers/shops.ts";
 import { icsSequence } from "../../src/server/email/notifications.ts";
 import type { Booking } from "../../src/server/db/schema.ts";
-import { bookingRescheduledEmail, shopRescheduledEmail } from "../../src/server/email/templates.ts";
+import {
+  bookingRescheduledEmail,
+  shopRescheduledEmail,
+} from "../../src/server/email/booking/templates.ts";
 
 /** Reserva de taller el jueves 22 de octubre a las 16:00, movida desde el miércoles 21 a las 15:00. */
 const BOOKING = {
@@ -39,7 +42,7 @@ const BOOKING = {
 const PREVIOUS = { serviceDate: "2026-10-21", start: "15:00" };
 
 function bodies(booking: Booking = BOOKING) {
-  const email = bookingRescheduledEmail(booking, PREVIOUS);
+  const email = bookingRescheduledEmail(vectorBikesBrand(), booking, PREVIOUS);
   return { email, bodies: [email.text, email.html] };
 }
 
@@ -95,14 +98,18 @@ describe("correo de reserva reprogramada", () => {
   });
 
   it("escapa el HTML de los datos del cliente", () => {
-    const email = bookingRescheduledEmail({ ...BOOKING, bike: 'Oxford <script>"x"' }, PREVIOUS);
+    const email = bookingRescheduledEmail(
+      vectorBikesBrand(),
+      { ...BOOKING, bike: 'Oxford <script>"x"' },
+      PREVIOUS,
+    );
 
     expect(email.html).not.toContain("<script>");
     expect(email.html).toContain("&lt;script&gt;");
   });
 
   it("el aviso al taller lleva el antes, el después y el contacto", () => {
-    const email = shopRescheduledEmail(BOOKING, PREVIOUS);
+    const email = shopRescheduledEmail(vectorBikesBrand(), BOOKING, PREVIOUS);
 
     expect(email.subject).toContain("VB-261021-1500");
     expect(email.text).toContain("21 de octubre");

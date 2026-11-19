@@ -1,11 +1,15 @@
+import { vectorBikesBrand } from "../helpers/shops.ts";
 import { describe, expect, it } from "vitest";
 import type { BookingBikeLine } from "../../src/server/email/templates.ts";
 import {
   customerConfirmationEmail,
-  reminderEmail,
+  reminderEmail as renderReminderEmail,
   shopNewBookingEmail,
-} from "../../src/server/email/templates.ts";
+} from "../../src/server/email/booking/templates.ts";
 import type { Booking } from "../../src/server/db/schema.ts";
+
+const brand = vectorBikesBrand();
+const reminderEmail = renderReminderEmail.bind(null, brand);
 
 const BOOKING = {
   code: "VB-261023-1600",
@@ -33,7 +37,7 @@ const UNA = { ...BOOKING, bikeCount: 1 } as Booking;
 
 describe("correos con varias bicicletas", () => {
   it("la confirmación nombra cada bicicleta con lo que necesita", () => {
-    const email = customerConfirmationEmail(BOOKING, "https://vectorbikes.cl/x", EXTRA);
+    const email = customerConfirmationEmail(brand, BOOKING, "https://vectorbikes.cl/x", EXTRA);
 
     for (const body of [email.text, email.html]) {
       expect(body).toContain("Bicicleta 1");
@@ -49,8 +53,8 @@ describe("correos con varias bicicletas", () => {
   });
 
   it("con una bicicleta el correo queda igual que siempre", () => {
-    const antes = customerConfirmationEmail(UNA, "https://vectorbikes.cl/x");
-    const despues = customerConfirmationEmail(UNA, "https://vectorbikes.cl/x", []);
+    const antes = customerConfirmationEmail(brand, UNA, "https://vectorbikes.cl/x");
+    const despues = customerConfirmationEmail(brand, UNA, "https://vectorbikes.cl/x", []);
 
     expect(despues).toEqual(antes);
     expect(antes.text).toContain("Bicicleta: Trek Marlin");
@@ -59,7 +63,7 @@ describe("correos con varias bicicletas", () => {
 
   it("el recordatorio y el aviso al taller también las nombran", () => {
     expect(reminderEmail(BOOKING, EXTRA).text).toContain("Oxford urbana");
-    expect(shopNewBookingEmail(BOOKING, EXTRA).text).toContain("Specialized Allez");
+    expect(shopNewBookingEmail(brand, BOOKING, EXTRA).text).toContain("Specialized Allez");
     expect(reminderEmail(UNA).text).toEqual(reminderEmail(UNA, []).text);
   });
 
@@ -72,7 +76,7 @@ describe("correos con varias bicicletas", () => {
       pickupFeeClp: 15000,
     } as Booking;
 
-    const texto = customerConfirmationEmail(retiro, "https://vectorbikes.cl/x", EXTRA).text;
+    const texto = customerConfirmationEmail(brand, retiro, "https://vectorbikes.cl/x", EXTRA).text;
 
     expect(texto.match(/\$15\.000/g) ?? []).toHaveLength(1);
   });

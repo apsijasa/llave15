@@ -1,3 +1,4 @@
+import { vectorBikesBrand } from "../helpers/shops.ts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type HandlerContext, handleCreateBooking } from "../../src/server/api/handlers.ts";
 import { cancelBooking } from "../../src/server/booking/cancel-booking.ts";
@@ -9,7 +10,8 @@ import {
   notifyBookingCancelled,
   notifyBookingCreated,
 } from "../../src/server/email/notifications.ts";
-import { escapeHtml, reminderEmail } from "../../src/server/email/templates.ts";
+import { escapeHtml } from "../../src/server/email/templates.ts";
+import { reminderEmail } from "../../src/server/email/booking/templates.ts";
 import {
   type EmailTransport,
   consoleOutbox,
@@ -172,7 +174,7 @@ describe("correos transaccionales", () => {
       expect(entry.html).toContain("&lt;script&gt;");
       expect(entry.html).not.toContain("<script>");
     }
-    expect(reminderEmail(booking).html).not.toContain("<script>");
+    expect(reminderEmail(vectorBikesBrand(), booking).html).not.toContain("<script>");
     expect(escapeHtml(`<a href="x">'&'</a>`)).toBe(
       "&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;",
     );

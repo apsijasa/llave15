@@ -198,7 +198,7 @@ export async function rescheduleBooking(
   if (result.ok) {
     try {
       const bikes = await listBookingBikes(db, result.booking.id);
-      await notifyBookingRescheduled(result.booking, result.previous, deps, bikes);
+      await notifyBookingRescheduled(result.booking, result.previous, deps, bikes, db);
     } catch (error) {
       log.error("email.rescheduled_failed", {
         code: result.booking.code,
