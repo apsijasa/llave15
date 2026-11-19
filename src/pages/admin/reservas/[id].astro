@@ -99,7 +99,7 @@ if (Astro.request.method === "POST") {
     } else {
       const action = adminActionSchema.safeParse(form.get("accion"));
       const result = action.success
-        ? await applyAdminAction(getDb(), id, action.data, new Date(), admin)
+        ? await applyAdminAction(getDb(), id, action.data, new Date(), admin, admin.branchId)
         : ({ ok: false, code: "invalid_transition" } as const);
       if (result.ok && action.success) {
         return Astro.redirect(`/admin/reservas/${id}?hecho=${action.data}`, 303);
@@ -114,7 +114,7 @@ if (Astro.request.method === "POST") {
   }
 }
 
-const booking = await bookingDetail(getDb(), id);
+const booking = await bookingDetail(getDb(), id, admin.branchId);
 const extraBikes = booking ? await listBookingBikes(getDb(), booking.id) : [];
 if (!booking) {
   Astro.response.status = 404;

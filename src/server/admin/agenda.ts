@@ -1,4 +1,4 @@
-import { asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import type { SessionUser } from "../auth/admin-auth.ts";
@@ -52,20 +52,39 @@ export function timeRange(booking: Booking): string {
   return `${hhmm(booking.startsAt)}–${hhmm(booking.endsAt)}`;
 }
 
+type BranchColumn = typeof bookings.branchId | typeof blockedPeriods.branchId;
+
+/** Sin `branchId` no filtra; con él, solo filas de esa sucursal (BG-13). */
+function inBranch(column: BranchColumn, branchId?: string) {
+  return branchId === undefined ? undefined : eq(column, branchId);
+}
+
+function bookingWhere(id: string, branchId?: string) {
+  return and(eq(bookings.id, id), inBranch(bookings.branchId, branchId));
+}
+
 /** Todas las reservas del día, en cualquier estado, por hora de inicio. */
-export async function agendaForDate(db: AppDb, date: string): Promise<Booking[]> {
+export async function agendaForDate(
+  db: AppDb,
+  date: string,
+  branchId?: string,
+): Promise<Booking[]> {
   return db
     .select()
     .from(bookings)
-    .where(eq(bookings.serviceDate, date))
+    .where(and(eq(bookings.serviceDate, date), inBranch(bookings.branchId, branchId)))
     .orderBy(asc(bookings.startsAt));
 }
 
-export async function bookingDetail(db: AppDb, id: string): Promise<Booking | null> {
+export async function bookingDetail(
+  db: AppDb,
+  id: string,
+  branchId?: string,
+): Promise<Booking | null> {
   if (!uuidSchema.safeParse(id).success) {
     return null;
   }
-  const [booking] = await db.select().from(bookings).where(eq(bookings.id, id)).limit(1);
+  const [booking] = await db.select().from(bookings).where(bookingWhere(id, branchId)).limit(1);
   return booking ?? null;
 }
 
@@ -75,9 +94,14 @@ async function closeBooking(
   id: string,
   status: "completed" | "no_show",
   now: Date,
+  branchId?: string,
 ): Promise<AdminActionResult> {
   return db.transaction(async (tx) => {
-    const [booking] = await tx.select().from(bookings).where(eq(bookings.id, id)).for("update");
+    const [booking] = await tx
+      .select()
+      .from(bookings)
+      .where(bookingWhere(id, branchId))
+      .for("update");
     if (!booking) {
       return { ok: false, code: "not_found" };
     }
@@ -101,9 +125,18 @@ async function closeBooking(
 }
 
 /** El cambio de estado se confirma antes de intentar enviar la notificación. */
-async function markReadyForPickup(db: AppDb, id: string, now: Date): Promise<AdminActionResult> {
+async function markReadyForPickup(
+  db: AppDb,
+  id: string,
+  now: Date,
+  branchId?: string,
+): Promise<AdminActionResult> {
   const result = await db.transaction(async (tx) => {
-    const [booking] = await tx.select().from(bookings).where(eq(bookings.id, id)).for("update");
+    const [booking] = await tx
+      .select()
+      .from(bookings)
+      .where(bookingWhere(id, branchId))
+      .for("update");
     if (!booking) {
       return { ok: false, code: "not_found" } as const;
     }
@@ -131,8 +164,9 @@ async function retryReadyNotification(
   db: AppDb,
   id: string,
   now: Date,
+  branchId?: string,
 ): Promise<AdminActionResult> {
-  const booking = await bookingDetail(db, id);
+  const booking = await bookingDetail(db, id, branchId);
   if (!booking) {
     return { ok: false, code: "not_found" };
   }
@@ -155,8 +189,9 @@ async function retryReminderNotification(
   db: AppDb,
   id: string,
   now: Date,
+  branchId?: string,
 ): Promise<AdminActionResult> {
-  const booking = await bookingDetail(db, id);
+  const booking = await bookingDetail(db, id, branchId);
   if (!booking) {
     return { ok: false, code: "not_found" };
   }
@@ -185,7 +220,11 @@ async function cancelFromAgenda(
   id: string,
   now: Date,
   actor?: SessionUser,
+  branchId?: string,
 ): Promise<AdminActionResult> {
+  if (branchId !== undefined && !(await bookingDetail(db, id, branchId))) {
+    return { ok: false, code: "not_found" };
+  }
   const result = await db.transaction(async (tx) => {
     const cancelled = await cancelBooking(tx, { bookingId: id, by: "admin", now });
     if (!cancelled.ok || !actor) return cancelled;
@@ -215,33 +254,37 @@ async function cancelFromAgenda(
   return { ok: false, code: result.code === "not_found" ? "not_found" : "invalid_transition" };
 }
 
-/** El admin cancela sin correo: el dueño llama al cliente. `actor` solo sirve para auditar. */
+/**
+ * El admin cancela sin correo: el dueño llama al cliente. `actor` solo sirve para auditar.
+ * Con `branchId`, una reserva de otra sucursal es `not_found` y no cambia.
+ */
 export async function applyAdminAction(
   db: AppDb,
   id: string,
   action: AdminAction,
   now: Date,
   actor?: SessionUser,
+  branchId?: string,
 ): Promise<AdminActionResult> {
   if (!uuidSchema.safeParse(id).success) {
     return { ok: false, code: "not_found" };
   }
   if (action === "completar") {
-    return closeBooking(db, id, "completed", now);
+    return closeBooking(db, id, "completed", now, branchId);
   }
   if (action === "no_show") {
-    return closeBooking(db, id, "no_show", now);
+    return closeBooking(db, id, "no_show", now, branchId);
   }
   if (action === "lista_para_retirar") {
-    return markReadyForPickup(db, id, now);
+    return markReadyForPickup(db, id, now, branchId);
   }
   if (action === "reintentar_whatsapp") {
-    return retryReadyNotification(db, id, now);
+    return retryReadyNotification(db, id, now, branchId);
   }
   if (action === "reintentar_recordatorio_whatsapp") {
-    return retryReminderNotification(db, id, now);
+    return retryReminderNotification(db, id, now, branchId);
   }
-  return cancelFromAgenda(db, id, now, actor);
+  return cancelFromAgenda(db, id, now, actor, branchId);
 }
 
 export const adminActionSchema = z.enum([
@@ -253,11 +296,17 @@ export const adminActionSchema = z.enum([
   "reintentar_recordatorio_whatsapp",
 ]);
 
-export async function listUpcomingBlocks(db: AppDb, fromDate: string): Promise<BlockedPeriod[]> {
+export async function listUpcomingBlocks(
+  db: AppDb,
+  fromDate: string,
+  branchId?: string,
+): Promise<BlockedPeriod[]> {
   return db
     .select()
     .from(blockedPeriods)
-    .where(gte(blockedPeriods.serviceDate, fromDate))
+    .where(
+      and(gte(blockedPeriods.serviceDate, fromDate), inBranch(blockedPeriods.branchId, branchId)),
+    )
     .orderBy(asc(blockedPeriods.serviceDate), asc(blockedPeriods.startTime));
 }
 
@@ -308,6 +357,7 @@ export type BlockInput = {
 export async function createBlock(
   db: AppDb,
   input: BlockInput,
+  branchId?: string,
 ): Promise<{ ok: true } | { ok: false; errors: Record<string, string> }> {
   const parsed = blockSchema.safeParse(input);
   if (!parsed.success) {
@@ -317,17 +367,19 @@ export async function createBlock(
     }
     return { ok: false, errors };
   }
-  await db.insert(blockedPeriods).values(parsed.data);
+  await db
+    .insert(blockedPeriods)
+    .values(branchId === undefined ? parsed.data : { ...parsed.data, branchId });
   return { ok: true };
 }
 
-export async function deleteBlock(db: AppDb, id: string): Promise<boolean> {
+export async function deleteBlock(db: AppDb, id: string, branchId?: string): Promise<boolean> {
   if (!uuidSchema.safeParse(id).success) {
     return false;
   }
   const deleted = await db
     .delete(blockedPeriods)
-    .where(eq(blockedPeriods.id, id))
+    .where(and(eq(blockedPeriods.id, id), inBranch(blockedPeriods.branchId, branchId)))
     .returning({ id: blockedPeriods.id });
   return deleted.length > 0;
 }

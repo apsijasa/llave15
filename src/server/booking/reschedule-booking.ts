@@ -8,6 +8,8 @@ import { workOrders } from "../db/schema-orders.ts";
 import { type Booking, bookingBlocks, bookingDays, bookings } from "../db/schema.ts";
 import { notifyBookingRescheduled } from "../email/notifications.ts";
 import type { NotifyDeps } from "../email/notifications.ts";
+import type { BookingScope } from "../shops/scope.ts";
+import { scopeForBranch } from "../shops/scope.ts";
 import { recordAudit } from "../taller/audit.ts";
 import { listBookingBikes } from "./booking-bikes.ts";
 import { readDay } from "./day-state.ts";
@@ -30,6 +32,7 @@ export type RescheduleResult =
 
 type Tx = Parameters<Parameters<AppDb["transaction"]>[0]>[0];
 type RescheduleArgs = { bookingId: string; serviceDate: string; start: string };
+type Scoped = { scope: BookingScope; args: RescheduleArgs };
 type Schedule = { serviceDate: string; start: string };
 type AvailableSlot = Extract<CheckStartResult, { ok: true }>;
 
@@ -44,12 +47,13 @@ function bookingMode(mode: string): BookingMode {
 /** Las fechas se bloquean en orden antes de tomar el lock del teléfono. */
 async function lockDaysAndPhone(tx: Tx, booking: Booking, serviceDate: string) {
   const dates = [...new Set([booking.serviceDate, serviceDate])].sort();
+  const { branchId } = booking;
   for (const date of dates) {
-    await tx.insert(bookingDays).values({ serviceDate: date }).onConflictDoNothing();
+    await tx.insert(bookingDays).values({ branchId, serviceDate: date }).onConflictDoNothing();
     await tx
       .select({ serviceDate: bookingDays.serviceDate })
       .from(bookingDays)
-      .where(eq(bookingDays.serviceDate, date))
+      .where(and(eq(bookingDays.branchId, branchId), eq(bookingDays.serviceDate, date)))
       .for("update");
   }
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${booking.phoneE164}))`);
@@ -61,6 +65,7 @@ async function hasOtherFutureBooking(tx: Tx, booking: Booking, now: Date): Promi
     .from(bookings)
     .where(
       and(
+        eq(bookings.branchId, booking.branchId),
         eq(bookings.phoneE164, booking.phoneE164),
         ne(bookings.id, booking.id),
         inArray(bookings.status, ["confirmed", "ready_for_pickup"]),
@@ -71,13 +76,14 @@ async function hasOtherFutureBooking(tx: Tx, booking: Booking, now: Date): Promi
   return future !== undefined;
 }
 
-async function moveBlocks(tx: Tx, args: RescheduleArgs, slot: AvailableSlot): Promise<void> {
+async function moveBlocks(tx: Tx, { scope, args }: Scoped, slot: AvailableSlot): Promise<void> {
   await tx
     .update(bookingBlocks)
     .set({ isActive: false })
     .where(eq(bookingBlocks.bookingId, args.bookingId));
   await tx.insert(bookingBlocks).values(
     slot.blockStarts.map((blockStart) => ({
+      branchId: scope.branchId,
       bookingId: args.bookingId,
       serviceDate: args.serviceDate,
       blockStart: `${blockStart}:00`,
@@ -89,12 +95,13 @@ async function moveBlocks(tx: Tx, args: RescheduleArgs, slot: AvailableSlot): Pr
 async function updateAndAudit(
   tx: Tx,
   actor: SessionUser,
-  args: RescheduleArgs,
+  scoped: Scoped,
   slot: AvailableSlot,
   previous: Schedule,
   now: Date,
 ): Promise<RescheduleResult> {
-  await moveBlocks(tx, args, slot);
+  const { args } = scoped;
+  await moveBlocks(tx, scoped, slot);
   const [booking] = await tx
     .update(bookings)
     .set({
@@ -124,13 +131,14 @@ async function updateAndAudit(
 async function rescheduleInTransaction(
   tx: Tx,
   actor: SessionUser,
-  args: RescheduleArgs,
+  scoped: Scoped,
   now: Date,
 ): Promise<RescheduleResult> {
+  const { scope, args } = scoped;
   const [booking] = await tx
     .select()
     .from(bookings)
-    .where(eq(bookings.id, args.bookingId))
+    .where(and(eq(bookings.id, args.bookingId), eq(bookings.branchId, scope.branchId)))
     .for("update");
   if (!booking) return { ok: false, code: "not_found" };
   if (booking.status !== "confirmed") return { ok: false, code: "not_reschedulable" };
@@ -149,31 +157,40 @@ async function rescheduleInTransaction(
   }
   await lockDaysAndPhone(tx, booking, args.serviceDate);
   if (await hasOtherFutureBooking(tx, booking, now)) return { ok: false, code: "phone_limit" };
-  const day = await readDay(tx, args.serviceDate, booking.id);
+  const day = await readDay(tx, args.serviceDate, booking.id, scope.branchId);
   const slot = checkStart({
     date: args.serviceDate,
     mode: bookingMode(booking.mode),
     now,
     start: args.start,
     bikeCount: booking.bikeCount,
+    config: scope.config,
     ...day,
   });
   if (!slot.ok) return { ok: false, code: "slot_unavailable" };
-  return updateAndAudit(tx, actor, args, slot, previous, now);
+  return updateAndAudit(tx, actor, scoped, slot, previous, now);
 }
 
-/** Reprograma la misma reserva y audita el cambio dentro de una sola transacción. */
+/**
+ * Reprograma la misma reserva y audita el cambio dentro de una sola transacción. Sin alcance, usa
+ * el taller de la sucursal de quien reprograma; una reserva de otra sucursal es `not_found`.
+ */
 export async function rescheduleBooking(
   db: AppDb,
   actor: SessionUser,
   args: { bookingId: string; serviceDate: string; start: string },
   now: Date,
   deps: NotifyDeps = {},
+  scope?: BookingScope,
 ): Promise<RescheduleResult> {
   if (!can(actor.role, "bookings.manage")) return { ok: false, code: "forbidden" };
+  const resolved = scope ?? (await scopeForBranch(db, actor.branchId));
+  if (!resolved) return { ok: false, code: "not_found" };
   let result: RescheduleResult;
   try {
-    result = await db.transaction((tx) => rescheduleInTransaction(tx, actor, args, now));
+    result = await db.transaction((tx) =>
+      rescheduleInTransaction(tx, actor, { scope: resolved, args }, now),
+    );
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, code: "slot_unavailable" };
     throw error;

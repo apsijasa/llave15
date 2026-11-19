@@ -31,7 +31,7 @@ Astro.response.headers.set("cache-control", "no-store");
 const isPost = Astro.request.method === "POST";
 if (isPost && !isAllowedOrigin(Astro.request)) return forbiddenResponse();
 const bookingId = z.uuid().safeParse(Astro.params.id);
-const booking = bookingId.success ? await bookingDetail(db, bookingId.data) : null;
+const booking = bookingId.success ? await bookingDetail(db, bookingId.data, user.branchId) : null;
 if (!booking)
   return new Response("Reserva no encontrada.", {
     status: 404,
@@ -44,7 +44,9 @@ const PATH = `/taller/reservas/${booking.id}/reprogramar`;
 // que ya pasó —el caso que motivó esto— también se encuentra. `rescheduleBooking` lo revalida igual.
 const current =
   booking.status === "confirmed"
-    ? (await listUpcomingBookings(db, booking.serviceDate, 1)).find((row) => row.id === booking.id)
+    ? (await listUpcomingBookings(db, booking.serviceDate, 1, user.branchId)).find(
+        (row) => row.id === booking.id,
+      )
     : null;
 let reschedulable = booking.status === "confirmed" && current?.orders.length === 0;
 const unavailableMessage = "Esta reserva ya no se puede reprogramar.";
@@ -126,6 +128,7 @@ const blocks =
         now,
         booking.bikeCount,
         booking.id,
+        user.branchId,
       )
     : [];
 const currentDate = DateTime.fromISO(booking.serviceDate, { zone: TIMEZONE })
