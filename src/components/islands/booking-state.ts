@@ -1,3 +1,27 @@
+import { createContext } from "preact";
+
+export type IslandShop = {
+  slug: string;
+  name: string;
+  addressShort: string;
+  pickupEnabled: boolean;
+  pickupComunas: string[];
+  pickupFeeClp: number;
+  horizonDays: number;
+  blockMinutes: number;
+  codePrefix: string;
+  privacyHref: string;
+};
+
+export const ShopContext = createContext<IslandShop | null>(null);
+
+export function consentTexts(name: string): { privacy: string; whatsapp: string } {
+  return {
+    privacy: `Acepto que ${name} use estos datos solo para gestionar mi reserva, según el`,
+    whatsapp: `Autorizo que ${name} me contacte por WhatsApp al número indicado para coordinar`,
+  };
+}
+
 export type Mode = "taller" | "retiro";
 
 export type ApiDay = {
@@ -167,6 +191,25 @@ function failedSubmit(state: State, action: Extract<Action, { type: "submitFaile
   return action.status === 409 ? { ...base, selectedStart: null } : base;
 }
 
+function selectedStart(state: State, start: string): State {
+  const day = state.selectedDate === null ? undefined : dayOf(state, state.selectedDate);
+  const block = day?.blocks.find((item) => item.start === start);
+  if (block?.state !== "free") return state;
+  return { ...state, selectedStart: start, errors: { ...state.errors, bloque: undefined } };
+}
+
+function updatedField(state: State, action: Extract<Action, { type: "setField" }>): State {
+  const value =
+    action.field === "telefono" && typeof action.value === "string"
+      ? formatPhoneLocal(action.value)
+      : action.value;
+  return {
+    ...state,
+    form: { ...state.form, [action.field]: value },
+    errors: { ...state.errors, [action.field]: undefined },
+  };
+}
+
 export function bookingReducer(state: State, action: Action): State {
   switch (action.type) {
     case "setMode":
@@ -187,30 +230,10 @@ export function bookingReducer(state: State, action: Action): State {
       }
       return { ...state, selectedDate: action.date, selectedStart: null };
     }
-    case "selectStart": {
-      const day = state.selectedDate === null ? undefined : dayOf(state, state.selectedDate);
-      const block = day?.blocks.find((item) => item.start === action.start);
-      if (block?.state !== "free") {
-        return state;
-      }
-      return {
-        ...state,
-        selectedStart: action.start,
-        errors: { ...state.errors, bloque: undefined },
-      };
-    }
+    case "selectStart":
+      return selectedStart(state, action.start);
     case "setField":
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          [action.field]:
-            action.field === "telefono" && typeof action.value === "string"
-              ? formatPhoneLocal(action.value)
-              : action.value,
-        },
-        errors: { ...state.errors, [action.field]: undefined },
-      };
+      return updatedField(state, action);
     case "setTurnstile":
       return { ...state, turnstileToken: action.token };
     case "turnstileUnavailable":
@@ -236,7 +259,7 @@ export function bookingReducer(state: State, action: Action): State {
 }
 
 /** Mismas reglas y mensajes que el servidor; la autoridad sigue siendo la API. */
-export function validateForm(state: State): FormErrors {
+export function validateForm(state: State, shop: IslandShop): FormErrors {
   const errors: FormErrors = {};
   const { form } = state;
 
@@ -259,9 +282,9 @@ export function validateForm(state: State): FormErrors {
   if (form.descripcion.trim().length < 5 || form.descripcion.trim().length > 1000) {
     errors.descripcion = "Cuéntanos qué necesita tu bici.";
   }
-  if (state.mode === "retiro") {
-    if (form.comuna !== "Vitacura" && form.comuna !== "Las Condes") {
-      errors.comuna = "Elige Vitacura o Las Condes.";
+  if (state.mode === "retiro" && shop.pickupEnabled) {
+    if (!shop.pickupComunas.includes(form.comuna)) {
+      errors.comuna = `Elige ${shop.pickupComunas.join(" o ")}.`;
     }
     if (form.direccion.trim().length < 5 || form.direccion.trim().length > 200) {
       errors.direccion = "Escribe la dirección de retiro.";
@@ -299,24 +322,24 @@ function addMinutes(hhmm: string, minutes: number): string {
 }
 
 /** `retiro` ocupa el bloque elegido y el siguiente. */
-export function selectedBlocks(state: State): string[] {
+export function selectedBlocks(state: State, shop?: IslandShop): string[] {
   if (state.selectedStart === null) {
     return [];
   }
   if (state.mode === "taller") {
     return [state.selectedStart];
   }
-  return [state.selectedStart, addMinutes(state.selectedStart, 30)];
+  return [state.selectedStart, addMinutes(state.selectedStart, shop?.blockMinutes ?? 30)];
 }
 
-/** `17:00 – 18:00`: del inicio del primer bloque al fin del último (bloques de 30 min). */
-export function timeRange(blocks: string[]): string | null {
+/** Del inicio del primer bloque al fin del último; sin taller conserva la firma heredada. */
+export function timeRange(blocks: string[], shop?: IslandShop | null): string | null {
   const first = blocks[0];
   const last = blocks.at(-1);
   if (first === undefined || last === undefined) {
     return null;
   }
-  return `${first} – ${addMinutes(last, 30)}`;
+  return `${first} – ${addMinutes(last, shop?.blockMinutes ?? 30)}`;
 }
 
 export type ResponseBody = BookingResult & {
@@ -335,13 +358,11 @@ export function parseResponseBody(text: string): Partial<ResponseBody> {
   }
 }
 
-export function ticketCode(date: string, start: string): string {
-  return `VB-${date.slice(2).replaceAll("-", "")}-${start.replace(":", "")}`;
+export function ticketCode(date: string, start: string, shop: IslandShop): string {
+  return `${shop.codePrefix}-${date.slice(2).replaceAll("-", "")}-${start.replace(":", "")}`;
 }
 
-/** `$15.000`, sin `toLocaleString` (depende del ICU del navegador). */
+/** Monto en pesos, sin `toLocaleString` (depende del ICU del navegador). */
 export function formatClp(amount: number): string {
   return `$${String(Math.round(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
-/** Recargo del retiro, espejo de rules.ts para la vista. */
-export const PICKUP_FEE_CLP = 15000;

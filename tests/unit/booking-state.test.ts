@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { IslandShop } from "../../src/components/islands/booking-state.ts";
 import {
   type ApiDay,
   type State,
@@ -12,6 +13,19 @@ import {
   ticketCode,
   validateForm,
 } from "../../src/components/islands/booking-state.ts";
+
+const shop: IslandShop = {
+  slug: "vector-bikes",
+  name: "Vector Bikes",
+  addressShort: "Av. Kennedy 7666, Vitacura",
+  pickupEnabled: true,
+  pickupComunas: ["Vitacura", "Las Condes"],
+  pickupFeeClp: 15000,
+  horizonDays: 14,
+  blockMinutes: 30,
+  codePrefix: "VB",
+  privacyHref: "/privacidad",
+};
 
 function day(date: string, overrides: Partial<ApiDay> = {}): ApiDay {
   return {
@@ -71,12 +85,12 @@ describe("bookingReducer", () => {
       selectedDate: "2026-09-16",
       selectedStart: "16:00",
     };
-    expect(selectedBlocks(state)).toEqual(["16:00", "16:30"]);
+    expect(selectedBlocks(state, shop)).toEqual(["16:00", "16:30"]);
   });
 
   it("valida comuna y consentimiento en retiro", () => {
     const state: State = { ...initialState, mode: "retiro" };
-    const errors = validateForm(state);
+    const errors = validateForm(state, shop);
     expect(errors.comuna).toBe("Elige Vitacura o Las Condes.");
     expect(errors.consentimiento).toBe("Acepta el aviso de privacidad para confirmar.");
   });
@@ -98,8 +112,8 @@ describe("bookingReducer", () => {
       },
     };
     expect(state.form.whatsappConsent).toBe(false);
-    expect(validateForm(state)).not.toHaveProperty("whatsappConsent");
-    expect(validateForm(state)).not.toHaveProperty("consentimiento");
+    expect(validateForm(state, shop)).not.toHaveProperty("whatsappConsent");
+    expect(validateForm(state, shop)).not.toHaveProperty("consentimiento");
   });
 
   it("libera el bloque y muestra el mensaje del servidor tras un 409", () => {
@@ -119,7 +133,7 @@ describe("bookingReducer", () => {
   });
 
   it("arma el código de la orden y el recargo", () => {
-    expect(ticketCode("2026-09-16", "16:30")).toBe("VB-260916-1630");
+    expect(ticketCode("2026-09-16", "16:30", shop)).toBe("VB-260916-1630");
     expect(formatClp(15000)).toBe("$15.000");
   });
 });
@@ -148,7 +162,7 @@ describe("teléfono con prefijo +56 9", () => {
       form: { ...initialState.form, telefono: typed("1234567") },
     };
     expect(phoneE164(state.form.telefono)).toBeNull();
-    expect(validateForm(state).telefono).toBe("Faltan dígitos: son 8 después del +56 9.");
+    expect(validateForm(state, shop).telefono).toBe("Faltan dígitos: son 8 después del +56 9.");
   });
 });
 
@@ -198,7 +212,7 @@ describe("validación fallida", () => {
     bookingReducer(state, {
       type: "submitFailed",
       status: 422,
-      body: { fields: validateForm(state) as Record<string, string> },
+      body: { fields: validateForm(state, shop) as Record<string, string> },
     });
 
   const withBlock: State = {
@@ -220,13 +234,13 @@ describe("validación fallida", () => {
   });
 
   it("elige el bloque antes que cualquier campo", () => {
-    expect(firstErrorTarget(validateForm(initialState))).toBe("bloque");
+    expect(firstErrorTarget(validateForm(initialState, shop))).toBe("bloque");
   });
 
   it("elige el primer campo en el orden de la pantalla", () => {
     expect(firstErrorTarget({ correo: "x", telefono: "x", consentimiento: "x" })).toBe("telefono");
     expect(firstErrorTarget({ direccion: "x", comuna: "x" })).toBe("comuna");
-    expect(firstErrorTarget(validateForm(withBlock))).toBe("nombre");
+    expect(firstErrorTarget(validateForm(withBlock, shop))).toBe("nombre");
     expect(firstErrorTarget({})).toBeNull();
   });
 

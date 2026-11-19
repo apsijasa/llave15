@@ -1,5 +1,6 @@
-import type { ApiDay, Mode, State } from "./booking-state.ts";
-import { timeRange } from "./booking-state.ts";
+import { useContext } from "preact/hooks";
+import type { ApiDay, IslandShop, Mode, State } from "./booking-state.ts";
+import { ShopContext, formatClp, timeRange } from "./booking-state.ts";
 
 const CAPACITY = 4;
 const TIMEZONE_LABEL = "es-CL";
@@ -24,7 +25,14 @@ function blockLabel(state: ApiDay["blocks"][number]["state"], start: string): st
   return start;
 }
 
+function pickupDuration(shop: IslandShop): string {
+  const minutes = shop.blockMinutes * 2;
+  return minutes === 60 ? "1 hora" : `${minutes} minutos`;
+}
+
 export function ModeFieldset({ mode, onMode }: { mode: Mode; onMode: (mode: Mode) => void }) {
+  const shop = useContext(ShopContext);
+  if (!shop) return null;
   return (
     <fieldset>
       <legend>
@@ -39,20 +47,24 @@ export function ModeFieldset({ mode, onMode }: { mode: Mode; onMode: (mode: Mode
           onClick={() => onMode("taller")}
         >
           <span class="t">La dejo en el taller</span>
-          <span class="d">Av. Kennedy 7666, Vitacura</span>
+          <span class="d">{shop.addressShort}</span>
           <span class="p">Sin recargo · usa 1 bloque</span>
         </button>
-        <button
-          type="button"
-          class="mode"
-          id="mode-retiro"
-          aria-pressed={mode === "retiro"}
-          onClick={() => onMode("retiro")}
-        >
-          <span class="t">Retiro y devolución</span>
-          <span class="d">Vitacura y Las Condes</span>
-          <span class="p">$15.000 · usa 2 bloques (1 hora)</span>
-        </button>
+        {shop.pickupEnabled && (
+          <button
+            type="button"
+            class="mode"
+            id="mode-retiro"
+            aria-pressed={mode === "retiro"}
+            onClick={() => onMode("retiro")}
+          >
+            <span class="t">Retiro y devolución</span>
+            <span class="d">{shop.pickupComunas.join(" y ")}</span>
+            <span class="p">
+              {formatClp(shop.pickupFeeClp)} · usa 2 bloques ({pickupDuration(shop)})
+            </span>
+          </button>
+        )}
       </div>
     </fieldset>
   );
@@ -134,7 +146,12 @@ export function DayFieldset({
   );
 }
 
-function rulerSlots(day: ApiDay, chosen: string[], onPick: (start: string) => void) {
+function rulerSlots(
+  day: ApiDay,
+  chosen: string[],
+  onPick: (start: string) => void,
+  shop: IslandShop,
+) {
   const buttons = [];
   let skipNext = false;
   for (const [index, block] of day.blocks.entries()) {
@@ -145,7 +162,9 @@ function rulerSlots(day: ApiDay, chosen: string[], onPick: (start: string) => vo
     const selected = chosen.includes(block.start);
     const next = day.blocks[index + 1];
     const range =
-      selected && next && chosen.includes(next.start) ? timeRange([block.start, next.start]) : null;
+      selected && next && chosen.includes(next.start)
+        ? timeRange([block.start, next.start], shop)
+        : null;
     skipNext = range !== null;
     const disabled = !selected && block.state !== "free";
     const classes = ["slot", selected ? "sel" : block.state === "free" ? "" : block.state]
@@ -161,7 +180,7 @@ function rulerSlots(day: ApiDay, chosen: string[], onPick: (start: string) => vo
         aria-pressed={selected}
         aria-label={
           range
-            ? `Retiro de ${range.replace(" – ", " a ")}, 1 hora, seleccionado`
+            ? `Retiro de ${range.replace(" – ", " a ")}, ${pickupDuration(shop)}, seleccionado`
             : blockLabel(block.state, block.start)
         }
         onClick={() => onPick(block.start)}
@@ -182,6 +201,8 @@ function Ruler({
   chosen: string[];
   onPick: (start: string) => void;
 }) {
+  const shop = useContext(ShopContext);
+  if (!shop) return null;
   const columns = `repeat(${day.blocks.length},minmax(0,1fr))`;
   // `global.css` fija la regla en 560px, que con los 10 bloques del taller deja celdas de 56px.
   // El retiro de lunes a viernes tiene 22, así que la regla crece y `.ruler-box` la desplaza:
@@ -204,7 +225,7 @@ function Ruler({
           aria-label="Bloques del día"
           style={`grid-template-columns:${columns}`}
         >
-          {rulerSlots(day, chosen, onPick)}
+          {rulerSlots(day, chosen, onPick, shop)}
         </div>
       </div>
     </div>

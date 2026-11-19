@@ -1,5 +1,7 @@
 import type { Ref } from "preact";
-import type { FormValues, State } from "./booking-state.ts";
+import { useContext } from "preact/hooks";
+import type { FormValues, IslandShop, State } from "./booking-state.ts";
+import { ShopContext, consentTexts } from "./booking-state.ts";
 
 export const FIELD_IDS: Record<keyof FormValues, string> = {
   nombre: "f-nombre",
@@ -105,108 +107,154 @@ function PhoneInput(props: FieldsProps) {
   );
 }
 
+function contactFields(props: FieldsProps) {
+  const { errors } = props;
+  return (
+    <>
+      <Field id="f-nombre" label="Nombre" error={errors.nombre}>
+        <input {...bind(props, "nombre")} autocomplete="name" />
+      </Field>
+      <Field
+        id="f-tel"
+        label="Teléfono"
+        help="8 dígitos, sin el 9 inicial."
+        error={errors.telefono}
+        alert
+      >
+        <PhoneInput {...props} />
+      </Field>
+      <Field
+        id="f-mail"
+        label="Correo"
+        help="Aquí llega la confirmación y el enlace para cancelar."
+        error={errors.correo}
+      >
+        <input {...bind(props, "correo")} type="email" autocomplete="email" />
+      </Field>
+    </>
+  );
+}
+
+function bikeFields(props: FieldsProps) {
+  const { errors } = props;
+  return (
+    <>
+      <Field
+        id="f-bici"
+        label={
+          <>
+            Bicicleta <em>marca y tipo</em>
+          </>
+        }
+        error={errors.bicicleta}
+      >
+        <input {...bind(props, "bicicleta")} placeholder="Ej: Trek Marlin 7, MTB" />
+      </Field>
+      <Field id="f-desc" label="¿Qué necesita tu bici?" full error={errors.descripcion}>
+        <textarea
+          {...bind(props, "descripcion")}
+          placeholder="Ej: los cambios saltan en la corona grande y el freno trasero está blando."
+        />
+      </Field>
+    </>
+  );
+}
+
+function pickupFields(props: FieldsProps, shop: IslandShop) {
+  const { errors, isPickup, onField } = props;
+  return (
+    <>
+      <Field id="f-comuna" label="Comuna" hidden={!isPickup} error={errors.comuna}>
+        <select
+          {...bind(props, "comuna")}
+          onChange={(event) => onField("comuna", (event.currentTarget as HTMLSelectElement).value)}
+        >
+          <option value="">Selecciona</option>
+          {shop.pickupComunas.map((comuna) => (
+            <option key={comuna}>{comuna}</option>
+          ))}
+        </select>
+      </Field>
+      <Field id="f-dir" label="Dirección de retiro" hidden={!isPickup} error={errors.direccion}>
+        <input
+          {...bind(props, "direccion")}
+          autocomplete="street-address"
+          placeholder="Calle, número, depto."
+        />
+      </Field>
+    </>
+  );
+}
+
+function privacyConsent(props: FieldsProps, shop: IslandShop) {
+  const { errors, form, onField } = props;
+  const consent = consentTexts(shop.name);
+  return (
+    <>
+      <label class="consent full" for="f-ok">
+        <input
+          type="checkbox"
+          id="f-ok"
+          name="consentimiento"
+          checked={form.consentimiento}
+          aria-invalid={errors.consentimiento ? "true" : undefined}
+          aria-describedby={errors.consentimiento ? "err-f-ok" : undefined}
+          onChange={(event) =>
+            onField("consentimiento", (event.currentTarget as HTMLInputElement).checked)
+          }
+        />
+        <span>
+          {consent.privacy} <a href={shop.privacyHref}>aviso de privacidad</a>.
+        </span>
+      </label>
+      {errors.consentimiento && (
+        <span class="err" id="err-f-ok">
+          {errors.consentimiento}
+        </span>
+      )}
+    </>
+  );
+}
+
+function whatsappConsent(props: FieldsProps, shop: IslandShop) {
+  const { form, onField } = props;
+  const consent = consentTexts(shop.name);
+  return (
+    <>
+      <label class="consent full" for="f-whatsapp">
+        <input
+          type="checkbox"
+          id="f-whatsapp"
+          name="whatsapp_consentimiento"
+          checked={form.whatsappConsent}
+          onChange={(event) =>
+            onField("whatsappConsent", (event.currentTarget as HTMLInputElement).checked)
+          }
+        />
+        <span>
+          {consent.whatsapp} aspectos operativos de esta reserva. Es opcional y no recibiré
+          publicidad.
+        </span>
+      </label>
+    </>
+  );
+}
+
 export function BookingFields(props: FieldsProps) {
-  const { errors, form, isPickup, onField, turnstileRef } = props;
+  const shop = useContext(ShopContext);
+  if (!shop) return null;
   return (
     <fieldset>
       <legend>
         <span class="mono">4</span> Tus datos
       </legend>
       <div class="fields">
-        <Field id="f-nombre" label="Nombre" error={errors.nombre}>
-          <input {...bind(props, "nombre")} autocomplete="name" />
-        </Field>
-        <Field
-          id="f-tel"
-          label="Teléfono"
-          help="8 dígitos, sin el 9 inicial."
-          error={errors.telefono}
-          alert
-        >
-          <PhoneInput {...props} />
-        </Field>
-        <Field
-          id="f-mail"
-          label="Correo"
-          help="Aquí llega la confirmación y el enlace para cancelar."
-          error={errors.correo}
-        >
-          <input {...bind(props, "correo")} type="email" autocomplete="email" />
-        </Field>
-        <Field
-          id="f-bici"
-          label={
-            <>
-              Bicicleta <em>marca y tipo</em>
-            </>
-          }
-          error={errors.bicicleta}
-        >
-          <input {...bind(props, "bicicleta")} placeholder="Ej: Trek Marlin 7, MTB" />
-        </Field>
-        <Field id="f-desc" label="¿Qué necesita tu bici?" full error={errors.descripcion}>
-          <textarea
-            {...bind(props, "descripcion")}
-            placeholder="Ej: los cambios saltan en la corona grande y el freno trasero está blando."
-          />
-        </Field>
-        <Field id="f-comuna" label="Comuna" hidden={!isPickup} error={errors.comuna}>
-          <select
-            {...bind(props, "comuna")}
-            onChange={(event) =>
-              onField("comuna", (event.currentTarget as HTMLSelectElement).value)
-            }
-          >
-            <option value="">Selecciona</option>
-            <option>Vitacura</option>
-            <option>Las Condes</option>
-          </select>
-        </Field>
-        <Field id="f-dir" label="Dirección de retiro" hidden={!isPickup} error={errors.direccion}>
-          <input
-            {...bind(props, "direccion")}
-            autocomplete="street-address"
-            placeholder="Calle, número, depto."
-          />
-        </Field>
-        <label class="consent full" for="f-ok">
-          <input
-            type="checkbox"
-            id="f-ok"
-            name="consentimiento"
-            checked={form.consentimiento}
-            aria-invalid={errors.consentimiento ? "true" : undefined}
-            aria-describedby={errors.consentimiento ? "err-f-ok" : undefined}
-            onChange={(event) =>
-              onField("consentimiento", (event.currentTarget as HTMLInputElement).checked)
-            }
-          />
-          <span>
-            Acepto que Vector Bikes use estos datos solo para gestionar mi reserva, según el{" "}
-            <a href="/privacidad">aviso de privacidad</a>.
-          </span>
-        </label>
-        {errors.consentimiento && (
-          <span class="err" id="err-f-ok">
-            {errors.consentimiento}
-          </span>
-        )}
-        <label class="consent full" for="f-whatsapp">
-          <input
-            type="checkbox"
-            id="f-whatsapp"
-            name="whatsapp_consentimiento"
-            checked={form.whatsappConsent}
-            onChange={(event) =>
-              onField("whatsappConsent", (event.currentTarget as HTMLInputElement).checked)
-            }
-          />
-          <span>
-            Autorizo que Vector Bikes me contacte por WhatsApp al número indicado para coordinar
-            aspectos operativos de esta reserva. Es opcional y no recibiré publicidad.
-          </span>
-        </label>
-        <div class="field full" ref={turnstileRef}></div>
+        {contactFields(props)}
+        {bikeFields(props)}
+        {pickupFields(props, shop)}
+        {privacyConsent(props, shop)}
+        {whatsappConsent(props, shop)}
+        <div class="field full" ref={props.turnstileRef}></div>
       </div>
     </fieldset>
   );

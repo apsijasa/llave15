@@ -1,5 +1,7 @@
 ---
 import BookingIsland from "./islands/BookingIsland.tsx";
+import type { IslandShop } from "./islands/booking-state.ts";
+import { formatClp } from "./islands/booking-state.ts";
 import { FAQ } from "../lib/faq.ts";
 import { SITE, whatsappHref } from "../lib/site.ts";
 
@@ -8,6 +10,18 @@ interface Props {
 }
 
 const { siteKey } = Astro.props;
+const shop: IslandShop = {
+  slug: "vector-bikes",
+  name: SITE.name,
+  addressShort: SITE.addressShort,
+  pickupEnabled: true,
+  pickupComunas: ["Vitacura", "Las Condes"],
+  pickupFeeClp: 15000,
+  horizonDays: 14,
+  blockMinutes: 30,
+  codePrefix: "VB",
+  privacyHref: "/privacidad",
+};
 
 /** Misma geometría que `drawScale` del prototipo: eje 10:00–20:00, tick cada 30 min. */
 const AXIS_FROM = 10 * 60;
@@ -43,7 +57,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
       <p class="lede">Reserva tu hora, déjala en nuestro local o te la vamos a buscar.</p>
       <div class="actions">
         <a href="#reservar" class="btn">Reservar hora</a>
-        <a href="#retiro" class="btn ghost">Retiro y devolución · $15.000</a>
+        <a href="#retiro" class="btn ghost">Retiro y devolución · {formatClp(shop.pickupFeeClp)}</a>
       </div>
       <div class="hours" aria-label="Horario de recepción">
         <div class="hours-row">
@@ -142,7 +156,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
       )}
       <a class="btn ghost" href={`tel:${SITE.phone}`}>Llamar al taller</a>
     </noscript>
-    <BookingIsland client:visible siteKey={siteKey} />
+    <BookingIsland client:visible siteKey={siteKey} shop={shop} />
   </div>
 </section>
 
@@ -150,7 +164,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
   <div class="wrap split">
     <div>
       <span class="label">Retiro a domicilio</span>
-      <p class="big-price mono">$15.000</p>
+      <p class="big-price mono">{formatClp(shop.pickupFeeClp)}</p>
       <h2
         class="sec-title"
         style="font-family:var(--display);font-weight:400;font-size:clamp(1.3rem,2.4vw,1.8rem);line-height:1.25"
@@ -163,7 +177,7 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
       </p>
     </div>
     <dl class="spec">
-      <div class="row"><dt>Cobertura</dt><dd>Vitacura y Las Condes</dd></div>
+      <div class="row"><dt>Cobertura</dt><dd>{shop.pickupComunas.join(" y ")}</dd></div>
       <div class="row"><dt>Incluye</dt><dd>Retiro y devolución</dd></div>
       <div class="row"><dt>Duración</dt><dd>Ocupa 1 hora de agenda (2 bloques)</dd></div>
       <div class="row"><dt>Pago</dt><dd>Al devolverla. Llevamos POS para tarjeta</dd></div>
