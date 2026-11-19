@@ -5,6 +5,7 @@ import { errorMessage, log } from "../../lib/log.ts";
 import { TIMEZONE } from "../booking/rules.ts";
 import type { AppDb } from "../db/client.ts";
 import { type Booking, bookings, whatsappMessages } from "../db/schema.ts";
+import type { BookingScope } from "../shops/scope.ts";
 
 export type NoticeResult = { status: "sent" | "failed" | "skipped"; reason?: string };
 type Kind = "reminder" | "ready";
@@ -115,7 +116,7 @@ export async function sendNotice(
     }
     await tx
       .insert(whatsappMessages)
-      .values({ bookingId: fresh.id, type: kind })
+      .values({ branchId: fresh.branchId, bookingId: fresh.id, type: kind })
       .onConflictDoNothing();
     const [claimed] = await tx
       .update(whatsappMessages)
@@ -184,11 +185,17 @@ export async function sendReadyNotification(
     : { status: "skipped", reason: "Reserva inexistente" };
 }
 
-export async function listNotices(db: AppDb, bookingId: string) {
+/** Con `branchId`, una reserva de otra sucursal no tiene avisos (BG-16). */
+export async function listNotices(db: AppDb, bookingId: string, branchId?: string) {
   const rows = await db
     .select()
     .from(whatsappMessages)
-    .where(eq(whatsappMessages.bookingId, bookingId));
+    .where(
+      and(
+        eq(whatsappMessages.bookingId, bookingId),
+        branchId === undefined ? undefined : eq(whatsappMessages.branchId, branchId),
+      ),
+    );
   return rows.map((row) => ({
     type: row.type,
     status: row.status,
@@ -256,6 +263,7 @@ export async function sendPendingReminders(
   db: AppDb,
   now: Date,
   sender: Sender = sendTemplate,
+  scope?: BookingScope,
 ): Promise<{ sent: number; failed: number; skipped: number }> {
   const startedAt = Date.now();
   const deadline = DateTime.fromJSDate(now).setZone(TIMEZONE).plus({ hours: 24 }).toJSDate();
@@ -267,6 +275,7 @@ export async function sendPendingReminders(
         eq(bookings.status, "confirmed"),
         gt(bookings.startsAt, now),
         lte(bookings.startsAt, deadline),
+        scope === undefined ? undefined : eq(bookings.branchId, scope.branchId),
       ),
     )
     .orderBy(asc(bookings.startsAt));

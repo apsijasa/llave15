@@ -35,7 +35,10 @@ async function readyOrder(db: AppDb, actor: SessionUser, orderId: string) {
       and(eq(customers.id, workOrders.customerId), eq(customers.branchId, actor.branchId)),
     )
     .innerJoin(bikes, and(eq(bikes.id, workOrders.bikeId), eq(bikes.branchId, actor.branchId)))
-    .leftJoin(bookings, eq(bookings.id, workOrders.bookingId))
+    .leftJoin(
+      bookings,
+      and(eq(bookings.id, workOrders.bookingId), eq(bookings.branchId, actor.branchId)),
+    )
     .where(
       and(
         eq(workOrders.id, orderId),

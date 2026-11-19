@@ -4,6 +4,7 @@ import { addDays, localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import { bookings } from "../db/schema.ts";
 import { listBookingBikes } from "../booking/booking-bikes.ts";
+import type { BookingScope } from "../shops/scope.ts";
 import { reminderEmail } from "./templates.ts";
 import { createTransport, type EmailTransport } from "./transport.ts";
 
@@ -12,11 +13,13 @@ export type ReminderDeps = { transport: EmailTransport };
 /**
  * Recordatorio a las reservas confirmadas de mañana (fecha local) que aún no lo recibieron.
  * No importa `notifications.ts`: el script programado no necesita cargar `ics`.
+ * Con alcance, solo las reservas de esa sucursal (BG-16); sin él, como hasta ahora (un taller).
  */
 export async function sendReminders(
   db: AppDb,
   now: Date,
   deps: ReminderDeps = { transport: createTransport() },
+  scope?: BookingScope,
 ): Promise<{ sent: number; failed: number }> {
   const tomorrow = addDays(localToday(now), 1);
   const pending = await db
@@ -28,6 +31,7 @@ export async function sendReminders(
         eq(bookings.serviceDate, tomorrow),
         isNull(bookings.reminderSentAt),
         isNotNull(bookings.email),
+        scope === undefined ? undefined : eq(bookings.branchId, scope.branchId),
       ),
     )
     .orderBy(asc(bookings.startsAt));
