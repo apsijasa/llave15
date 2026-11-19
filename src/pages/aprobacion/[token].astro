@@ -1,12 +1,15 @@
 ---
 import { z } from "zod";
-import Base from "../../layouts/Base.astro";
+import AppLayout from "../../layouts/AppLayout.astro";
+import PublicLayout from "../../layouts/PublicLayout.astro";
 import { log } from "../../lib/log.ts";
-import { SITE } from "../../lib/site.ts";
+import { PLATFORM } from "../../lib/platform.ts";
 import { clientIp } from "../../server/api/client-ip.ts";
 import { checkRateLimit, hashIp, originForLog, recordAttempt } from "../../server/api/handlers.ts";
 import { getDb } from "../../server/db/client.ts";
 import { formatClp } from "../../server/email/templates.ts";
+import type { ShopProfile } from "../../server/shops/profile.ts";
+import { profileForShareToken } from "../../server/shops/profile.ts";
 import { decideApproval, viewApproval } from "../../server/taller/approvals.ts";
 import { grossOfNet, VAT_RATE_PERCENT, vatOfNet } from "../../server/taller/rules.ts";
 import { shareTokenSchema } from "../../server/taller/share-tokens.ts";
@@ -22,6 +25,7 @@ let approval:
   | Extract<Awaited<ReturnType<typeof viewApproval>>, { view: "pending" }>["approval"]
   | null = null;
 let message = "Enlace no válido";
+let profile: ShopProfile | null = null;
 Astro.response.status = 404;
 
 if (Astro.request.method === "POST") {
@@ -44,6 +48,7 @@ if (Astro.request.method === "POST") {
       const result = await decideApproval(db, token.data, decision, hashIp(ip), now);
       if (result.ok) {
         Astro.response.status = 200;
+        profile = await profileForShareToken(db, "aprobacion", token.data);
         message = `Gracias, registramos tu respuesta: ${decision === "aprobado" ? "Aprobado" : "Rechazado"}`;
       }
     }
@@ -53,15 +58,17 @@ if (Astro.request.method === "POST") {
   if (result.view === "pending") {
     Astro.response.status = 200;
     approval = result.approval;
+    profile = await profileForShareToken(getDb(), "aprobacion", token.data);
   }
 }
+// PublicLayout solo se elige con perfil; AppLayout no consume esta propiedad.
+const Layout = profile ? PublicLayout : AppLayout;
 ---
 
-<Base
-  title={`Aprobar adicional — ${SITE.name}`}
-  description={`Responde a la propuesta de trabajo adicional de ${SITE.name}.`}
-  path="/aprobacion"
-  chrome="none"
+<Layout
+  title={`Aprobar adicional — ${profile?.name ?? PLATFORM.name}`}
+  description={profile ? `Responde a la propuesta de trabajo adicional de ${profile.name}.` : undefined}
+  profile={profile as ShopProfile}
   noindex
 >
   <section class="section">
@@ -96,4 +103,4 @@ if (Astro.request.method === "POST") {
       ) : <div class="sec-head"><h1>{message}</h1></div>}
     </div>
   </section>
-</Base>
+</Layout>

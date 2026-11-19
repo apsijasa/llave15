@@ -1,7 +1,8 @@
 ---
-import Base from "../../layouts/Base.astro";
+import AppLayout from "../../layouts/AppLayout.astro";
+import PublicLayout from "../../layouts/PublicLayout.astro";
 import { log } from "../../lib/log.ts";
-import { SITE } from "../../lib/site.ts";
+import { PLATFORM } from "../../lib/platform.ts";
 import { originForLog } from "../../server/api/handlers.ts";
 import {
   type CancellationView,
@@ -10,6 +11,8 @@ import {
 } from "../../server/booking/cancel-flow.ts";
 import { getDb } from "../../server/db/client.ts";
 import { formatClp } from "../../server/email/templates.ts";
+import type { ShopProfile } from "../../server/shops/profile.ts";
+import { profileForCancelToken } from "../../server/shops/profile.ts";
 
 export const prerender = false;
 
@@ -38,6 +41,13 @@ if (result.view === "invalid") {
 }
 
 const booking = "booking" in result ? result.booking : null;
+const profile =
+  result.view !== "invalid" && token ? await profileForCancelToken(getDb(), token) : null;
+// PublicLayout solo se elige con perfil; AppLayout no consume esta propiedad.
+const Layout = profile ? PublicLayout : AppLayout;
+const contact = profile
+  ? `escríbenos a ${profile.email}.`
+  : "contacta al taller donde hiciste la reserva.";
 
 const HEADINGS = {
   confirm: "¿Cancelar tu reserva?",
@@ -52,15 +62,15 @@ const MESSAGES = {
     "Si cancelas, el horario queda libre para otra persona. Esta acción no se puede deshacer.",
   done: "Listo. Avisamos al taller y el horario quedó libre. Si quieres, puedes reservar otra hora.",
   cancelled: "No hay nada más que hacer. Si quieres, puedes reservar otra hora.",
-  started: `La hora de tu reserva ya pasó o el taller ya la cerró. Si necesitas algo, escríbenos a ${SITE.email}.`,
-  invalid: `Revisa que el enlace esté completo, tal como llegó en tu correo. Si el problema sigue, escríbenos a ${SITE.email}.`,
+  started: `La hora de tu reserva ya pasó o el taller ya la cerró. Si necesitas algo, ${contact}`,
+  invalid: `Revisa que el enlace esté completo, tal como llegó en tu correo. Si el problema sigue, ${contact}`,
 } as const;
 ---
 
-<Base
-  title="Cancelar reserva — Vector Bikes"
-  description="Cancela tu reserva en Vector Bikes."
-  path="/reservas/cancelar"
+<Layout
+  title={`Cancelar reserva — ${profile?.name ?? PLATFORM.name}`}
+  description={profile ? `Cancela tu reserva en ${profile.name}.` : undefined}
+  profile={profile as ShopProfile}
   noindex
 >
   <section class="section">
@@ -118,4 +128,4 @@ const MESSAGES = {
       }
     </div>
   </section>
-</Base>
+</Layout>

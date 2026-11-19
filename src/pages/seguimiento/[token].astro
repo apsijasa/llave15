@@ -1,12 +1,14 @@
 ---
 import { DateTime } from "luxon";
-import Base from "../../layouts/Base.astro";
+import AppLayout from "../../layouts/AppLayout.astro";
 import { log } from "../../lib/log.ts";
-import { SITE } from "../../lib/site.ts";
+import { PLATFORM } from "../../lib/platform.ts";
 import { clientIp } from "../../server/api/client-ip.ts";
 import { checkRateLimit, originForLog, recordAttempt } from "../../server/api/handlers.ts";
-import { RECEPTION_HOURS, TIMEZONE } from "../../server/booking/rules.ts";
+import { TIMEZONE } from "../../server/booking/rules.ts";
 import { getDb } from "../../server/db/client.ts";
+import type { ShopProfile } from "../../server/shops/profile.ts";
+import { profileForShareToken } from "../../server/shops/profile.ts";
 import { viewTrackingByToken } from "../../server/taller/tracking.ts";
 
 export const prerender = false;
@@ -17,6 +19,7 @@ Astro.response.headers.set("x-robots-tag", "noindex");
 log.info("tracking.origin", { origin: originForLog(Astro.request) });
 
 let view: Awaited<ReturnType<typeof viewTrackingByToken>> = null;
+let profile: ShopProfile | null = null;
 let message = "Enlace no válido";
 Astro.response.status = 404;
 
@@ -33,8 +36,10 @@ if (Astro.request.method === "GET") {
     message = "Demasiados intentos. Vuelve a intentar en 10 minutos.";
   } else {
     view = await viewTrackingByToken(db, Astro.params.token ?? "");
-    if (view) Astro.response.status = 200;
-    else await recordAttempt(ctx);
+    if (view) {
+      Astro.response.status = 200;
+      profile = await profileForShareToken(db, "seguimiento", Astro.params.token ?? "");
+    } else await recordAttempt(ctx);
   }
 }
 
@@ -42,25 +47,24 @@ const day = (value: string) => DateTime.fromISO(value, { zone: TIMEZONE }).toFor
 const moment = (value: Date) =>
   DateTime.fromJSDate(value).setZone(TIMEZONE).toFormat("dd-MM-yyyy HH:mm");
 const hours = (weekday: number) => {
-  const schedule = RECEPTION_HOURS[weekday];
+  const schedule = profile?.receptionHours[weekday];
   return schedule ? `${schedule.open} a ${schedule.close}` : "cerrado";
 };
 const lastIndex = view ? view.timeline.length - 1 : -1;
 ---
 
-<Base
-  title="Seguimiento de tu bicicleta — Vector Bikes"
-  description="Estado del servicio de tu bicicleta en Vector Bikes."
-  path="/seguimiento"
-  chrome="none"
+<AppLayout
+  title={`Seguimiento de tu bicicleta — ${profile?.name ?? PLATFORM.name}`}
+  description={profile ? `Estado del servicio de tu bicicleta en ${profile.name}.` : undefined}
   noindex
 >
+  <main id="contenido">
   <section class="section">
     <div class="wrap tracking">
-      {view ? (
+      {view && profile ? (
         <>
           <div class="sec-head"><h1>Seguimiento de tu bicicleta</h1></div>
-          <p>Hola {view.customerFirstName}, este es el estado de tu bicicleta en {SITE.name}.</p>
+          <p>Hola {view.customerFirstName}, este es el estado de tu bicicleta en {profile.name}.</p>
           <dl class="tracking-data">
             <dt class="label">Orden</dt><dd class="mono">{view.orderNumber}</dd>
             <dt class="label">Bicicleta</dt><dd>{view.bike}</dd>
@@ -70,7 +74,7 @@ const lastIndex = view ? view.timeline.length - 1 : -1;
           {view.isReadyForPickup && (
             <section aria-labelledby="pickup-title">
               <h2 id="pickup-title">Retiro en el taller</h2>
-              <p>{SITE.addressShort}</p>
+              <p>{profile.addressShort}</p>
               <p>Lunes a viernes: {hours(1)}. Sábado: {hours(6)}. Domingo y feriados: {hours(7)}.</p>
             </section>
           )}
@@ -85,11 +89,13 @@ const lastIndex = view ? view.timeline.length - 1 : -1;
               ))}
             </ol>
           </section>
+          <p>{PLATFORM.footerLine}</p>
         </>
       ) : <div class="sec-head"><h1>{message}</h1></div>}
     </div>
   </section>
-</Base>
+  </main>
+</AppLayout>
 
 <style>
   .tracking {
