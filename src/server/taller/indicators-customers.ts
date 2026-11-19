@@ -61,7 +61,7 @@ export async function bookingIndicators(
         eq(workOrders.bookingId, bookings.id),
       ),
     );
-  // Reservas sin branch_id: mismo alcance global que activeBookings del dashboard.
+  // Solo las reservas de la sucursal, igual que activeBookings del tablero (BG-15).
   const [row] = await db
     .select({
       received: count(),
@@ -72,7 +72,12 @@ export async function bookingIndicators(
       converted: sql<number>`count(*) filter (where ${exists(converted)})`.mapWith(Number),
     })
     .from(bookings)
-    .where(between(bookings.serviceDate, range.from, range.to));
+    .where(
+      and(
+        eq(bookings.branchId, actor.branchId),
+        between(bookings.serviceDate, range.from, range.to),
+      ),
+    );
   const values = row ?? { received: 0, cancelled: 0, noShow: 0, converted: 0 };
   return {
     ...values,

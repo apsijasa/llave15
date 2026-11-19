@@ -128,8 +128,8 @@ function isDueSoon(row: OrderRow, today: string) {
   );
 }
 
-async function activeBookings(db: AppDb, from: string, to: string) {
-  // Las reservas existentes no tienen branch_id. Mismo conjunto activo que create-booking/cancel-flow.
+async function activeBookings(db: AppDb, branchId: string, from: string, to: string) {
+  // Solo las reservas de la sucursal (BG-15). Mismo conjunto activo que create-booking/cancel-flow.
   const rows = await db
     .select({
       serviceDate: bookings.serviceDate,
@@ -140,6 +140,7 @@ async function activeBookings(db: AppDb, from: string, to: string) {
     .from(bookings)
     .where(
       and(
+        eq(bookings.branchId, branchId),
         between(bookings.serviceDate, from, to),
         inArray(bookings.status, ["confirmed", "ready_for_pickup"]),
       ),
@@ -211,7 +212,7 @@ export async function adminDashboard(db: AppDb, actor: SessionUser, now: Date) {
   const finance = can(actor.role, "dashboard.finance");
   const [orders, bookingsToday, incomeTodayClp] = await Promise.all([
     dashboardOrders(db, actor),
-    activeBookings(db, today, today),
+    activeBookings(db, actor.branchId, today, today),
     finance ? incomeToday(db, actor, today) : null,
   ]);
   const workshopStatuses: readonly string[] = ORDER_STATUSES.slice(
@@ -241,7 +242,7 @@ export async function mechanicDashboard(db: AppDb, actor: SessionUser, now: Date
   const today = localToday(now);
   const [orders, bookingsSoon] = await Promise.all([
     dashboardOrders(db, actor),
-    activeBookings(db, today, addDays(today, 2)),
+    activeBookings(db, actor.branchId, today, addDays(today, 2)),
   ]);
   const assigned = orders.filter((order) => order.assignedMechanicId === actor.id);
   const byStatus = (status: OrderStatus) =>

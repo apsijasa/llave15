@@ -7,6 +7,7 @@ import { workOrders, workOrderStatusHistory } from "../db/schema-orders.ts";
 import { bikes, customers } from "../db/schema-taller.ts";
 import { bookingBikes, bookings } from "../db/schema.ts";
 import { recordAudit } from "./audit.ts";
+import { bookingInActorShop } from "./booking-reception.ts";
 import { bikeFormSchema, insertBike, listBikesOfCustomer } from "./bikes.ts";
 import { customerFormSchema, findCustomerByPhone, insertCustomer } from "./customers.ts";
 import { allocateNewOrder } from "./order-creation.ts";
@@ -45,7 +46,7 @@ export async function recordStatusChange(db: AppDb, change: StatusChange, now: D
 async function nextBookingBike(
   db: AppDb,
   actor: SessionUser,
-  booking: { id: string; bike: string; description: string },
+  booking: { id: string; branchId: string; bike: string; description: string },
 ): Promise<{ bike: string; description: string }> {
   const [taken] = await db
     .select({ n: sql<number>`count(*)` })
@@ -56,12 +57,22 @@ async function nextBookingBike(
   const [extra] = await db
     .select({ bike: bookingBikes.bike, description: bookingBikes.description })
     .from(bookingBikes)
-    .where(and(eq(bookingBikes.bookingId, booking.id), eq(bookingBikes.position, position)))
+    .where(
+      and(
+        eq(bookingBikes.branchId, booking.branchId),
+        eq(bookingBikes.bookingId, booking.id),
+        eq(bookingBikes.position, position),
+      ),
+    )
     .limit(1);
   return extra ?? { bike: booking.bike, description: booking.description };
 }
 export async function prefillFromBooking(db: AppDb, actor: SessionUser, bookingId: string) {
-  const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1);
+  const [booking] = await db
+    .select()
+    .from(bookings)
+    .where(and(eq(bookings.id, bookingId), bookingInActorShop(actor)))
+    .limit(1);
   if (!booking) return null;
   const customer = await findCustomerByPhone(db, actor, booking.phoneE164);
   // La bici que toca es la de la posición siguiente a las que ya tienen orden. La 1 vive en la
@@ -134,7 +145,7 @@ async function requireAvailableBooking(
   const [booking] = await db
     .select({ id: bookings.id, bikeCount: bookings.bikeCount })
     .from(bookings)
-    .where(eq(bookings.id, bookingId))
+    .where(and(eq(bookings.id, bookingId), eq(bookings.branchId, actor.branchId)))
     .for("update");
   if (!booking) throw new ReceptionError({ ok: false, code: "booking_taken" });
   const [taken] = await db
