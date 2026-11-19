@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { SITE } from "../../src/lib/site.ts";
+import { SITE, vectorBikesGarageBrand } from "../helpers/shops.ts";
 import { RECEPTION_HOURS } from "../../src/server/booking/rules.ts";
-import { formatClp, readyForPickupEmail } from "../../src/server/email/templates.ts";
-import type { ReadyForPickup } from "../../src/server/email/templates.ts";
+import { formatClp } from "../../src/server/email/templates.ts";
+import { readyForPickupEmail } from "../../src/server/email/garage/templates.ts";
+import type { ReadyForPickup } from "../../src/server/email/garage/templates.ts";
 
 const BASE: ReadyForPickup = {
   orderNumber: "OT-00001",
@@ -13,13 +14,13 @@ const BASE: ReadyForPickup = {
 };
 
 function both(order: ReadyForPickup) {
-  const email = readyForPickupEmail(order);
+  const email = readyForPickupEmail(vectorBikesGarageBrand(), order);
   return { ...email, bodies: [email.text, email.html] };
 }
 
 describe("correo de bicicleta lista para retirar", () => {
   it("el asunto lleva el número de orden y la marca", () => {
-    expect(readyForPickupEmail(BASE).subject).toBe(
+    expect(readyForPickupEmail(vectorBikesGarageBrand(), BASE).subject).toBe(
       `Tu bicicleta está lista para retirar · OT-00001 · ${SITE.name}`,
     );
   });
@@ -98,7 +99,10 @@ describe("correo de bicicleta lista para retirar", () => {
   });
 
   it("escapa el HTML de los datos del cliente", () => {
-    const email = readyForPickupEmail({ ...BASE, bike: 'Trek <script>"x"' });
+    const email = readyForPickupEmail(vectorBikesGarageBrand(), {
+      ...BASE,
+      bike: 'Trek <script>"x"',
+    });
 
     expect(email.html).not.toContain("<script>");
     expect(email.html).toContain("&lt;script&gt;");

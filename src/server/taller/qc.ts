@@ -8,7 +8,9 @@ import type { AppDb } from "../db/client.ts";
 import { qcChecks, workOrders } from "../db/schema-orders.ts";
 import { auditLog, bikes, customers } from "../db/schema-taller.ts";
 import type { NotifyDeps } from "../email/notifications.ts";
-import { readyForPickupEmail } from "../email/templates.ts";
+import { senderFor } from "../email/brand.ts";
+import { garageBrand, readyForPickupEmail } from "../email/garage/templates.ts";
+import { profileForBranch } from "../shops/profile.ts";
 import { sendShopCopy } from "../email/notifications.ts";
 import { createTransport } from "../email/transport.ts";
 import { notifyOrderReadyByWhatsApp } from "../whatsapp/order-notices.ts";
@@ -123,6 +125,21 @@ async function hasReadyNotification(db: AppDb, actor: SessionUser, orderId: stri
   return Boolean(sent);
 }
 
+async function recordReadyNotification(db: AppDb, actor: SessionUser, orderId: string, now: Date) {
+  await recordAudit(
+    db,
+    {
+      branchId: actor.branchId,
+      actorUserId: actor.id,
+      action: "notify.ready_for_pickup",
+      entity: "work_order",
+      entityId: orderId,
+      details: { sent: true },
+    },
+    now,
+  );
+}
+
 /** Post-commit: un fallo del aviso nunca cambia el resultado del control. */
 async function notifyReadyForPickup(
   db: AppDb,
@@ -137,7 +154,10 @@ async function notifyReadyForPickup(
     if (await hasReadyNotification(db, actor, orderId)) return;
     const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
     const tracking = await ensureTrackingLink(db, actor, orderId, siteUrl, now);
-    const email = readyForPickupEmail({
+    const profile = await profileForBranch(db, actor.branchId);
+    if (!profile) throw new Error("No se encontró el perfil del taller de la orden.");
+    const brand = garageBrand(profile);
+    const email = readyForPickupEmail(brand, {
       ...order,
       pricing: {
         mode: z.enum(PRICING_MODES).parse(order.pricingMode),
@@ -148,22 +168,17 @@ async function notifyReadyForPickup(
       orderNumber: formatOrderNumber(order.number),
       bike: `${order.brand} ${order.model}`.trim(),
     });
-    const env = deps.env ?? getEmailEnv();
+    const baseEnv = deps.env ?? getEmailEnv();
+    const env = {
+      ...baseEnv,
+      EMAIL_FROM: senderFor(profile, baseEnv.EMAIL_FROM),
+      EMAIL_REPLY_TO: brand.replyTo,
+      SHOP_NOTIFY_EMAIL: brand.notifyEmail,
+    };
     const transport = deps.transport ?? createTransport(env);
     await transport.send({ to: order.email, ...email });
     await sendShopCopy(transport, env, order.email, email, formatOrderNumber(order.number));
-    await recordAudit(
-      db,
-      {
-        branchId: actor.branchId,
-        actorUserId: actor.id,
-        action: "notify.ready_for_pickup",
-        entity: "work_order",
-        entityId: orderId,
-        details: { sent: true },
-      },
-      now,
-    );
+    await recordReadyNotification(db, actor, orderId, now);
   } catch {
     log.error("email.failed", { kind: "ready_for_pickup", orderId });
   }

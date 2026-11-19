@@ -9,7 +9,9 @@ import type { AppDb } from "../db/client.ts";
 import { orderPhotos, orderSignatures, workOrders } from "../db/schema-orders.ts";
 import { auditLog, bikes, customers } from "../db/schema-taller.ts";
 import type { NotifyDeps } from "../email/notifications.ts";
-import { receivedBikeEmail } from "../email/templates.ts";
+import { senderFor } from "../email/brand.ts";
+import { garageBrand, receivedBikeEmail } from "../email/garage/templates.ts";
+import { profileForBranch } from "../shops/profile.ts";
 import { sendShopCopy } from "../email/notifications.ts";
 import { createTransport } from "../email/transport.ts";
 import { isStorageKey } from "../storage/storage.ts";
@@ -283,6 +285,26 @@ async function hasReceivedNotification(db: AppDb, actor: SessionUser, orderId: s
   return Boolean(sent);
 }
 
+async function recordReceivedNotification(
+  db: AppDb,
+  actor: SessionUser,
+  orderId: string,
+  now: Date,
+) {
+  await recordAudit(
+    db,
+    {
+      branchId: actor.branchId,
+      actorUserId: actor.id,
+      action: "notify.received",
+      entity: "work_order",
+      entityId: orderId,
+      details: { sent: true },
+    },
+    now,
+  );
+}
+
 /** Post-commit: un fallo del aviso nunca cambia el resultado de la recepción. */
 async function notifyReceived(
   db: AppDb,
@@ -297,7 +319,10 @@ async function notifyReceived(
     if (await hasReceivedNotification(db, actor, orderId)) return;
     const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
     const tracking = await ensureTrackingLink(db, actor, orderId, siteUrl, now);
-    const email = receivedBikeEmail({
+    const profile = await profileForBranch(db, actor.branchId);
+    if (!profile) throw new Error("No se encontró el perfil del taller de la orden.");
+    const brand = garageBrand(profile);
+    const email = receivedBikeEmail(brand, {
       ...order,
       trackingUrl: tracking.ok ? tracking.url : null,
       orderNumber: formatOrderNumber(order.number),
@@ -306,22 +331,17 @@ async function notifyReceived(
       accessories: (await listAccessories(db, actor, orderId)).map((item) => item.description),
       warrantyOfNumber: await warrantyOrderNumber(db, actor, order.warrantyOfOrderId),
     });
-    const env = deps.env ?? getEmailEnv();
+    const baseEnv = deps.env ?? getEmailEnv();
+    const env = {
+      ...baseEnv,
+      EMAIL_FROM: senderFor(profile, baseEnv.EMAIL_FROM),
+      EMAIL_REPLY_TO: brand.replyTo,
+      SHOP_NOTIFY_EMAIL: brand.notifyEmail,
+    };
     const transport = deps.transport ?? createTransport(env);
     await transport.send({ to: order.email, ...email });
     await sendShopCopy(transport, env, order.email, email, formatOrderNumber(order.number));
-    await recordAudit(
-      db,
-      {
-        branchId: actor.branchId,
-        actorUserId: actor.id,
-        action: "notify.received",
-        entity: "work_order",
-        entityId: orderId,
-        details: { sent: true },
-      },
-      now,
-    );
+    await recordReceivedNotification(db, actor, orderId, now);
   } catch {
     log.error("email.failed", { kind: "received", orderId });
   }

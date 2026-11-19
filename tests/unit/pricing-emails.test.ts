@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { SITE } from "../../src/lib/site.ts";
+import { SITE, vectorBikesGarageBrand } from "../helpers/shops.ts";
 import { quoteEmail, quoteTotalClp } from "../../src/server/email/order-templates.ts";
 import type { QuoteEmail } from "../../src/server/email/order-templates.ts";
-import { readyForPickupEmail, receivedBikeEmail } from "../../src/server/email/templates.ts";
+import { readyForPickupEmail, receivedBikeEmail } from "../../src/server/email/garage/templates.ts";
 import type {
   ReadyForPickup,
   ReceivedBike,
   RenderedEmail,
 } from "../../src/server/email/templates.ts";
+
+const brand = vectorBikesGarageBrand();
 
 const ITEMS = [
   { description: "Ajuste de frenos", quantity: 2, unitPriceClp: 3000 },
@@ -53,7 +55,7 @@ function expectRows(email: RenderedEmail, rows: [string, string][]) {
 
 describe("desglose de precios netos en correos", () => {
   it("recepción muestra neto, IVA y total cotizado en texto y HTML", () => {
-    const email = receivedBikeEmail({ ...RECEIVED, pricingMode: "neto" });
+    const email = receivedBikeEmail(brand, { ...RECEIVED, pricingMode: "neto" });
     expectRows(email, [
       ["Neto", "$10.000"],
       ["IVA (19%)", "$1.900"],
@@ -62,7 +64,7 @@ describe("desglose de precios netos en correos", () => {
   });
 
   it("retiro muestra el desglose guardado, abono y saldo del total con IVA", () => {
-    const email = readyForPickupEmail({
+    const email = readyForPickupEmail(brand, {
       ...READY,
       pricing: { mode: "neto", subtotalClp: 10000, vatClp: 1900 },
     });
@@ -78,7 +80,7 @@ describe("desglose de precios netos en correos", () => {
   it("retiro conserva Pagado cuando el abono cubre el total con IVA", () => {
     for (const paidClp of [11900, 12000]) {
       expectRows(
-        readyForPickupEmail({
+        readyForPickupEmail(brand, {
           ...READY,
           paidClp,
           pricing: { mode: "neto", subtotalClp: 10000, vatClp: 1900 },
@@ -109,7 +111,7 @@ describe("desglose de precios netos en correos", () => {
       ["Neto", "$100"],
       ["IVA (19%)", "$19"],
     ];
-    expectRows(receivedBikeEmail({ ...RECEIVED, items, pricingMode: "neto" }), [
+    expectRows(receivedBikeEmail(brand, { ...RECEIVED, items, pricingMode: "neto" }), [
       ...rows,
       ["Total cotizado", "$119"],
     ]);
@@ -118,7 +120,11 @@ describe("desglose de precios netos en correos", () => {
   });
 
   it("recepción sin líneas sigue anunciando el presupuesto posterior sin montos", () => {
-    const email = receivedBikeEmail({ ...RECEIVED, items: [], pricingMode: "neto" });
+    const email = receivedBikeEmail(brand, {
+      ...RECEIVED,
+      items: [],
+      pricingMode: "neto",
+    });
     for (const body of [email.text, email.html]) {
       expect(body).toContain("Te enviaremos el presupuesto después del diagnóstico.");
       expect(body).not.toContain("Neto");
@@ -138,20 +144,20 @@ describe("desglose de precios netos en correos", () => {
 
 describe("compatibilidad de los correos con precios finales", () => {
   it("recepción conserva subject, html y text con final o régimen omitido", () => {
-    const previous = receivedBikeEmail(RECEIVED);
-    expect(receivedBikeEmail({ ...RECEIVED, pricingMode: "final" })).toEqual(previous);
-    expect(receivedBikeEmail({ ...RECEIVED, pricingMode: undefined })).toEqual(previous);
+    const previous = receivedBikeEmail(brand, RECEIVED);
+    expect(receivedBikeEmail(brand, { ...RECEIVED, pricingMode: "final" })).toEqual(previous);
+    expect(receivedBikeEmail(brand, { ...RECEIVED, pricingMode: undefined })).toEqual(previous);
   });
 
   it("retiro conserva subject, html y text e ignora el desglose en final", () => {
-    const previous = readyForPickupEmail(READY);
+    const previous = readyForPickupEmail(brand, READY);
     expect(
-      readyForPickupEmail({
+      readyForPickupEmail(brand, {
         ...READY,
         pricing: { mode: "final", subtotalClp: 10000, vatClp: 1900 },
       }),
     ).toEqual(previous);
-    expect(readyForPickupEmail({ ...READY, pricing: undefined })).toEqual(previous);
+    expect(readyForPickupEmail(brand, { ...READY, pricing: undefined })).toEqual(previous);
   });
 
   it("cotización conserva subject, html y text con final o régimen omitido", () => {

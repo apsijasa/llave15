@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { SITE } from "../../src/lib/site.ts";
-import { formatClp, receivedBikeEmail } from "../../src/server/email/templates.ts";
-import type { ReceivedBike } from "../../src/server/email/templates.ts";
+import { SITE, vectorBikesGarageBrand } from "../helpers/shops.ts";
+import { formatClp } from "../../src/server/email/templates.ts";
+import { receivedBikeEmail } from "../../src/server/email/garage/templates.ts";
+import type { ReceivedBike } from "../../src/server/email/garage/templates.ts";
 
 const BASE: ReceivedBike = {
   orderNumber: "OT-00002",
@@ -18,13 +19,13 @@ const BASE: ReceivedBike = {
 };
 
 function bodies(order: ReceivedBike) {
-  const email = receivedBikeEmail(order);
+  const email = receivedBikeEmail(vectorBikesGarageBrand(), order);
   return { email, bodies: [email.text, email.html] };
 }
 
 describe("correo de bicicleta recibida", () => {
   it("el asunto lleva el número de orden y la marca", () => {
-    expect(receivedBikeEmail(BASE).subject).toBe(
+    expect(receivedBikeEmail(vectorBikesGarageBrand(), BASE).subject).toBe(
       `Recibimos tu bicicleta · OT-00002 · ${SITE.name}`,
     );
   });
@@ -109,7 +110,10 @@ describe("correo de bicicleta recibida", () => {
   });
 
   it("escapa el HTML de los datos del cliente", () => {
-    const email = receivedBikeEmail({ ...BASE, bike: 'Trek <script>"x"' });
+    const email = receivedBikeEmail(vectorBikesGarageBrand(), {
+      ...BASE,
+      bike: 'Trek <script>"x"',
+    });
 
     expect(email.html).not.toContain("<script>");
     expect(email.html).toContain("&lt;script&gt;");

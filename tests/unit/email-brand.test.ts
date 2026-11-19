@@ -1,4 +1,4 @@
-import { vectorBikesBrand } from "../helpers/shops.ts";
+import { vectorBikesBrand, vectorBikesGarageBrand } from "../helpers/shops.ts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking } from "../../src/server/db/schema.ts";
 import { quoteEmail } from "../../src/server/email/order-templates.ts";
@@ -10,7 +10,8 @@ import {
   shopNewBookingEmail,
   shopRescheduledEmail,
 } from "../../src/server/email/booking/templates.ts";
-import { readyForPickupEmail, receivedBikeEmail } from "../../src/server/email/templates.ts";
+import { readyForPickupEmail, receivedBikeEmail } from "../../src/server/email/garage/templates.ts";
+import type { GarageBrand } from "../../src/server/email/garage/templates.ts";
 
 const brand = vi.hoisted(() => ({ certifications: [] as readonly string[] }));
 vi.mock("../../src/lib/site.ts", async (original) => {
@@ -28,6 +29,13 @@ vi.mock("../../src/lib/site.ts", async (original) => {
 
 const bookingBrand = {
   ...vectorBikesBrand(),
+  get certifications() {
+    return brand.certifications;
+  },
+};
+
+const garageEmailBrand: GarageBrand = {
+  ...vectorBikesGarageBrand(),
   get certifications() {
     return brand.certifications;
   },
@@ -95,8 +103,8 @@ const CASES = [
   ["shopNewBookingEmail", () => shopNewBookingEmail(bookingBrand, BOOKING)],
   ["shopRescheduledEmail", () => shopRescheduledEmail(bookingBrand, BOOKING, PREVIOUS)],
   ["shopCancellationEmail", () => shopCancellationEmail(bookingBrand, BOOKING)],
-  ["receivedBikeEmail", () => receivedBikeEmail(ORDER)],
-  ["readyForPickupEmail", () => readyForPickupEmail(ORDER)],
+  ["receivedBikeEmail", () => receivedBikeEmail(garageEmailBrand, ORDER)],
+  ["readyForPickupEmail", () => readyForPickupEmail(garageEmailBrand, ORDER)],
   ["quoteEmail", () => quoteEmail(ORDER)],
 ] as const;
 const LOGO = '<img src="https://vectorbikes.cl/brand/vector-bikes-logo.png" alt="Vector Bikes"';

@@ -1,6 +1,7 @@
+import { vectorBikesGarageBrand } from "../helpers/shops.ts";
 import { describe, expect, it } from "vitest";
-import { readyForPickupEmail, receivedBikeEmail } from "../../src/server/email/templates.ts";
-import type { ReceivedBike, ReadyForPickup } from "../../src/server/email/templates.ts";
+import { readyForPickupEmail, receivedBikeEmail } from "../../src/server/email/garage/templates.ts";
+import type { ReceivedBike, ReadyForPickup } from "../../src/server/email/garage/templates.ts";
 
 const TRACKING_URL = "https://vectorbikes.cl/seguimiento/abc";
 const LABEL = "Ver el estado de tu bicicleta";
@@ -26,11 +27,13 @@ type TrackingInput = { trackingUrl?: string | null };
 describe.each([
   {
     name: "Recibimos tu bicicleta",
-    render: (extra: TrackingInput) => receivedBikeEmail({ ...RECEIVED, ...extra }),
+    render: (extra: TrackingInput) =>
+      receivedBikeEmail(vectorBikesGarageBrand(), { ...RECEIVED, ...extra }),
   },
   {
     name: "Lista para retirar",
-    render: (extra: TrackingInput) => readyForPickupEmail({ ...READY, ...extra }),
+    render: (extra: TrackingInput) =>
+      readyForPickupEmail(vectorBikesGarageBrand(), { ...READY, ...extra }),
   },
 ])("seguimiento en $name", ({ render }) => {
   it("incluye el único enlace en HTML y texto plano", () => {
@@ -65,7 +68,10 @@ describe.each([
 });
 
 it("genera el texto plano completo de Recibimos tu bicicleta con seguimiento", () => {
-  const email = receivedBikeEmail({ ...RECEIVED, trackingUrl: TRACKING_URL });
+  const email = receivedBikeEmail(vectorBikesGarageBrand(), {
+    ...RECEIVED,
+    trackingUrl: TRACKING_URL,
+  });
 
   expect(email.text).toBe(`Recibimos tu bicicleta
 
@@ -84,5 +90,6 @@ Si encontramos algo que no estaba en lo que pediste, te contactamos antes de hac
 
 Ver el estado de tu bicicleta: https://vectorbikes.cl/seguimiento/abc
 
-Vector Bikes · Av. Kennedy 7666, Vitacura · info@vectorbikes.cl`);
+Vector Bikes · Av. Kennedy 7666, Vitacura · info@vectorbikes.cl
+Gestionado con Llave 15`);
 });

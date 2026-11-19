@@ -1,5 +1,6 @@
 import { VECTOR_BIKES_PROFILE } from "../../scripts/vector-bikes-profile.ts";
 import { PLATFORM } from "../../src/lib/platform.ts";
+import type { GarageBrand } from "../../src/server/email/garage/templates.ts";
 import type { EmailBrand } from "../../src/server/email/brand.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { shops } from "../../src/server/db/schema-shops.ts";
@@ -101,5 +102,15 @@ export function vectorBikesBrand(): EmailBrand {
     addressShort: VECTOR_BIKES_PROFILE.addressShort,
     logoPath: `/${VECTOR_BIKES_PROFILE.slug}/logo`,
     footerLine: PLATFORM.footerLine,
+  };
+}
+
+export function vectorBikesGarageBrand(): GarageBrand {
+  return {
+    ...vectorBikesBrand(),
+    streetAddress: VECTOR_BIKES_PROFILE.streetAddress,
+    locality: VECTOR_BIKES_PROFILE.locality,
+    receptionHours: VECTOR_BIKES_PROFILE.receptionHours,
+    certifications: VECTOR_BIKES_PROFILE.certifications,
   };
 }
