@@ -1,50 +1,8 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+@import "./tokens.css";
 @source not "../../blueprints";
 @source not "../../docs";
-
-:root {
-  --ground: #f6f6f4;
-  --surface: #ffffff;
-  --ink: #0c0d0e;
-  --ink-2: #2a2c2f;
-  --steel: #5a5e63;
-  --rule: #d9d9d5;
-  --hatch: #e3e3df;
-  --on-ink: #f6f6f4;
-  --logo-filter: none;
-  --display: "Michroma", "Eurostile", "Arial Black", sans-serif;
-  --body: "Archivo Variable", "Helvetica Neue", Arial, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --field-border: var(--steel);
-  --dur-fast: 140ms;
-  --dur: 160ms;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --ground: #0c0d0e;
-    --surface: #151618;
-    --ink: #f1f1ee;
-    --ink-2: #c8c9cb;
-    --steel: #9c9fa4;
-    --rule: #2b2d30;
-    --hatch: #1e2022;
-    --on-ink: #0c0d0e;
-    --logo-filter: invert(1);
-  }
-}
-:root[data-theme="dark"] {
-  --ground: #0c0d0e;
-  --surface: #151618;
-  --ink: #f1f1ee;
-  --ink-2: #c8c9cb;
-  --steel: #9c9fa4;
-  --rule: #2b2d30;
-  --hatch: #1e2022;
-  --on-ink: #0c0d0e;
-  --logo-filter: invert(1);
-}
 
 * {
   box-sizing: border-box;

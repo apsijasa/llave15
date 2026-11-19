@@ -1,0 +1,63 @@
+---
+import { PLATFORM } from "../lib/platform.ts";
+import AppLayout from "./AppLayout.astro";
+
+/** Páginas del cliente (BG-22): la marca del taller por dentro, Llave 15 en el pie. */
+interface Props {
+  title: string;
+  description?: string;
+  noindex?: boolean;
+  profile: { name: string; logoPath: string | null; addressShort: string; email: string };
+}
+
+const { title, description, noindex = true, profile } = Astro.props;
+---
+
+<AppLayout title={title} description={description} noindex={noindex}>
+  <header class="public-head">
+    <div class="wrap">
+      {
+        profile.logoPath ? (
+          <img class="public-logo" src={profile.logoPath} alt={profile.name} />
+        ) : (
+          <p class="public-name">{profile.name}</p>
+        )
+      }
+    </div>
+  </header>
+  <main id="contenido"><slot /></main>
+  <footer class="public-foot">
+    <div class="wrap">
+      <p>{profile.name} · {profile.addressShort} · <a href={`mailto:${profile.email}`}>{profile.email}</a></p>
+      <p>{PLATFORM.footerLine}</p>
+    </div>
+  </footer>
+</AppLayout>
+
+<style>
+  .public-head,
+  .public-foot {
+    border-color: var(--rule);
+    border-style: solid;
+    border-width: 0;
+  }
+  .public-head {
+    border-bottom-width: 1px;
+    padding: 20px 0;
+  }
+  .public-foot {
+    border-top-width: 1px;
+    margin-top: 48px;
+    padding: 24px 0;
+    color: var(--steel);
+  }
+  .public-name {
+    font-family: var(--display);
+    color: var(--ink);
+  }
+  .public-logo {
+    display: block;
+    max-height: 48px;
+    width: auto;
+  }
+</style>
