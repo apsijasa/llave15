@@ -497,7 +497,7 @@
     ],
     "verify": [
       "pnpm test tests/integration/reminders-isolation.test.ts tests/integration/reminders.test.ts tests/integration/tasks.test.ts tests/integration/whatsapp.test.ts tests/integration/whatsapp-orden.test.ts tests/integration/qc-whatsapp.test.ts   # expect: exit 0, 0 failed",
-      "node scripts/bg-expect-parity.ts --base 8bca898   # expect: exit 0 — cierre de la etapa 1: ninguna expectativa cambió desde la base",
+      "node scripts/bg-expect-parity.ts --base 8bca898 --skip tests/integration/customers.test.ts   # expect: exit 0 — cierre de la etapa 1: ninguna expectativa cambió desde la base salvo las cinco de RUT declaradas (BG-D43)",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-16",

@@ -75,7 +75,7 @@ Mismo repo (se convierte en `bike-garage`), misma base y mismo Replit (decisión
 | Métrica | Meta | Cómo se mide |
 |---|---|---|
 | Aislamiento | 0 cruces entre talleres | `pnpm test isolation` en verde en cada paso; `pnpm bg:check` sale 0 en producción |
-| Paridad de Vector Bikes | Ningún valor esperado cambia en la etapa 1 | `node scripts/bg-expect-parity.ts --base 8bca898` sale 0 en `bg-16` |
+| Paridad de Vector Bikes | Ningún valor esperado cambia en la etapa 1 | `node scripts/bg-expect-parity.ts --base 8bca898 --skip tests/integration/customers.test.ts` sale 0 en `bg-16` (BG-D43) |
 | Enlaces antiguos | 100 % redirigen | `node web/vector-bikes/scripts/check-redirects.ts https://vectorbikes.cl` sale 0 después del corte |
 | Criterio de término (FASE §1) | Un segundo taller opera un mes junto a Vector Bikes sin cruces | El dueño lo confirma (checklist §20.1) |
 
@@ -966,7 +966,7 @@ git tag -l bg-15 | grep -qx bg-15   # expect: exit 0
 **Verify**
 ```bash
 pnpm test tests/integration/reminders-isolation.test.ts tests/integration/reminders.test.ts tests/integration/tasks.test.ts tests/integration/whatsapp.test.ts tests/integration/whatsapp-orden.test.ts tests/integration/qc-whatsapp.test.ts   # expect: exit 0, 0 failed
-node scripts/bg-expect-parity.ts --base 8bca898   # expect: exit 0 — cierre de la etapa 1: ninguna expectativa cambió desde la base
+node scripts/bg-expect-parity.ts --base 8bca898 --skip tests/integration/customers.test.ts   # expect: exit 0 — cierre de la etapa 1: ninguna expectativa cambió desde la base salvo las cinco de RUT declaradas (BG-D43)
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
@@ -2295,7 +2295,7 @@ pnpm test:web                    # expect: exit 0
 sh scripts/smoke.sh              # expect: exit 0
 test "$(node -p "Object.keys(require('./tests/unit/shop-literals-baseline.json')).length")" = 0   # expect: exit 0 — guardia vacía
 git rev-parse --verify -q bg-16 >/dev/null && git diff --quiet 8bca898 bg-16 -- tests/build   # expect: exit 0 — el tag existe y la etapa 1 no tocó las pruebas del build
-node scripts/bg-expect-parity.ts --base 8bca898 --allow 'Llave 15' --allow '/vector-bikes/logo' --allow '/vector-bikes/reservar' --skip tests/unit/vector-bikes-profile.test.ts --skip tests/unit/permissions.test.ts   # expect: exit 0 — solo cambiaron las expectativas declaradas
+node scripts/bg-expect-parity.ts --base 8bca898 --allow 'Llave 15' --allow '/vector-bikes/logo' --allow '/vector-bikes/reservar' --skip tests/unit/vector-bikes-profile.test.ts --skip tests/unit/permissions.test.ts --skip tests/integration/customers.test.ts   # expect: exit 0 — solo cambiaron las expectativas declaradas
 pnpm gate                        # expect: exit 0
 ```
 **Criterios FASE §14 → prueba:** tabla al final de BG-45 (§9).
@@ -2394,6 +2394,7 @@ Numeración propia de este blueprint (`BG-D#`). Las decisiones globales 1–57 v
 | BG-D42 | La PK de `booking_days` cambia en dos generaciones: NOT NULL + `DROP TABLE "booking_days"`, y después `CREATE TABLE "booking_days"` con PK (`branch_id`, `service_date`) (BG-09, coordinadora, 18-11-2026) | Una generación (drizzle-kit 0.31 deja el `DROP CONSTRAINT` de la PK de columna comentado y la migración falla) o editar `drizzle/` a mano (prohibido) | Las filas de `booking_days` son solo anclas de bloqueo que `createBooking` recrea con `onConflictDoNothing`; se pierde nada; la ventana V-BG3 corre con el taller cerrado | drizzle-kit sabe nombrar la PK al cambiarla |
 | BG-D43 | El RUT del cliente es único por sucursal (`uq_customers_rut` en (`branch_id`, `rut`)); cinco pruebas de `customers.test.ts` que afirmaban el RUT global de la fase 1 cambian su valor esperado en BG-10 (coordinadora, 18-11-2026; FASE §5 aprobada) | Conservar el RUT global | Un ciclista que va a dos talleres no podría registrarse en el segundo y el rechazo revelaría que existe en otro; con un taller = una sucursal, por sucursal equivale a por taller | Llega multi-sucursal (fase 4): el RUT pasa a ser por taller con `shop_id` en `customers` |
 | BG-D44 | En BG-15, `prefillFromBooking` lee la reserva por taller (cualquier sucursal del taller del actor, `bookingInActorShop` en `booking-reception.ts`) y no por sucursal; las demás lecturas de reservas de la recepción filtran por sucursal (coordinadora, 19-11-2026) | Filtrar también por `actor.branchId` | `work-orders.test.ts` prueba 3 afirma que otra sucursal del mismo taller prellena la reserva sin ficha; la paridad prohíbe cambiar esa expectativa, y el aislamiento que exige la fase es entre talleres (un taller = una sucursal) | Llega multi-sucursal (fase 4): se decide si la recepción cruza sucursales del mismo taller |
+| BG-D45 | Los avisos de reserva reciben db opcional al final; sin db usan la marca heredada de SITE y del entorno (solo pruebas que llaman a los avisos directamente), con db el perfil del taller; los llamadores de src/ (manual-booking, reschedule-booking, cancel-flow, api/reservas) pasan db como propagación mecánica (coordinadora, 19-11-2026) | getDb() como respaldo, o reescribir las pruebas que llaman sin base | getDb() rompe las pruebas sin DATABASE_URL; la paridad prohíbe cambiar sus llamadas | BG-27 borra SITE: db pasa a ser obligatorio y esas pruebas pasan la base |
 
 ### 20.4 Qué construir después
 Desde la cerca de FASE §2.3:
