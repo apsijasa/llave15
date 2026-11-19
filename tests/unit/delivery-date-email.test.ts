@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
-import { SITE } from "../../src/lib/site.ts";
 import { deliveryDateChangedEmail } from "../../src/server/email/order-templates.ts";
+import { SITE, vectorBikesBrand } from "../helpers/shops.ts";
 
 const INPUT = {
   orderNumber: "OT-00001",
@@ -12,7 +12,7 @@ const INPUT = {
 };
 
 it("avisa con ambas fechas largas, el primer nombre y la identidad del taller", () => {
-  const email = deliveryDateChangedEmail(INPUT);
+  const email = deliveryDateChangedEmail(vectorBikesBrand(), INPUT);
   expect(email.subject).toBe(`Cambiamos la fecha de entrega · OT-00001 · ${SITE.name}`);
   expect(email.text).toContain("Hola Ana,");
   expect(email.text).not.toContain("Pérez");
@@ -27,23 +27,26 @@ it("avisa con ambas fechas largas, el primer nombre y la identidad del taller", 
 });
 
 it("omite la fecha anterior cuando no existía", () => {
-  const email = deliveryDateChangedEmail({ ...INPUT, previousDate: null });
+  const email = deliveryDateChangedEmail(vectorBikesBrand(), { ...INPUT, previousDate: null });
   expect(email.text).not.toContain("Fecha anterior");
   expect(email.html).not.toContain("Fecha anterior");
   expect(email.text).toContain("Nueva fecha: 23 de noviembre de 2026");
 });
 
 it("incluye el seguimiento en HTML y texto, y lo omite sin enlace", () => {
-  const email = deliveryDateChangedEmail(INPUT);
+  const email = deliveryDateChangedEmail(vectorBikesBrand(), INPUT);
   expect(email.html).toContain(`href="${INPUT.trackingUrl}"`);
   expect(email.text).toContain(`Ver el estado de tu bicicleta: ${INPUT.trackingUrl}`);
-  const withoutLink = deliveryDateChangedEmail({ ...INPUT, trackingUrl: null });
+  const withoutLink = deliveryDateChangedEmail(vectorBikesBrand(), { ...INPUT, trackingUrl: null });
   expect(withoutLink.html).not.toContain("Ver el estado de tu bicicleta");
   expect(withoutLink.text).not.toContain("Ver el estado de tu bicicleta");
 });
 
 it("escapa el HTML del nombre una sola vez", () => {
-  const email = deliveryDateChangedEmail({ ...INPUT, customerName: "<Ana&> Pérez" });
+  const email = deliveryDateChangedEmail(vectorBikesBrand(), {
+    ...INPUT,
+    customerName: "<Ana&> Pérez",
+  });
   expect(email.html).toContain("Hola &lt;Ana&amp;&gt;,");
   expect(email.html).not.toContain("<Ana&>");
   expect(email.html).not.toContain("&amp;lt;");

@@ -1,25 +1,30 @@
-import { and, asc, eq, isNull, lt, notInArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, notInArray } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { getEmailEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
-import { SITE } from "../../lib/site.ts";
 import { TIMEZONE } from "../booking/rules.ts";
 import { localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import { orderPhotos, workOrders } from "../db/schema-orders.ts";
 import { bikes, customers } from "../db/schema-taller.ts";
+import { shops } from "../db/schema-shops.ts";
+import { branches } from "../db/schema.ts";
+import { senderFor } from "../email/brand.ts";
 import { escapeHtml } from "../email/templates.ts";
 import { createTransport } from "../email/transport.ts";
 import type { EmailTransport } from "../email/transport.ts";
+import { profileFromShop } from "../shops/profile.ts";
+import type { ShopProfile } from "../shops/profile.ts";
 import type { ObjectStorage } from "../storage/storage.ts";
 import { lowStockProducts } from "./low-stock.ts";
 import { formatOrderNumber } from "./orders.ts";
 import { TERMINAL_STATUSES } from "./rules.ts";
 
-export async function overdueOrders(db: AppDb, now: Date) {
+async function overdueOrderRows(db: AppDb, now: Date) {
   const today = localToday(now);
   const rows = await db
     .select({
+      branchId: workOrders.branchId,
       number: workOrders.number,
       customerName: customers.name,
       brand: bikes.brand,
@@ -42,6 +47,7 @@ export async function overdueOrders(db: AppDb, now: Date) {
     if (!row.estimatedDeliveryDate) throw new Error("Falta la fecha prometida.");
     const promised = DateTime.fromISO(row.estimatedDeliveryDate, { zone: TIMEZONE });
     return {
+      branchId: row.branchId,
       number: formatOrderNumber(row.number),
       customerName: row.customerName,
       bike: `${row.brand} ${row.model}`.trim(),
@@ -49,6 +55,11 @@ export async function overdueOrders(db: AppDb, now: Date) {
       daysLate: Math.round(localDay.diff(promised, "days").days),
     };
   });
+}
+
+export async function overdueOrders(db: AppDb, now: Date) {
+  const rows = await overdueOrderRows(db, now);
+  return rows.map(({ branchId: _branchId, ...order }) => order);
 }
 
 /** Conserva el conteo del resumen aunque el transporte rechace el envío. */
@@ -62,14 +73,35 @@ export class OverdueDigestError extends Error {
   }
 }
 
-export async function sendOverdueDigest(
-  db: AppDb,
-  now: Date,
-  deps: { transport?: EmailTransport } = {},
-): Promise<{ overdue: number; sent: boolean; lowStock?: number }> {
-  const orders = await overdueOrders(db, now);
-  const products = await lowStockProducts(db);
-  if (orders.length === 0 && products.length === 0) return { overdue: 0, sent: false };
+type OverdueOrder = Awaited<ReturnType<typeof overdueOrderRows>>[number];
+type LowStockProduct = Awaited<ReturnType<typeof lowStockProducts>>[number];
+type ShopDigest = { profile: ShopProfile; orders: OverdueOrder[]; products: LowStockProduct[] };
+
+async function shopDigests(db: AppDb, orders: OverdueOrder[], products: LowStockProduct[]) {
+  const branchIds = [...new Set([...orders, ...products].map((row) => row.branchId))];
+  const rows = await db
+    .select({ branchId: branches.id, shop: shops })
+    .from(branches)
+    .innerJoin(shops, eq(shops.id, branches.shopId))
+    .where(inArray(branches.id, branchIds));
+  const profiles = new Map(rows.map((row) => [row.branchId, profileFromShop(row.shop)]));
+  const groups = new Map<string, ShopDigest>();
+  const groupForBranch = (branchId: string) => {
+    const profile = profiles.get(branchId);
+    if (!profile) throw new Error("No se encontró el perfil del taller del resumen.");
+    let group = groups.get(profile.shopId);
+    if (!group) {
+      group = { profile, orders: [], products: [] };
+      groups.set(profile.shopId, group);
+    }
+    return group;
+  };
+  for (const order of orders) groupForBranch(order.branchId).orders.push(order);
+  for (const product of products) groupForBranch(product.branchId).products.push(product);
+  return groups.values();
+}
+
+function digestMessage({ profile, orders, products }: ShopDigest) {
   const lines = orders.map((order) => {
     const date = DateTime.fromISO(order.estimatedDeliveryDate, { zone: TIMEZONE });
     return `${order.number} · ${order.customerName} · ${order.bike} · prometida ${date.toFormat("dd-MM-yyyy")} (${order.daysLate} días)`;
@@ -83,22 +115,48 @@ export async function sendOverdueDigest(
       ),
     );
   }
-  try {
-    await (deps.transport ?? createTransport()).send({
-      to: getEmailEnv().SHOP_NOTIFY_EMAIL,
-      subject:
-        orders.length > 0
-          ? `Órdenes atrasadas: ${orders.length} · ${SITE.name}`
-          : `Stock bajo mínimo: ${products.length} · ${SITE.name}`,
-      text: lines.join("\n"),
-      html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
-    });
-  } catch (error) {
-    throw new OverdueDigestError(orders.length, error);
+  return {
+    to: profile.notifyEmail,
+    subject:
+      orders.length > 0
+        ? `Órdenes atrasadas: ${orders.length} · ${profile.name}`
+        : `Stock bajo mínimo: ${products.length} · ${profile.name}`,
+    text: lines.join("\n"),
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
+  };
+}
+
+export async function sendOverdueDigest(
+  db: AppDb,
+  now: Date,
+  deps: { transport?: EmailTransport } = {},
+): Promise<{ overdue: number; sent: boolean; lowStock?: number }> {
+  const orders = await overdueOrderRows(db, now);
+  const products = await lowStockProducts(db);
+  if (orders.length === 0 && products.length === 0) return { overdue: 0, sent: false };
+  const groups = await shopDigests(db, orders, products);
+  const failures: unknown[] = [];
+  let sent = false;
+  for (const group of groups) {
+    try {
+      const baseEnv = getEmailEnv();
+      const transport =
+        deps.transport ??
+        createTransport({
+          ...baseEnv,
+          EMAIL_FROM: senderFor(group.profile, baseEnv.EMAIL_FROM),
+          EMAIL_REPLY_TO: group.profile.email,
+        });
+      await transport.send(digestMessage(group));
+      sent = true;
+    } catch (error) {
+      failures.push(error);
+    }
   }
+  if (failures.length > 0) throw new OverdueDigestError(orders.length, failures[0]);
   return {
     overdue: orders.length,
-    sent: true,
+    sent,
     ...(products.length > 0 ? { lowStock: products.length } : {}),
   };
 }

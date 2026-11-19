@@ -1,5 +1,4 @@
 import { DateTime } from "luxon";
-import { SITE } from "../../lib/site.ts";
 import { TIMEZONE } from "../booking/rules.ts";
 import { grossOfNet, VAT_RATE_PERCENT } from "../taller/rules.ts";
 import type { PricingMode } from "../taller/rules.ts";
@@ -65,14 +64,17 @@ export function quoteEmail(brand: EmailBrand, input: QuoteEmail): RenderedEmail 
   );
 }
 
-export function maintenanceReminderEmail(input: {
-  orderNumber: string;
-  customerName: string;
-  bike: string;
-  nextMaintenanceDate: string;
-  note: string | null;
-  bookingUrl: string;
-}): RenderedEmail {
+export function maintenanceReminderEmail(
+  brand: EmailBrand,
+  input: {
+    orderNumber: string;
+    customerName: string;
+    bike: string;
+    nextMaintenanceDate: string;
+    note: string | null;
+    bookingUrl: string;
+  },
+): RenderedEmail {
   const firstName = input.customerName.trim().split(/\s+/)[0] ?? "";
   const date = DateTime.fromISO(input.nextMaintenanceDate, { zone: TIMEZONE })
     .setLocale("es-CL")
@@ -83,26 +85,33 @@ export function maintenanceReminderEmail(input: {
   ];
   if (input.note) rows.push(["Nota", input.note]);
   rows.push(["Última orden", input.orderNumber]);
-  return render(`Se acerca la mantención de tu bicicleta · ${SITE.name}`, {
-    heading: "Se acerca la mantención de tu bicicleta",
-    intro: [
-      `Hola ${firstName},`,
-      "Cuando revisamos tu bicicleta sugerimos una próxima mantención. Se acerca la fecha.",
-    ],
-    rows,
-    notes: ["Si no quieres recibir este aviso, responde este correo y lo quitamos."],
-    link: { label: "Reservar hora", href: input.bookingUrl },
-  });
+  return render(
+    `Se acerca la mantención de tu bicicleta · ${brand.shopName}`,
+    {
+      heading: "Se acerca la mantención de tu bicicleta",
+      intro: [
+        `Hola ${firstName},`,
+        "Cuando revisamos tu bicicleta sugerimos una próxima mantención. Se acerca la fecha.",
+      ],
+      rows,
+      notes: ["Si no quieres recibir este aviso, responde este correo y lo quitamos."],
+      link: { label: "Reservar hora", href: input.bookingUrl },
+    },
+    brand,
+  );
 }
 
-export function deliveryDateChangedEmail(input: {
-  orderNumber: string;
-  customerName: string;
-  bike: string;
-  previousDate: string | null;
-  newDate: string;
-  trackingUrl: string | null;
-}): RenderedEmail {
+export function deliveryDateChangedEmail(
+  brand: EmailBrand,
+  input: {
+    orderNumber: string;
+    customerName: string;
+    bike: string;
+    previousDate: string | null;
+    newDate: string;
+    trackingUrl: string | null;
+  },
+): RenderedEmail {
   const firstName = input.customerName.trim().split(/\s+/)[0] ?? "";
   const formatDate = (date: string) =>
     DateTime.fromISO(date, { zone: TIMEZONE }).setLocale("es-CL").toFormat("d 'de' LLLL 'de' yyyy");
@@ -112,15 +121,19 @@ export function deliveryDateChangedEmail(input: {
   ];
   if (input.previousDate !== null) rows.push(["Fecha anterior", formatDate(input.previousDate)]);
   rows.push(["Nueva fecha", formatDate(input.newDate)]);
-  return render(`Cambiamos la fecha de entrega · ${input.orderNumber} · ${SITE.name}`, {
-    heading: "Cambiamos la fecha de entrega",
-    intro: [`Hola ${firstName},`, "Actualizamos la fecha estimada de entrega de tu bicicleta."],
-    rows,
-    notes: ["Si la nueva fecha no te acomoda, responde este correo."],
-    ...(input.trackingUrl
-      ? { link: { label: "Ver el estado de tu bicicleta", href: input.trackingUrl } }
-      : {}),
-  });
+  return render(
+    `Cambiamos la fecha de entrega · ${input.orderNumber} · ${brand.shopName}`,
+    {
+      heading: "Cambiamos la fecha de entrega",
+      intro: [`Hola ${firstName},`, "Actualizamos la fecha estimada de entrega de tu bicicleta."],
+      rows,
+      notes: ["Si la nueva fecha no te acomoda, responde este correo."],
+      ...(input.trackingUrl
+        ? { link: { label: "Ver el estado de tu bicicleta", href: input.trackingUrl } }
+        : {}),
+    },
+    brand,
+  );
 }
 
 export function partAddedEmail(

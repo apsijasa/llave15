@@ -2,7 +2,7 @@ import { and, asc, eq, gt, gte, isNotNull, isNull, lte, notExists } from "drizzl
 import { alias } from "drizzle-orm/pg-core";
 import { DateTime } from "luxon";
 import { z } from "zod";
-import { getSiteEnv } from "../../lib/env.ts";
+import { getEmailEnv, getSiteEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -12,9 +12,12 @@ import type { AppDb } from "../db/client.ts";
 import { workOrders } from "../db/schema-orders.ts";
 import { serviceReports } from "../db/schema-reports.ts";
 import { bikes, customers } from "../db/schema-taller.ts";
+import { emailBrand, senderFor } from "../email/brand.ts";
 import { maintenanceReminderEmail } from "../email/order-templates.ts";
 import { createTransport } from "../email/transport.ts";
 import type { EmailTransport } from "../email/transport.ts";
+import { profileForBranch } from "../shops/profile.ts";
+import type { ShopProfile } from "../shops/profile.ts";
 import { recordAudit } from "./audit.ts";
 import { formatOrderNumber } from "./orders.ts";
 import {
@@ -207,22 +210,52 @@ export async function dueMaintenanceReminders(db: AppDb, now: Date) {
     .orderBy(asc(serviceReports.nextMaintenanceDate), asc(workOrders.number));
 }
 
+type MaintenanceReminder = Awaited<ReturnType<typeof dueMaintenanceReminders>>[number];
+
+async function markMaintenanceReminderSent(db: AppDb, reminder: MaintenanceReminder, now: Date) {
+  await db
+    .update(serviceReports)
+    .set({ maintenanceReminderSentAt: now })
+    .where(
+      and(
+        eq(serviceReports.id, reminder.reportId),
+        eq(serviceReports.branchId, reminder.branchId),
+        isNull(serviceReports.maintenanceReminderSentAt),
+      ),
+    );
+}
+
+function maintenanceTransport(profile: ShopProfile, transport?: EmailTransport) {
+  if (transport) return transport;
+  const baseEnv = getEmailEnv();
+  return createTransport({
+    ...baseEnv,
+    EMAIL_FROM: senderFor(profile, baseEnv.EMAIL_FROM),
+    EMAIL_REPLY_TO: profile.email,
+  });
+}
+
 export async function sendMaintenanceReminders(
   db: AppDb,
   now: Date,
   deps: { transport?: EmailTransport; siteUrl?: string } = {},
 ): Promise<{ sent: number; failed: number }> {
   const pending = await dueMaintenanceReminders(db, now);
-  const transport = deps.transport ?? createTransport();
   const bookingUrl = new URL("/#reserva", deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL).toString();
+  const profiles = new Map<string, ShopProfile | null>();
   let sent = 0;
   let failed = 0;
   for (const reminder of pending) {
     if (reminder.email === null || reminder.nextMaintenanceDate === null) continue;
     try {
+      if (!profiles.has(reminder.branchId))
+        profiles.set(reminder.branchId, await profileForBranch(db, reminder.branchId));
+      const profile = profiles.get(reminder.branchId);
+      if (!profile) throw new Error("No se encontró el perfil del taller de la orden.");
+      const transport = maintenanceTransport(profile, deps.transport);
       await transport.send({
         to: reminder.email,
-        ...maintenanceReminderEmail({
+        ...maintenanceReminderEmail(emailBrand(profile), {
           orderNumber: formatOrderNumber(reminder.number),
           customerName: reminder.customerName,
           bike: `${reminder.brand} ${reminder.model}`,
@@ -236,16 +269,7 @@ export async function sendMaintenanceReminders(
       log.error("email.failed", { kind: "maintenance", orderId: reminder.orderId });
       continue;
     }
-    await db
-      .update(serviceReports)
-      .set({ maintenanceReminderSentAt: now })
-      .where(
-        and(
-          eq(serviceReports.id, reminder.reportId),
-          eq(serviceReports.branchId, reminder.branchId),
-          isNull(serviceReports.maintenanceReminderSentAt),
-        ),
-      );
+    await markMaintenanceReminderSent(db, reminder, now);
     sent += 1;
   }
   return { sent, failed };

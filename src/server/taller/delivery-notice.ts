@@ -6,10 +6,12 @@ import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
 import type { AppDb } from "../db/client.ts";
 import { auditLog } from "../db/schema-taller.ts";
+import { emailBrand, senderFor } from "../email/brand.ts";
 import { sendShopCopy } from "../email/notifications.ts";
 import type { NotifyDeps } from "../email/notifications.ts";
 import { deliveryDateChangedEmail } from "../email/order-templates.ts";
 import { createTransport } from "../email/transport.ts";
+import { profileForBranch } from "../shops/profile.ts";
 import { recordAudit } from "./audit.ts";
 import { confirmDeliveryDate } from "./delivery-date.ts";
 import { formatOrderNumber, getOrderHeader } from "./orders.ts";
@@ -54,6 +56,20 @@ async function recordDeliveryNotice(db: AppDb, actor: SessionUser, change: DateC
   );
 }
 
+async function deliveryIdentity(db: AppDb, branchId: string, deps: NotifyDeps) {
+  const profile = await profileForBranch(db, branchId);
+  if (!profile) throw new Error("No se encontró el perfil del taller de la orden.");
+  const brand = emailBrand(profile);
+  const baseEnv = deps.env ?? getEmailEnv();
+  const env = {
+    ...baseEnv,
+    EMAIL_FROM: senderFor(profile, baseEnv.EMAIL_FROM),
+    EMAIL_REPLY_TO: brand.replyTo,
+    SHOP_NOTIFY_EMAIL: brand.notifyEmail,
+  };
+  return { brand, env };
+}
+
 /** Se llama después del commit de confirmDeliveryDate; el correo nunca revierte la fecha. */
 async function notifyDeliveryDateChanged(
   db: AppDb,
@@ -74,7 +90,8 @@ async function notifyDeliveryDateChanged(
     const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
     const tracking = await ensureTrackingLink(db, actor, order.id, siteUrl, now);
     const number = formatOrderNumber(order.number);
-    const email = deliveryDateChangedEmail({
+    const { brand, env } = await deliveryIdentity(db, actor.branchId, deps);
+    const email = deliveryDateChangedEmail(brand, {
       orderNumber: number,
       customerName: customer.name,
       bike: `${bike.brand} ${bike.model}`.trim(),
@@ -82,7 +99,6 @@ async function notifyDeliveryDateChanged(
       newDate: date,
       trackingUrl: tracking.ok ? tracking.url : null,
     });
-    const env = deps.env ?? getEmailEnv();
     const transport = deps.transport ?? createTransport(env);
     await transport.send({ to: customer.email, ...email });
     await sendShopCopy(transport, env, customer.email, email, number);
