@@ -15,12 +15,15 @@ import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/a
 import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
 import { addDays, localToday } from "../../server/booking/slots.ts";
 import { getDb } from "../../server/db/client.ts";
+import { scopeForBranch } from "../../server/shops/scope.ts";
 
 export const prerender = false;
 
 const admin = await requireAdmin(getDb(), Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
 if (!admin) return Astro.redirect(loginRedirect(Astro.url.pathname + Astro.url.search), 303);
 if (!can(admin.role, "admin.panel")) return forbiddenResponse();
+const scope = await scopeForBranch(getDb(), admin.branchId);
+if (!scope) return forbiddenResponse();
 
 Astro.response.headers.set("cache-control", "no-store");
 
@@ -28,8 +31,8 @@ const now = new Date();
 const date = parseDate(Astro.url.searchParams.get("fecha")) ?? localToday(now);
 const month = parseMonth(Astro.url.searchParams.get("mes")) ?? date.slice(0, 7);
 const [agenda, overview] = await Promise.all([
-  agendaForDate(getDb(), date),
-  monthOverview(getDb(), month, now),
+  agendaForDate(getDb(), date, scope.branchId),
+  monthOverview(getDb(), month, now, scope),
 ]);
 const warning = holidayWarning(now);
 ---

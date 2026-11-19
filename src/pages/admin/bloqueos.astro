@@ -13,12 +13,15 @@ import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/a
 import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
 import { localToday } from "../../server/booking/slots.ts";
 import { getDb } from "../../server/db/client.ts";
+import { scopeForBranch } from "../../server/shops/scope.ts";
 
 export const prerender = false;
 
 const admin = await requireAdmin(getDb(), Astro.cookies.get(SESSION_COOKIE)?.value, new Date());
 if (!admin) return Astro.redirect(loginRedirect(Astro.url.pathname + Astro.url.search), 303);
 if (!can(admin.role, "admin.panel")) return forbiddenResponse();
+const scope = await scopeForBranch(getDb(), admin.branchId);
+if (!scope) return forbiddenResponse();
 
 Astro.response.headers.set("cache-control", "no-store");
 
@@ -36,7 +39,7 @@ if (Astro.request.method === "POST") {
   } else {
     const form = await Astro.request.formData();
     if (form.get("accion") === "eliminar") {
-      await deleteBlock(getDb(), text(form.get("id")));
+      await deleteBlock(getDb(), text(form.get("id")), scope.branchId);
       return Astro.redirect("/admin/bloqueos", 303);
     }
     values = {
@@ -45,12 +48,16 @@ if (Astro.request.method === "POST") {
       hasta: text(form.get("hasta")),
       motivo: text(form.get("motivo")),
     };
-    const result = await createBlock(getDb(), {
-      serviceDate: values.fecha,
-      startTime: optional(form.get("desde")),
-      endTime: optional(form.get("hasta")),
-      reason: values.motivo,
-    });
+    const result = await createBlock(
+      getDb(),
+      {
+        serviceDate: values.fecha,
+        startTime: optional(form.get("desde")),
+        endTime: optional(form.get("hasta")),
+        reason: values.motivo,
+      },
+      scope.branchId,
+    );
     if (result.ok) {
       return Astro.redirect("/admin/bloqueos", 303);
     }
@@ -59,7 +66,7 @@ if (Astro.request.method === "POST") {
   }
 }
 
-const blocks = await listUpcomingBlocks(getDb(), localToday(new Date()));
+const blocks = await listUpcomingBlocks(getDb(), localToday(new Date()), scope.branchId);
 
 const FIELDS = [
   { name: "fecha", key: "serviceDate", label: "Fecha", type: "date", required: true },

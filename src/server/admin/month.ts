@@ -1,9 +1,12 @@
 import { DateTime } from "luxon";
 import { z } from "zod";
 import { readRange } from "../booking/availability.ts";
-import { DAILY_CAPACITY, HORIZON_DAYS, TIMEZONE } from "../booking/rules.ts";
+import type { BookingConfig } from "../booking/config.ts";
+import { LEGACY_BOOKING_CONFIG } from "../booking/config.ts";
+import { TIMEZONE } from "../booking/rules.ts";
 import { addDays, calendarClosure, localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
+import type { BookingScope } from "../shops/scope.ts";
 
 export type MonthDayState = "free" | "booked" | "full" | "blocked" | "holiday" | "closed";
 
@@ -37,11 +40,15 @@ export function parseMonth(value: string | null | undefined): string | null {
   return monthSchema.safeParse(value).success ? String(value) : null;
 }
 
-function stateOf(closure: ReturnType<typeof calendarClosure>, used: number): MonthDayState {
+function stateOf(
+  closure: ReturnType<typeof calendarClosure>,
+  used: number,
+  capacity: number,
+): MonthDayState {
   if (closure !== null) {
     return closure.status;
   }
-  if (used >= DAILY_CAPACITY) {
+  if (used >= capacity) {
     return "full";
   }
   return used > 0 ? "booked" : "free";
@@ -57,7 +64,7 @@ const STATE_TEXT: Record<MonthDayState, string> = {
 };
 
 /** "Lunes 28 de septiembre, 2 de 4 cupos", con el estado y si está fuera de plazo. */
-function labelOf(day: Omit<MonthDay, "label">): string {
+function labelOf(day: Omit<MonthDay, "label">, capacity: number): string {
   const local = DateTime.fromISO(day.date, { zone: TIMEZONE }).setLocale("es");
   const name = local.toFormat("cccc d 'de' LLLL");
   const parts = [name.charAt(0).toUpperCase() + name.slice(1)];
@@ -68,7 +75,7 @@ function labelOf(day: Omit<MonthDay, "label">): string {
   parts.push(day.state === "holiday" ? `${state}: ${day.holidayName}` : state);
   const open = day.state === "free" || day.state === "booked" || day.state === "full";
   if (open || day.used > 0) {
-    parts.push(`${day.used} de ${DAILY_CAPACITY} cupos`);
+    parts.push(`${day.used} de ${capacity} cupos`);
   }
   if (day.outside === "past") {
     parts.push("pasado");
@@ -78,30 +85,41 @@ function labelOf(day: Omit<MonthDay, "label">): string {
   return parts.filter((part) => part !== "").join(", ");
 }
 
-/** Estado de cada día del mes, con una sola lectura del rango completo. */
-export async function monthOverview(db: AppDb, month: string, now: Date): Promise<MonthView> {
+/**
+ * Estado de cada día del mes, con una sola lectura del rango completo. Con alcance, la capacidad,
+ * el horizonte, los horarios y las filas son los del taller (BG-14).
+ */
+export async function monthOverview(
+  db: AppDb,
+  month: string,
+  now: Date,
+  scope?: BookingScope,
+): Promise<MonthView> {
+  const config: BookingConfig = scope?.config ?? LEGACY_BOOKING_CONFIG;
+  const capacity = config.dailyCapacity;
   const first = DateTime.fromISO(`${month}-01`, { zone: TIMEZONE }).setLocale("es");
   const count = first.daysInMonth ?? 0;
   const dates = Array.from({ length: count }, (_, index) =>
     first.plus({ days: index }).toFormat("yyyy-MM-dd"),
   );
-  const dayData = await readRange(db, `${month}-01`, dates.at(-1) ?? `${month}-01`);
+  const last = dates.at(-1) ?? `${month}-01`;
+  const dayData = await readRange(db, `${month}-01`, last, undefined, scope?.branchId);
   const today = localToday(now);
-  const horizon = addDays(today, HORIZON_DAYS);
+  const horizon = addDays(today, config.horizonDays);
 
   const days = dates.map((date, index) => {
     const data = dayData(date);
-    const closure = calendarClosure(date, data.blocked);
+    const closure = calendarClosure(date, data.blocked, "taller", config);
     const day: Omit<MonthDay, "label"> = {
       date,
       day: index + 1,
-      state: stateOf(closure, data.usedCount),
+      state: stateOf(closure, data.usedCount, capacity),
       holidayName: closure?.holidayName ?? null,
       used: data.usedCount,
       outside: date < today ? "past" : date > horizon ? "horizon" : null,
       isToday: date === today,
     };
-    return { ...day, label: labelOf(day) };
+    return { ...day, label: labelOf(day, capacity) };
   });
 
   const title = first.toFormat("LLLL yyyy");
@@ -111,7 +129,7 @@ export async function monthOverview(db: AppDb, month: string, now: Date): Promis
     prev: first.minus({ months: 1 }).toFormat("yyyy-MM"),
     next: first.plus({ months: 1 }).toFormat("yyyy-MM"),
     offset: first.weekday - 1,
-    capacity: DAILY_CAPACITY,
+    capacity,
     days,
   };
 }
