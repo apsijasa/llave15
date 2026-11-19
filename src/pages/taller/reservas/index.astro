@@ -27,7 +27,7 @@ if (!user)
   });
 if (!can(user.role, "bookings.manage")) return forbiddenResponse();
 Astro.response.headers.set("cache-control", "no-store");
-const upcoming = await listUpcomingBookings(db, localToday(now));
+const upcoming = await listUpcomingBookings(db, localToday(now), undefined, user.branchId);
 const rescheduled = z
   .object({
     date: z.iso.date(),

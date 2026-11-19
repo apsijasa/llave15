@@ -8,10 +8,12 @@ import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/aut
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
 import { localToday } from "../../../server/booking/slots.ts";
 import { getDb } from "../../../server/db/client.ts";
+import { formatClp } from "../../../server/email/templates.ts";
+import { scopeForBranch } from "../../../server/shops/scope.ts";
 import {
   createManualBooking,
   freeBlocks,
-  manualBookingSchema,
+  manualBookingSchemaFor,
 } from "../../../server/taller/manual-booking.ts";
 
 export const prerender = false;
@@ -28,6 +30,11 @@ if (!user)
     },
   });
 if (!can(user.role, "bookings.manage")) return forbiddenResponse();
+const scope = await scopeForBranch(db, user.branchId);
+if (!scope) return forbiddenResponse();
+const manualBookingSchema = manualBookingSchemaFor(scope.config);
+const pickupComunas = scope.config.pickupComunas;
+const pickupFee = formatClp(scope.config.pickupFeeClp);
 Astro.response.headers.set("cache-control", "no-store");
 const selectionSchema = z.strictObject({
   service_date: z.iso.date("Elige una fecha válida."),
@@ -91,7 +98,15 @@ if (requested && !selected.success) {
 }
 const blocks =
   requested && selected.success
-    ? await freeBlocks(db, selected.data.service_date, selected.data.mode, now, selected.data.bicis)
+    ? await freeBlocks(
+        db,
+        selected.data.service_date,
+        selected.data.mode,
+        now,
+        selected.data.bicis,
+        undefined,
+        user.branchId,
+      )
     : [];
 // Con una sola bici los rótulos quedan como siempre; con dos o tres, la primera también se numera.
 const several = selected.success && selected.data.bicis > 1;
@@ -178,7 +193,7 @@ const fields: {
     </form></Card>
     {requested && selected.success && (
       <>
-        <p class="mono">Día {values.service_date} · {values.mode === "retiro" ? "Retiro a domicilio · $15.000" : "Entrega en taller"}</p>
+        <p class="mono">Día {values.service_date} · {values.mode === "retiro" ? `Retiro a domicilio · ${pickupFee}` : "Entrega en taller"}</p>
         {blocks.length === 0 && <p role="status" class="muted">{selected.data.bicis === 1 ? "No hay bloques libres para este día y modalidad. Elige otro día." : `No hay cupo para ${selected.data.bicis} bicicletas este día.`}</p>}
         <Card><form method="post" action={PATH}>
           <input type="hidden" name="service_date" value={values.service_date} />
@@ -225,8 +240,7 @@ const fields: {
                   <label for="comuna">Comuna</label>
                   <select id="comuna" name="comuna" required aria-invalid={Boolean(fieldErrors.comuna)} aria-describedby={fieldErrors.comuna ? "comuna-error" : undefined}>
                     <option value="">Elige una comuna</option>
-                    <option value="Vitacura" selected={values.comuna === "Vitacura"}>Vitacura</option>
-                    <option value="Las Condes" selected={values.comuna === "Las Condes"}>Las Condes</option>
+                    {pickupComunas.map((comuna) => <option value={comuna} selected={values.comuna === comuna}>{comuna}</option>)}
                   </select>
                   {fieldErrors.comuna && <p id="comuna-error">{fieldErrors.comuna}</p>}
                 </div>
