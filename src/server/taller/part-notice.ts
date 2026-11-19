@@ -5,6 +5,8 @@ import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
 import type { AppDb } from "../db/client.ts";
 import { workOrderItems } from "../db/schema-orders.ts";
+import { emailBrand, senderFor } from "../email/brand.ts";
+import { profileForBranch } from "../shops/profile.ts";
 import { sendShopCopy } from "../email/notifications.ts";
 import type { NotifyDeps } from "../email/notifications.ts";
 import { partAddedEmail } from "../email/order-templates.ts";
@@ -89,7 +91,10 @@ async function sendPartNotice(
   const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
   const tracking = await ensureTrackingLink(db, actor, order.id, siteUrl, now);
   const number = formatOrderNumber(order.number);
-  const email = partAddedEmail({
+  const profile = await profileForBranch(db, actor.branchId);
+  if (!profile) throw new Error("No se encontró el perfil del taller de la orden.");
+  const brand = emailBrand(profile);
+  const email = partAddedEmail(brand, {
     orderNumber: number,
     customerName: customer.name,
     bike: `${bike.brand} ${bike.model}`.trim(),
@@ -100,7 +105,13 @@ async function sendPartNotice(
     totalClp: order.totalClp,
     trackingUrl: tracking.ok ? tracking.url : null,
   });
-  const env = deps.env ?? getEmailEnv();
+  const baseEnv = deps.env ?? getEmailEnv();
+  const env = {
+    ...baseEnv,
+    EMAIL_FROM: senderFor(profile, baseEnv.EMAIL_FROM),
+    EMAIL_REPLY_TO: brand.replyTo,
+    SHOP_NOTIFY_EMAIL: brand.notifyEmail,
+  };
   const transport = privateTransport(deps.transport ?? createTransport(env));
   await transport.send({ to: customer.email, ...email });
   await sendShopCopy(transport, env, customer.email, email, number);

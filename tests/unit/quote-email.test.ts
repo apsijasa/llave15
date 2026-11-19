@@ -1,3 +1,4 @@
+import { vectorBikesBrand } from "../helpers/shops.ts";
 import { expect, it } from "vitest";
 import { quoteEmail, quoteTotalClp } from "../../src/server/email/order-templates.ts";
 import type { QuoteEmail } from "../../src/server/email/order-templates.ts";
@@ -15,7 +16,7 @@ const INPUT: QuoteEmail = {
 };
 
 it("compone la cotización con cantidades, precios, total y entrega en español", () => {
-  const email = quoteEmail(INPUT);
+  const email = quoteEmail(vectorBikesBrand(), INPUT);
   expect(email.subject).toBe("Cotización · OT-00001 · Vector Bikes");
   expect(email.text).toContain("Tu cotización\n\nHola Ana,");
   expect(email.text).not.toContain("María Pérez");
@@ -36,10 +37,14 @@ it("compone la cotización con cantidades, precios, total y entrega en español"
 });
 
 it("incluye el enlace en HTML y texto y omite enlace y fecha cuando son nulos", () => {
-  const email = quoteEmail(INPUT);
+  const email = quoteEmail(vectorBikesBrand(), INPUT);
   expect(email.html).toContain(`href="${INPUT.trackingUrl}"`);
   expect(email.text).toContain(`Ver el estado de tu bicicleta: ${INPUT.trackingUrl}`);
-  const without = quoteEmail({ ...INPUT, trackingUrl: null, estimatedDeliveryDate: null });
+  const without = quoteEmail(vectorBikesBrand(), {
+    ...INPUT,
+    trackingUrl: null,
+    estimatedDeliveryDate: null,
+  });
   for (const body of [without.html, without.text]) {
     expect(body).not.toContain("seguimiento");
     expect(body).not.toContain("Ver el estado de tu bicicleta");
@@ -49,7 +54,10 @@ it("incluye el enlace en HTML y texto y omite enlace y fecha cuando son nulos", 
 
 it("escapa las descripciones en HTML y conserva el texto original", () => {
   const description = '<script>alert("x")</script> & frenos';
-  const email = quoteEmail({ ...INPUT, items: [{ description, quantity: 1, unitPriceClp: 1 }] });
+  const email = quoteEmail(vectorBikesBrand(), {
+    ...INPUT,
+    items: [{ description, quantity: 1, unitPriceClp: 1 }],
+  });
   expect(email.html).toContain("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; frenos");
   expect(email.html).not.toContain("<script>");
   expect(email.text).toContain(description);

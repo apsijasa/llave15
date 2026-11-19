@@ -6,6 +6,8 @@ import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
 import type { AppDb } from "../db/client.ts";
 import { auditLog } from "../db/schema-taller.ts";
+import { emailBrand, senderFor } from "../email/brand.ts";
+import { profileForBranch } from "../shops/profile.ts";
 import { sendShopCopy } from "../email/notifications.ts";
 import type { NotifyDeps } from "../email/notifications.ts";
 import { quoteEmail, quoteTotalClp } from "../email/order-templates.ts";
@@ -38,6 +40,22 @@ function redactedTransport(transport: EmailTransport): EmailTransport {
   };
 }
 
+async function quoteDelivery(db: AppDb, actor: SessionUser, input: QuoteEmail, deps: NotifyDeps) {
+  const profile = await profileForBranch(db, actor.branchId);
+  if (!profile) throw new Error("No se encontró el perfil del taller de la orden.");
+  const brand = emailBrand(profile);
+  const email = quoteEmail(brand, input);
+  const baseEnv = deps.env ?? getEmailEnv();
+  const env = {
+    ...baseEnv,
+    EMAIL_FROM: senderFor(profile, baseEnv.EMAIL_FROM),
+    EMAIL_REPLY_TO: brand.replyTo,
+    SHOP_NOTIFY_EMAIL: brand.notifyEmail,
+  };
+  const transport = redactedTransport(deps.transport ?? createTransport(env));
+  return { email, env, transport };
+}
+
 async function deliverQuote(
   db: AppDb,
   actor: SessionUser,
@@ -47,15 +65,15 @@ async function deliverQuote(
   customerEmail: string,
   deps: NotifyDeps,
 ): Promise<QuoteResult> {
-  const email = quoteEmail(input);
-  const env = deps.env ?? getEmailEnv();
-  const transport = redactedTransport(deps.transport ?? createTransport(env));
+  let delivery: Awaited<ReturnType<typeof quoteDelivery>>;
   try {
-    await transport.send({ to: customerEmail, ...email });
+    delivery = await quoteDelivery(db, actor, input, deps);
+    await delivery.transport.send({ to: customerEmail, ...delivery.email });
   } catch {
     log.error("email.failed", { kind: "quote", orderId });
     return { ok: false, code: "send_failed" };
   }
+  const { transport, env, email } = delivery;
   await sendShopCopy(transport, env, customerEmail, email, input.orderNumber);
   const totalClp = quoteTotalClp(input.items, input.pricingMode);
   await recordAudit(

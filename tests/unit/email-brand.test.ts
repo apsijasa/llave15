@@ -14,18 +14,6 @@ import { readyForPickupEmail, receivedBikeEmail } from "../../src/server/email/g
 import type { GarageBrand } from "../../src/server/email/garage/templates.ts";
 
 const brand = vi.hoisted(() => ({ certifications: [] as readonly string[] }));
-vi.mock("../../src/lib/site.ts", async (original) => {
-  const { SITE, ...rest } = await original<typeof import("../../src/lib/site.ts")>();
-  return {
-    ...rest,
-    SITE: {
-      ...SITE,
-      get certifications() {
-        return brand.certifications;
-      },
-    },
-  };
-});
 
 const bookingBrand = {
   ...vectorBikesBrand(),
@@ -105,7 +93,7 @@ const CASES = [
   ["shopCancellationEmail", () => shopCancellationEmail(bookingBrand, BOOKING)],
   ["receivedBikeEmail", () => receivedBikeEmail(garageEmailBrand, ORDER)],
   ["readyForPickupEmail", () => readyForPickupEmail(garageEmailBrand, ORDER)],
-  ["quoteEmail", () => quoteEmail(ORDER)],
+  ["quoteEmail", () => quoteEmail(bookingBrand, ORDER)],
 ] as const;
 const LOGO = '<img src="https://vectorbikes.cl/brand/vector-bikes-logo.png" alt="Vector Bikes"';
 

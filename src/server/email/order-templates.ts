@@ -3,6 +3,7 @@ import { SITE } from "../../lib/site.ts";
 import { TIMEZONE } from "../booking/rules.ts";
 import { grossOfNet, VAT_RATE_PERCENT } from "../taller/rules.ts";
 import type { PricingMode } from "../taller/rules.ts";
+import type { EmailBrand } from "./brand.ts";
 import { amountRows, pricingFromNet } from "./amounts.ts";
 import { formatClp, render } from "./templates.ts";
 import type { EmailContent, RenderedEmail } from "./templates.ts";
@@ -25,7 +26,7 @@ export function quoteTotalClp(items: QuoteEmail["items"], mode: PricingMode = "f
   return mode === "neto" ? grossOfNet(total) : total;
 }
 
-export function quoteEmail(input: QuoteEmail): RenderedEmail {
+export function quoteEmail(brand: EmailBrand, input: QuoteEmail): RenderedEmail {
   const firstName = input.customerName.trim().split(/\s+/)[0] ?? "";
   const total = quoteTotalClp(input.items);
   const rows: EmailContent["rows"] = [
@@ -46,18 +47,22 @@ export function quoteEmail(input: QuoteEmail): RenderedEmail {
     rows.push(["Entrega estimada", date]);
   }
   // render aplica escapeHtml a las filas y al enlace una sola vez.
-  return render(`Cotización · ${input.orderNumber} · ${SITE.name}`, {
-    heading: "Tu cotización",
-    intro: [
-      `Hola ${firstName},`,
-      "Este es el presupuesto de tu bicicleta. Si estás de acuerdo, respóndenos por este correo o por WhatsApp y empezamos.",
-    ],
-    rows,
-    notes: [EXTRA_WORK_NOTE],
-    ...(input.trackingUrl
-      ? { link: { label: "Ver el estado de tu bicicleta", href: input.trackingUrl } }
-      : {}),
-  });
+  return render(
+    `Cotización · ${input.orderNumber} · ${brand.shopName}`,
+    {
+      heading: "Tu cotización",
+      intro: [
+        `Hola ${firstName},`,
+        "Este es el presupuesto de tu bicicleta. Si estás de acuerdo, respóndenos por este correo o por WhatsApp y empezamos.",
+      ],
+      rows,
+      notes: [EXTRA_WORK_NOTE],
+      ...(input.trackingUrl
+        ? { link: { label: "Ver el estado de tu bicicleta", href: input.trackingUrl } }
+        : {}),
+    },
+    brand,
+  );
 }
 
 export function maintenanceReminderEmail(input: {
@@ -118,17 +123,20 @@ export function deliveryDateChangedEmail(input: {
   });
 }
 
-export function partAddedEmail(input: {
-  orderNumber: string;
-  customerName: string;
-  bike: string;
-  item: { description: string; quantity: number; unitPriceClp: number };
-  pricingMode: "final" | "neto";
-  subtotalClp: number;
-  vatClp: number;
-  totalClp: number;
-  trackingUrl: string | null;
-}): RenderedEmail {
+export function partAddedEmail(
+  brand: EmailBrand,
+  input: {
+    orderNumber: string;
+    customerName: string;
+    bike: string;
+    item: { description: string; quantity: number; unitPriceClp: number };
+    pricingMode: "final" | "neto";
+    subtotalClp: number;
+    vatClp: number;
+    totalClp: number;
+    trackingUrl: string | null;
+  },
+): RenderedEmail {
   const firstName = input.customerName.trim().split(/\s+/)[0] ?? "";
   const rows: EmailContent["rows"] = [
     ["Orden", input.orderNumber],
@@ -142,13 +150,17 @@ export function partAddedEmail(input: {
       ["Total", formatClp(input.totalClp)],
     );
   } else rows.push(["Nuevo total", formatClp(input.totalClp)]);
-  return render(`Agregamos un repuesto a tu orden · ${input.orderNumber} · ${SITE.name}`, {
-    heading: "Agregamos un repuesto a tu orden",
-    intro: [`Hola ${firstName},`, "Agregamos este repuesto al trabajo de tu bicicleta."],
-    rows,
-    notes: ["Si tienes dudas sobre este repuesto, responde este correo."],
-    ...(input.trackingUrl
-      ? { link: { label: "Ver el estado de tu bicicleta", href: input.trackingUrl } }
-      : {}),
-  });
+  return render(
+    `Agregamos un repuesto a tu orden · ${input.orderNumber} · ${brand.shopName}`,
+    {
+      heading: "Agregamos un repuesto a tu orden",
+      intro: [`Hola ${firstName},`, "Agregamos este repuesto al trabajo de tu bicicleta."],
+      rows,
+      notes: ["Si tienes dudas sobre este repuesto, responde este correo."],
+      ...(input.trackingUrl
+        ? { link: { label: "Ver el estado de tu bicicleta", href: input.trackingUrl } }
+        : {}),
+    },
+    brand,
+  );
 }

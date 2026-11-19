@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { SITE } from "../../src/lib/site.ts";
+import { SITE, vectorBikesBrand } from "../helpers/shops.ts";
 import { partAddedEmail } from "../../src/server/email/order-templates.ts";
 
 const input = {
@@ -15,7 +15,7 @@ const input = {
 };
 
 it("identifica el taller, saluda solo por el primer nombre y muestra el precio cobrado", () => {
-  const email = partAddedEmail(input);
+  const email = partAddedEmail(vectorBikesBrand(), input);
   expect(email.subject).toBe(`Agregamos un repuesto a tu orden · OT-00001 · ${SITE.name}`);
   expect(email.text).toContain("Hola Ana,");
   expect(email.text).not.toContain("Pérez");
@@ -31,7 +31,7 @@ it("identifica el taller, saluda solo por el primer nombre y muestra el precio c
 });
 
 it("muestra el desglose neto completo con los montos recibidos", () => {
-  const email = partAddedEmail({ ...input, pricingMode: "neto" });
+  const email = partAddedEmail(vectorBikesBrand(), { ...input, pricingMode: "neto" });
   expect(email.text).toBe(`Agregamos un repuesto a tu orden
 
 Hola Ana,
@@ -48,23 +48,27 @@ Si tienes dudas sobre este repuesto, responde este correo.
 
 Ver el estado de tu bicicleta: ${input.trackingUrl}
 
-${SITE.name} · ${SITE.addressShort} · ${SITE.email}`);
+${SITE.name} · ${SITE.addressShort} · ${SITE.email}
+Gestionado con Llave 15`);
   for (const label of ["Neto", "IVA (19%)", "Total"]) expect(email.html).toContain(label);
   expect(email.text).not.toContain("Nuevo total");
 });
 
 it("incluye el seguimiento en HTML y texto y omite el enlace cuando no existe", () => {
-  const email = partAddedEmail(input);
+  const email = partAddedEmail(vectorBikesBrand(), input);
   expect(email.html).toContain(`href="${input.trackingUrl}"`);
   expect(email.text).toContain(`Ver el estado de tu bicicleta: ${input.trackingUrl}`);
-  const withoutLink = partAddedEmail({ ...input, trackingUrl: null });
+  const withoutLink = partAddedEmail(vectorBikesBrand(), { ...input, trackingUrl: null });
   expect(withoutLink.text).not.toContain("Ver el estado");
   expect(withoutLink.html).not.toContain("Ver el estado");
 });
 
 it("escapa la descripción una sola vez en HTML y la conserva en texto", () => {
   const description = '<script>"Pastillas" & frenos</script>';
-  const email = partAddedEmail({ ...input, item: { ...input.item, description } });
+  const email = partAddedEmail(vectorBikesBrand(), {
+    ...input,
+    item: { ...input.item, description },
+  });
   expect(email.html).not.toContain("<script>");
   expect(email.html).toContain("&lt;script&gt;&quot;Pastillas&quot; &amp; frenos&lt;/script&gt;");
   expect(email.html).not.toContain("&amp;lt;");

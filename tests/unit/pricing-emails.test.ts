@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SITE, vectorBikesGarageBrand } from "../helpers/shops.ts";
+import { SITE, vectorBikesBrand, vectorBikesGarageBrand } from "../helpers/shops.ts";
 import { quoteEmail, quoteTotalClp } from "../../src/server/email/order-templates.ts";
 import type { QuoteEmail } from "../../src/server/email/order-templates.ts";
 import { readyForPickupEmail, receivedBikeEmail } from "../../src/server/email/garage/templates.ts";
@@ -91,7 +91,7 @@ describe("desglose de precios netos en correos", () => {
   });
 
   it("cotización muestra neto, IVA y total con IVA en texto y HTML", () => {
-    expectRows(quoteEmail({ ...QUOTE, pricingMode: "neto" }), [
+    expectRows(quoteEmail(vectorBikesBrand(), { ...QUOTE, pricingMode: "neto" }), [
       ["Neto", "$10.000"],
       ["IVA (19%)", "$1.900"],
       ["Total", "$11.900"],
@@ -115,7 +115,10 @@ describe("desglose de precios netos en correos", () => {
       ...rows,
       ["Total cotizado", "$119"],
     ]);
-    expectRows(quoteEmail({ ...QUOTE, items, pricingMode: "neto" }), [...rows, ["Total", "$119"]]);
+    expectRows(quoteEmail(vectorBikesBrand(), { ...QUOTE, items, pricingMode: "neto" }), [
+      ...rows,
+      ["Total", "$119"],
+    ]);
     expect(quoteTotalClp(items, "neto")).toBe(119);
   });
 
@@ -134,7 +137,7 @@ describe("desglose de precios netos en correos", () => {
   });
 
   it("cotización neta vacía muestra montos cero", () => {
-    expectRows(quoteEmail({ ...QUOTE, items: [], pricingMode: "neto" }), [
+    expectRows(quoteEmail(vectorBikesBrand(), { ...QUOTE, items: [], pricingMode: "neto" }), [
       ["Neto", "$0"],
       ["IVA (19%)", "$0"],
       ["Total", "$0"],
@@ -161,8 +164,8 @@ describe("compatibilidad de los correos con precios finales", () => {
   });
 
   it("cotización conserva subject, html y text con final o régimen omitido", () => {
-    const previous = quoteEmail(QUOTE);
-    expect(quoteEmail({ ...QUOTE, pricingMode: "final" })).toEqual(previous);
-    expect(quoteEmail({ ...QUOTE, pricingMode: undefined })).toEqual(previous);
+    const previous = quoteEmail(vectorBikesBrand(), QUOTE);
+    expect(quoteEmail(vectorBikesBrand(), { ...QUOTE, pricingMode: "final" })).toEqual(previous);
+    expect(quoteEmail(vectorBikesBrand(), { ...QUOTE, pricingMode: undefined })).toEqual(previous);
   });
 });
