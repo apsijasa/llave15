@@ -18,7 +18,7 @@ Rama `feat/bike-garage`, sobre el último commit (tag `bg-22`). Prueba nueva pri
 
 Exactamente estos cuatro archivos:
 
-1. `src/pages/seguimiento/[token].astro`: con una vista válida, resuelve `profileForShareToken(db, "seguimiento", token)` y renderiza con `PublicLayout` (`noindex`), pasando el perfil ya formateado (`name`, `logoPath`, `addressShort`, `email`). El texto "este es el estado de tu bicicleta en …", la dirección y el horario de recepción salen del perfil (`profile.name`, `profile.addressShort`, `profile.receptionHours`), no de `SITE` ni de `RECEPTION_HOURS`. Título `Seguimiento de tu bicicleta — <nombre del taller>`.
+1. `src/pages/seguimiento/[token].astro` (**excepción BG-D46: esta página NO usa `PublicLayout`**): la página de seguimiento no tiene `<header>` ni `<footer>` y muestra la dirección y el horario del taller **solo cuando la orden está lista para retirar** (decisión A-01; lo afirman `tracking-page.test.ts:154` y `:209`, que no se tocan). Por eso usa `AppLayout` (`noindex`) en vez de `Base.astro`, sin encabezado ni pie, y con una vista válida resuelve `profileForShareToken(db, "seguimiento", token)`: el texto "este es el estado de tu bicicleta en …" usa `profile.name`; la dirección y el horario de recepción (cuando está lista, como hoy) salen de `profile.addressShort` y `profile.receptionHours`, no de `SITE` ni de `RECEPTION_HOURS`; y al final del contenido (dentro de `<section>`, nunca en `<footer>`) una línea `<p>` con `PLATFORM.footerLine`. Título `Seguimiento de tu bicicleta — <nombre del taller>`.
 2. `src/pages/aprobacion/[token].astro`: lo mismo con `profileForShareToken(db, "aprobacion", token)`; título y descripción con el nombre del taller.
 3. `src/pages/reservas/cancelar.astro`: lo mismo con `profileForCancelToken(db, token)`; los mensajes de contacto usan `profile.email`; título `Cancelar reserva — <nombre del taller>`.
 4. `tests/integration/token-pages-isolation.test.ts` (nuevo): los criterios 1 a 4 con `seedTwoShops` (seguimiento, aprobación y cancelación de un token del Taller Demo: su nombre, dirección, horario o correo, la línea `Gestionado con Llave 15`, las cabeceras, y la ausencia de cualquier dato de Vector Bikes; token desconocido → 404).
@@ -26,6 +26,14 @@ Exactamente estos cuatro archivos:
 **Token desconocido, inválido o con límite de intentos** (no hay taller): la página conserva su código (404 o 429) y su mensaje, y se renderiza con `AppLayout` (`noindex`) sin marca de ningún taller, con título `… — Llave 15` (`PLATFORM.name`). En la cancelación, la frase de contacto de los mensajes `started` e `invalid` usa el correo del taller cuando hay perfil; sin perfil, termina en "Si el problema sigue, contacta al taller donde hiciste la reserva." (nunca un correo literal).
 
 Todo lo demás se conserva tal cual: las cabeceras `cache-control: no-store`, `referrer-policy: no-referrer` y `x-robots-tag` donde existen, `originForLog`, el límite de intentos, los métodos distintos de GET, el comportamiento de cada token, los códigos de respuesta y el uso de solo el primer nombre del cliente.
+
+## Primer pase (19-nov, revertido)
+
+El primer pase llevó también el seguimiento a `PublicLayout`, y fallaron tres pruebas de `tracking-page.test.ts`: la línea 154 (dos casos: la página no debe tener `<header>` ni `<footer>`) y la línea 209 (la dirección no aparece antes de que la orden esté lista; el pie de `PublicLayout` la mostraba siempre). Este encargo corrige el seguimiento con la excepción BG-D46; aprobación y cancelación siguen con `PublicLayout`.
+
+Registra en `blueprints/bike-garage/blueprint.md` §20.3, después de la fila de BG-D45, la fila: `| BG-D46 | En BG-23, /seguimiento/[token] usa AppLayout sin encabezado ni pie, con el nombre del taller en el texto y la línea Gestionado con Llave 15 al final del contenido; la dirección y el horario siguen apareciendo solo con la orden lista para retirar. Aprobación y cancelación usan PublicLayout (coordinadora, 19-11-2026) | PublicLayout también en el seguimiento | La página de seguimiento no tiene encabezado ni pie y muestra la dirección solo al estar lista (decisión A-01; tracking-page.test.ts:154 y :209); la paridad prohíbe cambiar esas expectativas | El dueño pide la misma cabecera en el seguimiento |`.
+
+Además: si una prueba nueva necesita registrar intentos fallidos con dos talleres, **no cambies el servidor**; anota en el reporte que `recordAttempt` sin sucursal falla con dos talleres en las páginas por token (la coordinadora lo trata aparte).
 
 ## Riesgo conocido
 
