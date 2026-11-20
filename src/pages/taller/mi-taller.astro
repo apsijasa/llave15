@@ -1,0 +1,204 @@
+---
+import Card from "../../components/taller/Card.astro";
+import PageHeader from "../../components/taller/PageHeader.astro";
+import TallerLayout from "../../layouts/TallerLayout.astro";
+import { PLATFORM } from "../../lib/platform.ts";
+import { isAllowedOrigin } from "../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
+import { getDb } from "../../server/db/client.ts";
+import { shopSettingsFromForm } from "../../server/shops/create-shop.ts";
+import type { FieldErrors } from "../../server/shops/create-shop.ts";
+import { myShop, updateMyShop, uploadMyShopLogo } from "../../server/shops/my-shop.ts";
+import { getStorage } from "../../server/storage/storage.ts";
+
+export const prerender = false;
+
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user) {
+  const response = Astro.redirect(loginRedirect(Astro.url.pathname), 303);
+  response.headers.set("cache-control", "no-store");
+  return response;
+}
+if (!can(user.role, "shop.manage")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+const PATH = "/taller/mi-taller";
+
+let fields: FieldErrors = {};
+let posted: Record<string, string> | null = null;
+let logoError: string | null = null;
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  const form = await Astro.request.formData();
+  if (form.get("accion") === "logo") {
+    const file = form.get("logo");
+    const result =
+      file instanceof File
+        ? await uploadMyShopLogo(
+            db,
+            user,
+            { bytes: Buffer.from(await file.arrayBuffer()), type: file.type },
+            await getStorage(),
+            now,
+          )
+        : ({ ok: false, code: "invalid_logo" } as const);
+    if (result.ok) return Astro.redirect(`${PATH}?hecho=logo`, 303);
+    if (result.code === "forbidden") return forbiddenResponse();
+    logoError = "Sube un JPG o PNG de hasta 2 MB.";
+    Astro.response.status = 422;
+  } else {
+    const result = await updateMyShop(db, user, shopSettingsFromForm(form), now);
+    if (result.ok) return Astro.redirect(`${PATH}?hecho=guardar`, 303);
+    if (result.code === "forbidden") return forbiddenResponse();
+    fields =
+      result.code === "validation_error" ? result.fields : { form: "No encontramos tu taller." };
+    posted = Object.fromEntries([...form.entries()].map(([name, value]) => [name, String(value)]));
+    Astro.response.status = 422;
+  }
+}
+
+const shop = await myShop(db, user);
+if (!shop) return forbiddenResponse();
+const DAYS = [
+  ["1", "Lunes"],
+  ["2", "Martes"],
+  ["3", "Miércoles"],
+  ["4", "Jueves"],
+  ["5", "Viernes"],
+  ["6", "Sábado"],
+  ["7", "Domingo"],
+] as const;
+const stored: Record<string, string> = {
+  name: shop.name,
+  legalName: shop.legalName ?? "",
+  rut: shop.rut ?? "",
+  email: shop.email,
+  notifyEmail: shop.notifyEmail,
+  phone: shop.phone,
+  phoneDisplay: shop.phoneDisplay,
+  streetAddress: shop.streetAddress,
+  addressShort: shop.addressShort,
+  locality: shop.locality,
+  region: shop.region,
+  mapsUrl: shop.mapsUrl ?? "",
+  instagramUrl: shop.instagramUrl ?? "",
+  dailyCapacity: String(shop.dailyCapacity),
+  blockMinutes: String(shop.blockMinutes),
+  minNoticeMinutes: String(shop.minNoticeMinutes),
+  horizonDays: String(shop.horizonDays),
+  pickupFeeClp: String(shop.pickupFeeClp),
+  pickupComunas: shop.pickupComunas.join(", "),
+  pickupEnabled: shop.pickupEnabled ? "on" : "",
+  ...Object.fromEntries(
+    (["recepcion", "retiro"] as const).flatMap((prefix) =>
+      DAYS.flatMap(([day]) => {
+        const hours = (prefix === "recepcion" ? shop.receptionHours : shop.pickupHours)[day];
+        return [
+          [`${prefix}-${day}-open`, hours?.open ?? ""],
+          [`${prefix}-${day}-close`, hours?.close ?? ""],
+        ];
+      }),
+    ),
+  ),
+};
+const value = (name: string) => (posted ? (posted[name] ?? "") : (stored[name] ?? ""));
+const errorId = (name: string) => (fields[name] ? `${name}-error` : undefined);
+const PROFILE = [
+  ["name", "Nombre del taller", "text"],
+  ["email", "Correo público", "email"],
+  ["notifyEmail", "Correo de avisos", "email"],
+  ["phone", "Teléfono (+569XXXXXXXX)", "tel"],
+  ["phoneDisplay", "Teléfono como se muestra", "text"],
+  ["streetAddress", "Dirección", "text"],
+  ["addressShort", "Dirección corta", "text"],
+  ["locality", "Comuna", "text"],
+  ["region", "Región", "text"],
+  ["legalName", "Razón social (opcional)", "text"],
+  ["rut", "RUT (opcional)", "text"],
+  ["mapsUrl", "Enlace a Google Maps (opcional)", "url"],
+  ["instagramUrl", "Instagram (opcional)", "url"],
+] as const;
+const BOOKING = [
+  ["dailyCapacity", "Bicis por día"],
+  ["blockMinutes", "Minutos por bloque (15, 20, 30, 45 o 60)"],
+  ["minNoticeMinutes", "Antelación mínima (minutos)"],
+  ["horizonDays", "Días hacia adelante"],
+  ["pickupFeeClp", "Tarifa de retiro (CLP)"],
+] as const;
+const done = Astro.url.searchParams.get("hecho");
+const notice =
+  done === "guardar" ? "Cambios guardados." : done === "logo" ? "Logo actualizado." : null;
+---
+
+<TallerLayout title={`Mi taller — ${PLATFORM.name}`} description="Datos, horarios y retiro del taller." path={PATH} user={user}>
+  <div class="stack">
+    <PageHeader title="Mi taller" subtitle={`Página de reservas: /${shop.slug}/reservar · prefijo ${shop.codePrefix}`} />
+    {notice && <p role="status">{notice}</p>}
+    {Object.keys(fields).length > 0 && <p role="alert">Revisa los campos marcados.</p>}
+    <form method="post" action={PATH} class="stack">
+      <input type="hidden" name="accion" value="guardar" />
+      <Card title="Datos del taller">
+        <div class="fields">
+          {PROFILE.map(([name, label, type]) => (
+            <div class="field">
+              <label for={`f-${name}`}>{label}</label>
+              <input id={`f-${name}`} name={name} type={type} value={value(name)} aria-invalid={Boolean(fields[name])} aria-describedby={errorId(name)} />
+              {fields[name] && <p id={`${name}-error`}>{fields[name]}</p>}
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card title="Reservas y retiro">
+        <div class="fields">
+          {BOOKING.map(([name, label]) => (
+            <div class="field">
+              <label for={`f-${name}`}>{label}</label>
+              <input id={`f-${name}`} name={name} inputmode="numeric" value={value(name)} aria-invalid={Boolean(fields[name])} aria-describedby={errorId(name)} />
+              {fields[name] && <p id={`${name}-error`}>{fields[name]}</p>}
+            </div>
+          ))}
+          <div class="field">
+            <label for="f-pickupComunas">Comunas de retiro (separadas por coma)</label>
+            <input id="f-pickupComunas" name="pickupComunas" value={value("pickupComunas")} aria-invalid={Boolean(fields.pickupComunas)} aria-describedby={errorId("pickupComunas")} />
+            {fields.pickupComunas && <p id="pickupComunas-error">{fields.pickupComunas}</p>}
+          </div>
+          <label class="field" for="f-pickupEnabled">
+            <span><input id="f-pickupEnabled" name="pickupEnabled" type="checkbox" checked={value("pickupEnabled") === "on"} /> Ofrece retiro a domicilio</span>
+          </label>
+        </div>
+        {(["recepcion", "retiro"] as const).map((prefix) => (
+          <fieldset>
+            <legend>{prefix === "recepcion" ? "Horario de recepción" : "Horario de retiro"}</legend>
+            {fields[prefix === "recepcion" ? "receptionHours" : "pickupHours"] && <p role="alert">{fields[prefix === "recepcion" ? "receptionHours" : "pickupHours"]}</p>}
+            <p class="muted">Deja ambos campos vacíos en los días cerrados.</p>
+            <div class="fields">
+              {DAYS.map(([day, label]) => (
+                <div class="field">
+                  <span>{label}</span>
+                  <label for={`${prefix}-${day}-open`}>Abre</label>
+                  <input id={`${prefix}-${day}-open`} name={`${prefix}-${day}-open`} type="time" value={value(`${prefix}-${day}-open`)} />
+                  <label for={`${prefix}-${day}-close`}>Cierra</label>
+                  <input id={`${prefix}-${day}-close`} name={`${prefix}-${day}-close`} type="time" value={value(`${prefix}-${day}-close`)} />
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </Card>
+      <p><button type="submit" class="btn">Guardar cambios</button></p>
+    </form>
+    <Card title="Logo">
+      <form method="post" action={PATH} enctype="multipart/form-data">
+        <input type="hidden" name="accion" value="logo" />
+        <div class="field">
+          <label for="f-logo">Logo (JPG o PNG, hasta 2 MB)</label>
+          <input id="f-logo" name="logo" type="file" accept="image/jpeg,image/png" aria-invalid={Boolean(logoError)} aria-describedby={logoError ? "logo-error" : undefined} />
+          {logoError && <p id="logo-error" role="alert">{logoError}</p>}
+        </div>
+        <button type="submit" class="btn ghost">Subir logo</button>
+      </form>
+    </Card>
+  </div>
+</TallerLayout>

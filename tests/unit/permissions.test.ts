@@ -93,9 +93,9 @@ const expected: Record<Role, readonly Action[]> = {
 };
 
 describe("permisos del taller", () => {
-  it("expone las 40 acciones sin duplicados", () => {
-    expect(ACTIONS).toHaveLength(40);
-    expect(new Set(ACTIONS).size).toBe(40);
+  it("expone las 41 acciones sin duplicados", () => {
+    expect(ACTIONS).toHaveLength(41);
+    expect(new Set(ACTIONS).size).toBe(41);
     expect(new Set(Object.values(expected).flat())).toEqual(new Set(ACTIONS));
   });
 

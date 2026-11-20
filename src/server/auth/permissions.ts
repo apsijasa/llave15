@@ -49,6 +49,7 @@ export const ACTIONS = [
   "library.ai",
   "library.propose",
   "library.curate",
+  "shop.manage",
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -95,6 +96,7 @@ const permissions: Record<Action, readonly Role[]> = {
   "library.ai": ROLES,
   "library.propose": ROLES,
   "library.curate": administrators,
+  "shop.manage": ["owner"],
 };
 
 export function isRole(value: unknown): value is Role {
