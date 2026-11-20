@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { z } from "zod";
-import { getHashEnv, getSiteEnv, getTurnstileEnv } from "../../lib/env.ts";
+import { getAppEnv, getHashEnv, getSiteEnv, getTurnstileEnv } from "../../lib/env.ts";
 import { errorMessage, log } from "../../lib/log.ts";
 import { readRange } from "../booking/availability.ts";
 import type { BookingConfig } from "../booking/config.ts";
@@ -64,7 +64,7 @@ export function errorResponse(
   return jsonResponse(status, fields ? { error, code, fields } : { error, code }, headers);
 }
 
-/** Origins aceptados: el de `PUBLIC_SITE_URL` y su variante con y sin `www.`, mismo esquema y puerto. */
+/** Variantes de un origen con y sin `www.`, mismo esquema y puerto. */
 function allowedOrigins(siteUrl: string): string[] {
   const site = new URL(siteUrl);
   const bare = site.hostname.replace(/^www\./, "");
@@ -76,16 +76,17 @@ function allowedOrigins(siteUrl: string): string[] {
 }
 
 /** Defensa CSRF ante el proxy de Replit: mismo esquema y puerto, con o sin `www.`. */
-export function isAllowedOrigin(
-  request: Request,
-  siteUrl: string = getSiteEnv().PUBLIC_SITE_URL,
-): boolean {
+export function isAllowedOrigin(request: Request, appUrl?: string, legacyUrl?: string): boolean {
   const origin = request.headers.get("origin");
   if (!origin || origin === "null") {
     return false;
   }
   try {
-    return allowedOrigins(siteUrl).includes(new URL(origin).origin);
+    const urls =
+      appUrl === undefined
+        ? [getAppEnv().APP_URL, legacyUrl ?? getSiteEnv().PUBLIC_SITE_URL]
+        : [appUrl, ...(legacyUrl === undefined ? [] : [legacyUrl])];
+    return urls.flatMap(allowedOrigins).includes(new URL(origin).origin);
   } catch {
     return false;
   }

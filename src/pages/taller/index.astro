@@ -3,7 +3,7 @@ import Card from "../../components/taller/Card.astro";
 import LowStockNotice from "../../components/taller/LowStockNotice.astro";
 import PageHeader from "../../components/taller/PageHeader.astro";
 import TallerLayout from "../../layouts/TallerLayout.astro";
-import { getSiteEnv } from "../../lib/env.ts";
+import { getAppEnv } from "../../lib/env.ts";
 import { PLATFORM } from "../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
@@ -95,8 +95,7 @@ const actions = ACTIONS.filter((entry) => can(role, entry.action));
 let bookingUrl: string | null = null;
 try {
   const profile = await profileForBranch(db, user.branchId);
-  if (profile)
-    bookingUrl = new URL(`/${profile.slug}/reservar`, getSiteEnv().PUBLIC_SITE_URL).toString();
+  if (profile) bookingUrl = new URL(`/${profile.slug}/reservar`, getAppEnv().APP_URL).toString();
 } catch {
   bookingUrl = null;
 }

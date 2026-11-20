@@ -5,7 +5,7 @@ import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
-import { getSiteEnv } from "../../../../lib/env.ts";
+import { getAppEnv } from "../../../../lib/env.ts";
 import { PLATFORM } from "../../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
@@ -107,7 +107,7 @@ if (Astro.request.method === "POST") {
     }
   }
   if (result.ok && result.token) {
-    link = approvalLink(getSiteEnv().PUBLIC_SITE_URL, result.token);
+    link = approvalLink(getAppEnv().APP_URL, result.token);
     const firstName = detail.customer.name.trim().split(/\s+/)[0];
     const message = `Hola ${firstName}, en ${profile.name} revisamos tu bicicleta y encontramos algo. Revisa y responde aquí: ${link}`;
     if (detail.customer.phoneE164) whatsapp = whatsappShareLink(detail.customer.phoneE164, message);

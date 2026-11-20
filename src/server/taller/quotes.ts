@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { getEmailEnv, getSiteEnv } from "../../lib/env.ts";
+import { getEmailEnv, getAppEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -114,7 +114,7 @@ export async function sendQuote(
     db,
     actor,
     orderId,
-    deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL,
+    deps.siteUrl ?? getAppEnv().APP_URL,
     now,
   );
   const input: QuoteEmail = {

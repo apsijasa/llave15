@@ -1,5 +1,5 @@
 import { createEvent } from "ics";
-import { type EmailEnv, getEmailEnv, getSiteEnv } from "../../lib/env.ts";
+import { type EmailEnv, getAppEnv, getCalendarEnv, getEmailEnv } from "../../lib/env.ts";
 import { errorMessage, log } from "../../lib/log.ts";
 import type { AppDb } from "../db/client.ts";
 import { profileForBranch } from "../shops/profile.ts";
@@ -45,7 +45,7 @@ export function icsSequence(updatedAt: Date): number {
  * producción, así que una reserva ya enviada que se reprograma actualiza el mismo evento.
  */
 function icsDomain(): string {
-  return new URL(getSiteEnv().PUBLIC_SITE_URL).hostname.replace(/^www\./, "");
+  return new URL(getCalendarEnv().CALENDAR_URL).hostname.replace(/^www\./, "");
 }
 
 /** Evento de calendario en UTC; el cliente de correo lo muestra en la zona del usuario. */
@@ -167,7 +167,7 @@ export async function notifyBookingCreated(
 ): Promise<void> {
   const { brand, env, profile } = await bookingIdentity(booking, deps.env ?? getEmailEnv(), db);
   const transport = deps.transport ?? createTransport(env);
-  const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
+  const siteUrl = deps.siteUrl ?? getAppEnv().APP_URL;
 
   if (booking.email !== null) {
     const confirmation = message(

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { getEmailEnv, getSiteEnv } from "../../lib/env.ts";
+import { getEmailEnv, getAppEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -317,7 +317,7 @@ async function notifyReceived(
     const order = await receivedNotificationOrder(db, actor, orderId);
     if (!order || order.email === null) return;
     if (await hasReceivedNotification(db, actor, orderId)) return;
-    const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
+    const siteUrl = deps.siteUrl ?? getAppEnv().APP_URL;
     const tracking = await ensureTrackingLink(db, actor, orderId, siteUrl, now);
     const profile = await profileForBranch(db, actor.branchId);
     if (!profile) throw new Error("No se encontró el perfil del taller de la orden.");

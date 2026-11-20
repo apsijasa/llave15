@@ -6,7 +6,7 @@ import PageHeader from "../../../../components/taller/PageHeader.astro";
 import ReportView from "../../../../components/taller/ReportView.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
-import { getSiteEnv } from "../../../../lib/env.ts";
+import { getAppEnv } from "../../../../lib/env.ts";
 import { PLATFORM } from "../../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
@@ -107,7 +107,7 @@ if (Astro.request.method === "POST") {
       return notFound();
     } else {
       plan = parsedPlan.data;
-      link = `${getSiteEnv().PUBLIC_SITE_URL.replace(/\/$/, "")}/informe/${result.token}`;
+      link = `${getAppEnv().APP_URL.replace(/\/$/, "")}/informe/${result.token}`;
       const firstName = detail.customer.name.trim().split(/\s+/)[0];
       if (detail.customer.phoneE164)
         whatsapp = whatsappShareLink(

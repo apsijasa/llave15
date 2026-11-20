@@ -1,7 +1,7 @@
 ---
 import { PLATFORM } from "../../lib/platform.ts";
 import AppLayout from "../../layouts/AppLayout.astro";
-import { getSiteEnv } from "../../lib/env.ts";
+import { getAppEnv } from "../../lib/env.ts";
 import { clientIp } from "../../server/api/client-ip.ts";
 import { hashIp, isAllowedOrigin } from "../../server/api/handlers.ts";
 import {
@@ -51,11 +51,7 @@ if (Astro.request.method === "POST") {
         })
       : ({ ok: false, code: "invalid" } as const);
     if (result.ok) {
-      Astro.cookies.set(
-        SESSION_COOKIE,
-        result.token,
-        sessionCookieOptions(getSiteEnv().PUBLIC_SITE_URL),
-      );
+      Astro.cookies.set(SESSION_COOKIE, result.token, sessionCookieOptions(getAppEnv().APP_URL));
       return Astro.redirect(next ?? defaultLanding(result.role), 303);
     }
     error = result.code;

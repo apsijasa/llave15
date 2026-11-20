@@ -3,7 +3,7 @@ import { and, asc, eq, gt, gte, isNotNull, isNull, lte, notExists } from "drizzl
 import { alias } from "drizzle-orm/pg-core";
 import { DateTime } from "luxon";
 import { z } from "zod";
-import { getEmailEnv, getSiteEnv } from "../../lib/env.ts";
+import { getEmailEnv, getAppEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -252,7 +252,7 @@ export async function sendMaintenanceReminders(
       if (!profile) throw new Error("No se encontró el perfil del taller de la orden.");
       const bookingUrl = new URL(
         `/${profile.slug}/reservar`,
-        deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL,
+        deps.siteUrl ?? getAppEnv().APP_URL,
       ).toString();
       const transport = maintenanceTransport(profile, deps.transport);
       await transport.send({

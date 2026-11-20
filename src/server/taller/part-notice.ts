@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { getEmailEnv, getSiteEnv } from "../../lib/env.ts";
+import { getEmailEnv, getAppEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -88,7 +88,7 @@ async function sendPartNotice(
 ) {
   const { order, customer, bike } = header;
   if (customer.email === null) return false;
-  const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
+  const siteUrl = deps.siteUrl ?? getAppEnv().APP_URL;
   const tracking = await ensureTrackingLink(db, actor, order.id, siteUrl, now);
   const number = formatOrderNumber(order.number);
   const profile = await profileForBranch(db, actor.branchId);

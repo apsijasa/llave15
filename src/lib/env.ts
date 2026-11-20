@@ -32,6 +32,7 @@ const tasksSchema = z.object({ TASKS_SECRET: secret });
 const cronSchema = z.object({ CRON_SECRET: z.string().optional() });
 const siteSchema = z.object({ PUBLIC_SITE_URL: z.url() });
 const absentIfEmpty = (value: unknown) => (value === "" ? undefined : value);
+const appSchema = z.object({ APP_URL: z.preprocess(absentIfEmpty, z.url().optional()) });
 const storageSchema = z
   .object({
     STORAGE_DRIVER: z.preprocess(absentIfEmpty, z.enum(["local", "replit"]).default("local")),
@@ -158,6 +159,20 @@ export function getHashEnv(source: EnvSource = process.env) {
 /** Paso 8 en adelante. */
 export function getSiteEnv(source: EnvSource = process.env) {
   return parseSource(siteSchema, source);
+}
+
+/** Dominio del sistema; sin APP_URL conserva el dominio heredado. */
+export function getAppEnv(source: EnvSource = process.env): { APP_URL: string } {
+  const { APP_URL } = parseSource(appSchema, source);
+  return { APP_URL: APP_URL ?? getSiteEnv(source).PUBLIC_SITE_URL };
+}
+
+/**
+ * Dominio de los `UID` de calendario: queda en el sitio heredado aunque exista `APP_URL`, para que
+ * reprogramar una reserva ya enviada actualice el mismo evento y no cree uno nuevo (BG-34).
+ */
+export function getCalendarEnv(source: EnvSource = process.env): { CALENDAR_URL: string } {
+  return { CALENDAR_URL: getSiteEnv(source).PUBLIC_SITE_URL };
 }
 
 /** Paso 8 en adelante. */

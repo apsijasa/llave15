@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { getEmailEnv, getSiteEnv } from "../../lib/env.ts";
+import { getEmailEnv, getAppEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
@@ -87,7 +87,7 @@ async function notifyDeliveryDateChanged(
     if (date === previousDate || order.status === "reservada" || customer.email === null)
       return false;
     if (await hasDeliveryNotice(db, actor, order.id, date)) return false;
-    const siteUrl = deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL;
+    const siteUrl = deps.siteUrl ?? getAppEnv().APP_URL;
     const tracking = await ensureTrackingLink(db, actor, order.id, siteUrl, now);
     const number = formatOrderNumber(order.number);
     const { brand, env } = await deliveryIdentity(db, actor.branchId, deps);

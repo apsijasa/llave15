@@ -6,7 +6,7 @@ import OrderAmounts from "../../../../components/taller/OrderAmounts.astro";
 import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { getSiteEnv } from "../../../../lib/env.ts";
+import { getAppEnv } from "../../../../lib/env.ts";
 import { PLATFORM } from "../../../../lib/platform.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { formatClp } from "../../../../server/email/templates.ts";
@@ -238,7 +238,7 @@ const canTake =
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 const profile = await profileForBranch(db, user.branchId);
 if (!profile) throw new Error("No se encontró el perfil del taller.");
-const tracking = await ensureTrackingLink(db, user, order.id, getSiteEnv().PUBLIC_SITE_URL, now);
+const tracking = await ensureTrackingLink(db, user, order.id, getAppEnv().APP_URL, now);
 const trackingText = tracking.ok
   ? `Hola ${customer.name.trim().split(/\s+/)[0] ?? ""}, puedes ver el estado de tu bicicleta en ${profile.name} aquí: ${tracking.url}`
   : "";

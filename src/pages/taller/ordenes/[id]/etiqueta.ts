@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { z } from "zod";
-import { getSiteEnv } from "../../../../lib/env.ts";
+import { getAppEnv } from "../../../../lib/env.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
@@ -22,7 +22,7 @@ export const GET: APIRoute = async ({ cookies, params, url }) => {
   if (!can(actor.role, "orders.edit")) return forbiddenResponse();
   const id = z.uuid().safeParse(params.id);
   const result = id.success
-    ? await buildLabel(db, actor, id.data, getSiteEnv().PUBLIC_SITE_URL)
+    ? await buildLabel(db, actor, id.data, getAppEnv().APP_URL)
     : ({ ok: false, code: "not_found" } as const);
   if (!result.ok) {
     if (result.code === "forbidden") return forbiddenResponse();
