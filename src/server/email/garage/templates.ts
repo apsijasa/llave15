@@ -1,5 +1,5 @@
+import { TIMEZONE } from "../../../lib/time.ts";
 import { DateTime } from "luxon";
-import { TIMEZONE } from "../../booking/rules.ts";
 import type { WeekHours } from "../../db/schema-shops.ts";
 import type { ShopProfile } from "../../shops/profile.ts";
 import type { PricingMode } from "../../taller/rules.ts";

@@ -1,8 +1,8 @@
+import { TIMEZONE } from "../../lib/time.ts";
 import { and, asc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { getWhatsAppEnv } from "../../lib/env.ts";
 import { errorMessage, log } from "../../lib/log.ts";
-import { TIMEZONE } from "../booking/rules.ts";
 import type { AppDb } from "../db/client.ts";
 import { type Booking, bookings, whatsappMessages } from "../db/schema.ts";
 import type { BookingScope } from "../shops/scope.ts";

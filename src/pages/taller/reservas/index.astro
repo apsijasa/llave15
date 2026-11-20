@@ -1,4 +1,5 @@
 ---
+import { TIMEZONE, localToday } from "../../../lib/time.ts";
 import { PLATFORM } from "../../../lib/platform.ts";
 import { DateTime } from "luxon";
 import { z } from "zod";
@@ -7,8 +8,6 @@ import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
-import { TIMEZONE } from "../../../server/booking/rules.ts";
-import { localToday } from "../../../server/booking/slots.ts";
 import { getDb } from "../../../server/db/client.ts";
 import { listUpcomingBookings } from "../../../server/taller/manual-booking.ts";
 import { formatOrderNumber } from "../../../server/taller/orders.ts";

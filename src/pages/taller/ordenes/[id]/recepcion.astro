@@ -1,4 +1,5 @@
 ---
+import { addDays, localToday } from "../../../../lib/time.ts";
 import { z } from "zod";
 import Card from "../../../../components/taller/Card.astro";
 import OrderAmounts from "../../../../components/taller/OrderAmounts.astro";
@@ -11,8 +12,8 @@ import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
-import { addDays, localToday } from "../../../../server/booking/slots.ts";
 import { getDb } from "../../../../server/db/client.ts";
+import { scopeForBranch } from "../../../../server/shops/scope.ts";
 import { formatClp } from "../../../../server/email/templates.ts";
 import { listCatalog } from "../../../../server/taller/catalog.ts";
 import {
@@ -187,8 +188,10 @@ const checks = await listIntakeChecks(db, user, order.id);
 const items = await listItems(db, user, order.id);
 const catalog = (await listCatalog(db, user)).filter((service) => service.isActive);
 const today = localToday(now);
+const shopScope = await scopeForBranch(db, user.branchId);
 const suggestedDate = suggestDeliveryDate({
   now,
+  config: shopScope?.config,
   orderMinutes: order.estimatedMinutes,
   loadByDate: await loadByDate(db, user.branchId, addDays(today, 1), addDays(today, 60), order.id),
 });

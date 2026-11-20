@@ -1,5 +1,5 @@
+import { TIMEZONE } from "../../lib/time.ts";
 import { DateTime } from "luxon";
-import { TIMEZONE } from "../booking/rules.ts";
 import { grossOfNet, VAT_RATE_PERCENT } from "../taller/rules.ts";
 import type { PricingMode } from "../taller/rules.ts";
 import type { EmailBrand } from "./brand.ts";

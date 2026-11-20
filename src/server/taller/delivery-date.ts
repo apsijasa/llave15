@@ -2,7 +2,11 @@ import { and, eq, gte, lte, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
-import { addDays, calendarClosure, localToday } from "../booking/slots.ts";
+import { DateTime } from "luxon";
+import { TIMEZONE, addDays, localToday } from "../../lib/time.ts";
+import type { BookingConfig } from "../booking/config.ts";
+import { HOLIDAYS } from "../booking/holidays.ts";
+import { calendarClosure } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import { workOrders } from "../db/schema-orders.ts";
 import { recordAudit } from "./audit.ts";
@@ -19,14 +23,24 @@ type SuggestionInput = {
   capacityMinutes?: number;
   isBusinessDay?: (date: string) => boolean;
   horizonDays?: number;
+  /** Con la configuración del taller, los días hábiles son los de su horario de recepción. */
+  config?: BookingConfig;
 };
+
+/** Sin taller: de lunes a sábado y sin feriado. */
+function genericBusinessDay(date: string): boolean {
+  return !HOLIDAYS.has(date) && DateTime.fromISO(date, { zone: TIMEZONE }).weekday !== 7;
+}
 
 export function suggestDeliveryDate({
   now,
   orderMinutes,
   loadByDate,
   capacityMinutes = WORKSHOP_MINUTES_PER_DAY,
-  isBusinessDay = (date) => calendarClosure(date, []) === null,
+  config,
+  isBusinessDay = config
+    ? (date) => calendarClosure(date, [], "taller", config) === null
+    : genericBusinessDay,
   horizonDays = 60,
 }: SuggestionInput): string {
   const today = localToday(now);

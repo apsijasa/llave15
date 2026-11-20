@@ -1,9 +1,9 @@
+import { localToInstant } from "../../lib/time.ts";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
-import { localToInstant } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import { workOrderApprovals, workOrderItems, workOrders } from "../db/schema-orders.ts";
 import { bikeComponents, payments } from "../db/schema-payments.ts";

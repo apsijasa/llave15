@@ -1,12 +1,9 @@
 import { DateTime } from "luxon";
 import { addDays, localToday, localToInstant, TIMEZONE } from "../../lib/time.ts";
 import type { BookingConfig } from "./config.ts";
-import { LEGACY_BOOKING_CONFIG } from "./config.ts";
 import { HOLIDAYS } from "./holidays.ts";
 import type { BookingMode } from "./rules.ts";
 import { blocksFor, hoursFor } from "./rules.ts";
-
-export { addDays, localToday, localToInstant } from "../../lib/time.ts";
 
 export type DayStatus = "open" | "closed" | "holiday" | "full" | "blocked";
 export type BlockState = "free" | "taken" | "late" | "noroom";
@@ -20,7 +17,7 @@ export type DayInput = {
   usedCount: number;
   /** Bicicletas de esta reserva. Sin declarar es 1: así consultan la web y `/api/disponibilidad`. */
   bikeCount?: number;
-  config?: BookingConfig;
+  config: BookingConfig;
 };
 
 export type DayAvailability = {
@@ -57,16 +54,12 @@ function hhmmOf(minutes: number): string {
 }
 
 /** Inicios de bloque del día según su duración, mientras el bloque termine antes del cierre. */
-export function gridForDate(
-  date: string,
-  mode: BookingMode = "taller",
-  config: BookingConfig = LEGACY_BOOKING_CONFIG,
-): string[] {
+export function gridForDate(date: string, mode: BookingMode, config: BookingConfig): string[] {
   const local = DateTime.fromISO(date, { zone: TIMEZONE });
   if (!local.isValid) {
     return [];
   }
-  const hours = hoursFor(mode, local.weekday, config);
+  const hours = hoursFor(config, mode, local.weekday);
   if (!hours) {
     return [];
   }
@@ -104,7 +97,7 @@ function stateFor(input: DayInput, grid: string[], index: number, start: string)
   if (isTaken(input, start)) {
     return "taken";
   }
-  if (isLate(input.date, start, input.now, input.config ?? LEGACY_BOOKING_CONFIG)) {
+  if (isLate(input.date, start, input.now, input.config)) {
     return "late";
   }
   // Una reserva ocupa varios bloques seguidos: el retiro dos, y el taller uno por bici. Si los que
@@ -124,8 +117,8 @@ export type DayClosure = { status: "closed" | "holiday" | "blocked"; holidayName
 export function calendarClosure(
   date: string,
   blocked: DayInput["blocked"],
-  mode: BookingMode = "taller",
-  config: BookingConfig = LEGACY_BOOKING_CONFIG,
+  mode: BookingMode,
+  config: BookingConfig,
 ): DayClosure | null {
   if (gridForDate(date, mode, config).length === 0) {
     return { status: "closed", holidayName: null };
@@ -142,7 +135,7 @@ export function calendarClosure(
 
 /** Disponibilidad consultiva de un día. `createBooking` revalida todo dentro de la transacción. */
 export function computeDay(input: DayInput): DayAvailability {
-  const config = input.config ?? LEGACY_BOOKING_CONFIG;
+  const config = input.config;
   const closed = (status: DayStatus, holidayName: string | null = null): DayAvailability => ({
     date: input.date,
     status,
@@ -177,7 +170,7 @@ export function checkStart(input: DayInput & { start: string }): CheckStartResul
   if (day.status !== "open") {
     return { ok: false, reason: day.status };
   }
-  const config = input.config ?? LEGACY_BOOKING_CONFIG;
+  const config = input.config;
   const grid = gridForDate(input.date, input.mode, config);
   const index = grid.indexOf(input.start);
   const block = day.blocks[index];

@@ -1,10 +1,10 @@
+import { TIMEZONE } from "../../src/lib/time.ts";
 import { randomUUID } from "node:crypto";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { eq, sql } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { SessionUser } from "../../src/server/auth/admin-auth.ts";
-import { TIMEZONE } from "../../src/server/booking/rules.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { workOrders } from "../../src/server/db/schema-orders.ts";
 import { branches } from "../../src/server/db/schema.ts";

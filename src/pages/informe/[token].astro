@@ -1,4 +1,5 @@
 ---
+import { TIMEZONE } from "../../lib/time.ts";
 import { DateTime } from "luxon";
 import ReportView from "../../components/taller/ReportView.astro";
 import AppLayout from "../../layouts/AppLayout.astro";
@@ -7,7 +8,6 @@ import { PLATFORM } from "../../lib/platform.ts";
 import { clientIp } from "../../server/api/client-ip.ts";
 import { checkRateLimit, originForLog, recordAttempt } from "../../server/api/handlers.ts";
 import { getDb } from "../../server/db/client.ts";
-import { TIMEZONE } from "../../server/booking/rules.ts";
 import type { ShopProfile } from "../../server/shops/profile.ts";
 import { profileForShareToken } from "../../server/shops/profile.ts";
 import { getStorage } from "../../server/storage/storage.ts";

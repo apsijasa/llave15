@@ -1,3 +1,4 @@
+import { TIMEZONE, addDays, localToday } from "../../lib/time.ts";
 import { createHmac } from "node:crypto";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { DateTime } from "luxon";
@@ -7,8 +8,7 @@ import { errorMessage, log } from "../../lib/log.ts";
 import { readRange } from "../booking/availability.ts";
 import type { BookingConfig } from "../booking/config.ts";
 import { createBooking } from "../booking/create-booking.ts";
-import { TIMEZONE } from "../booking/rules.ts";
-import { addDays, computeDay, localToday } from "../booking/slots.ts";
+import { computeDay } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import type { Booking } from "../db/schema.ts";
 import { bookingRequests } from "../db/schema.ts";

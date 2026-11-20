@@ -13,7 +13,7 @@ import { scopeForBranch } from "../shops/scope.ts";
 import { recordAudit } from "../taller/audit.ts";
 import { listBookingBikes } from "./booking-bikes.ts";
 import { readDay } from "./day-state.ts";
-import { TIMEZONE } from "./rules.ts";
+import { TIMEZONE } from "../../lib/time.ts";
 import type { BookingMode } from "./rules.ts";
 import { type CheckStartResult, checkStart } from "./slots.ts";
 

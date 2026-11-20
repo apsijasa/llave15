@@ -1,11 +1,10 @@
+import { TIMEZONE, localToday } from "../../lib/time.ts";
 import { and, asc, eq, gte } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { cancelBooking } from "../booking/cancel-booking.ts";
 import { missingHolidayYears } from "../booking/holidays.ts";
-import { HORIZON_DAYS, TIMEZONE } from "../booking/rules.ts";
-import { localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import { type BlockedPeriod, type Booking, blockedPeriods, bookings } from "../db/schema.ts";
 import { recordAudit } from "../taller/audit.ts";
@@ -384,8 +383,11 @@ export async function deleteBlock(db: AppDb, id: string, branchId?: string): Pro
   return deleted.length > 0;
 }
 
-export function holidayWarning(now: Date): string | null {
-  const years = missingHolidayYears(localToday(now), HORIZON_DAYS);
+/** El horizonte más largo que admite un taller (`shops_horizon_check`): sin taller, se revisa todo. */
+const MAX_HORIZON_DAYS = 120;
+
+export function holidayWarning(now: Date, horizonDays = MAX_HORIZON_DAYS): string | null {
+  const years = missingHolidayYears(localToday(now), horizonDays);
   if (years.length === 0) {
     return null;
   }

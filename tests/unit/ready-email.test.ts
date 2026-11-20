@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { SITE, vectorBikesGarageBrand } from "../helpers/shops.ts";
-import { RECEPTION_HOURS } from "../../src/server/booking/rules.ts";
+import {
+  SITE,
+  vectorBikesGarageBrand,
+  VECTOR_BIKES_BOOKING_CONFIG as CONFIG,
+} from "../helpers/shops.ts";
 import { formatClp } from "../../src/server/email/templates.ts";
 import { readyForPickupEmail } from "../../src/server/email/garage/templates.ts";
 import type { ReadyForPickup } from "../../src/server/email/garage/templates.ts";
@@ -56,8 +59,8 @@ describe("correo de bicicleta lista para retirar", () => {
   });
 
   it("el horario sale de RECEPTION_HOURS y la dirección de SITE", () => {
-    const week = RECEPTION_HOURS[1];
-    const saturday = RECEPTION_HOURS[6];
+    const week = CONFIG.receptionHours[1];
+    const saturday = CONFIG.receptionHours[6];
     if (!week || !saturday) throw new Error("Faltan los horarios de recepción.");
     const { bodies } = both(BASE);
 

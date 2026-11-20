@@ -1,4 +1,5 @@
 ---
+import { localToday } from "../../lib/time.ts";
 import { PLATFORM } from "../../lib/platform.ts";
 import Card from "../../components/taller/Card.astro";
 import PageHeader from "../../components/taller/PageHeader.astro";
@@ -12,7 +13,6 @@ import {
 import { isAllowedOrigin } from "../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
-import { localToday } from "../../server/booking/slots.ts";
 import { getDb } from "../../server/db/client.ts";
 import { scopeForBranch } from "../../server/shops/scope.ts";
 

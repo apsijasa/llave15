@@ -1,4 +1,5 @@
 ---
+import { TIMEZONE } from "../../../lib/time.ts";
 import { PLATFORM } from "../../../lib/platform.ts";
 import { DateTime } from "luxon";
 import { z } from "zod";
@@ -17,7 +18,6 @@ import { listBookingBikes } from "../../../server/booking/booking-bikes.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
-import { TIMEZONE } from "../../../server/booking/rules.ts";
 import { getDb } from "../../../server/db/client.ts";
 import { formatClp } from "../../../server/email/templates.ts";
 import {

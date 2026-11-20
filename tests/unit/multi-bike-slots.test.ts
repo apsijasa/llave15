@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MAX_BIKES_PER_BOOKING, blocksFor } from "../../src/server/booking/rules.ts";
 import { checkStart, computeDay } from "../../src/server/booking/slots.ts";
+import { VECTOR_BIKES_BOOKING_CONFIG as CONFIG } from "../helpers/shops.ts";
 
 /** 2026-09-15 12:00 hora local; el 21 es lunes. */
 const NOW = new Date("2026-09-15T15:00:00.000Z");
@@ -14,6 +15,7 @@ function dia(extra: Partial<Parameters<typeof computeDay>[0]> = {}) {
     activeBlockStarts: [] as string[],
     blocked: [] as { startTime: string | null; endTime: string | null }[],
     usedCount: 0,
+    config: CONFIG,
     ...extra,
   };
 }

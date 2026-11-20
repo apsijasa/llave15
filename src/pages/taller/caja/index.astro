@@ -1,4 +1,5 @@
 ---
+import { TIMEZONE } from "../../../lib/time.ts";
 import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
@@ -7,7 +8,6 @@ import { PLATFORM } from "../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
-import { TIMEZONE } from "../../../server/booking/rules.ts";
 import { getDb } from "../../../server/db/client.ts";
 import { formatClp } from "../../../server/email/templates.ts";
 import {

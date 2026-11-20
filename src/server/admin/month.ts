@@ -1,12 +1,12 @@
+import { TIMEZONE, addDays, localToday } from "../../lib/time.ts";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import { readRange } from "../booking/availability.ts";
 import type { BookingConfig } from "../booking/config.ts";
-import { LEGACY_BOOKING_CONFIG } from "../booking/config.ts";
-import { TIMEZONE } from "../booking/rules.ts";
-import { addDays, calendarClosure, localToday } from "../booking/slots.ts";
+import { calendarClosure } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import type { BookingScope } from "../shops/scope.ts";
+import { singleShopScope } from "../shops/scope.ts";
 
 export type MonthDayState = "free" | "booked" | "full" | "blocked" | "holiday" | "closed";
 
@@ -95,7 +95,8 @@ export async function monthOverview(
   now: Date,
   scope?: BookingScope,
 ): Promise<MonthView> {
-  const config: BookingConfig = scope?.config ?? LEGACY_BOOKING_CONFIG;
+  const resolved = scope ?? (await singleShopScope(db));
+  const config: BookingConfig = resolved.config;
   const capacity = config.dailyCapacity;
   const first = DateTime.fromISO(`${month}-01`, { zone: TIMEZONE }).setLocale("es");
   const count = first.daysInMonth ?? 0;
@@ -103,7 +104,7 @@ export async function monthOverview(
     first.plus({ days: index }).toFormat("yyyy-MM-dd"),
   );
   const last = dates.at(-1) ?? `${month}-01`;
-  const dayData = await readRange(db, `${month}-01`, last, undefined, scope?.branchId);
+  const dayData = await readRange(db, `${month}-01`, last, undefined, resolved.branchId);
   const today = localToday(now);
   const horizon = addDays(today, config.horizonDays);
 

@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { AppDb } from "../db/client.ts";
+import { shops } from "../db/schema-shops.ts";
 import { adminSessions, branches, loginAttempts, users } from "../db/schema.ts";
 import { can } from "./permissions.ts";
 import type { Role } from "./permissions.ts";
@@ -89,13 +90,19 @@ export type SessionUser = {
   libraryCurator?: boolean;
 };
 
+/** La primera sucursal se llama como la comuna del taller (BG-28: sin nombres fijos en src/). */
+async function firstBranchName(db: AppDb): Promise<string> {
+  const [shop] = await db.select({ locality: shops.locality }).from(shops).limit(1);
+  return shop?.locality ?? "Sucursal principal";
+}
+
 async function createOwner(db: AppDb, email: string, passwordHash: string, now: Date) {
   const [branch] = await db.select({ id: branches.id }).from(branches).limit(1);
   const [created] = branch
     ? []
     : await db
         .insert(branches)
-        .values({ name: "Vitacura", createdAt: now, updatedAt: now })
+        .values({ name: await firstBranchName(db), createdAt: now, updatedAt: now })
         .returning({ id: branches.id });
   const selected = branch ?? created;
   if (!selected) {

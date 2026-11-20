@@ -1,5 +1,5 @@
+import { TIMEZONE } from "../../../lib/time.ts";
 import { DateTime } from "luxon";
-import { TIMEZONE } from "../../booking/rules.ts";
 import type { Booking } from "../../db/schema.ts";
 import type { EmailBrand } from "../brand.ts";
 import { formatClp, render } from "../templates.ts";

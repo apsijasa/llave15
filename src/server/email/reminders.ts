@@ -1,7 +1,7 @@
+import { addDays, localToday } from "../../lib/time.ts";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { getEmailEnv } from "../../lib/env.ts";
 import { errorMessage, log } from "../../lib/log.ts";
-import { addDays, localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import type { Booking } from "../db/schema.ts";
 import { bookings } from "../db/schema.ts";

@@ -6,6 +6,7 @@ import { type MonthView, monthOverview, parseMonth } from "../../src/server/admi
 import { createBooking } from "../../src/server/booking/create-booking.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { type TestDb, createBookingTestDb } from "../helpers/pglite.ts";
+import { singleShopScope } from "../../src/server/shops/scope.ts";
 
 /** 2026-09-15 12:00 hora local: horizonte hasta el 2026-10-15. */
 const NOW = new Date("2026-09-15T15:00:00.000Z");
@@ -137,11 +138,13 @@ describe("vista de mes del panel", () => {
   });
 
   it("lee todo el mes con las mismas tres consultas, sin importar cuántos días tenga", async () => {
+    // BG-D49: el alcance se resuelve antes de contar; la vista del mes sigue en tres consultas.
+    const scope = await singleShopScope(test.db);
     const september = countingDb(test.db);
     const october = countingDb(test.db);
 
-    await monthOverview(september.db, "2026-09", NOW);
-    await monthOverview(october.db, "2026-10", NOW);
+    await monthOverview(september.db, "2026-09", NOW, scope);
+    await monthOverview(october.db, "2026-10", NOW, scope);
 
     expect(september.selects()).toBe(3);
     expect(october.selects()).toBe(3);

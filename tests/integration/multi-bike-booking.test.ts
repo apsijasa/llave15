@@ -15,6 +15,7 @@ import {
   users,
 } from "../../src/server/db/schema.ts";
 import { type TestDb, createTestDb } from "../helpers/pglite.ts";
+import { VECTOR_BIKES_BOOKING_CONFIG as CONFIG } from "../helpers/shops.ts";
 
 /** 2026-09-15 12:00 hora local; el 21 es lunes. */
 const NOW = new Date("2026-09-15T15:00:00.000Z");
@@ -71,7 +72,13 @@ async function bloques(serviceDate: string): Promise<string[]> {
 /** Lo que ve la web para ese día: la disponibilidad es siempre de 1 bici. */
 async function cuposLibresEnLaWeb(): Promise<number> {
   const data = await readRange(db, LUNES, LUNES);
-  const day = computeDay({ date: LUNES, mode: "taller", now: NOW, ...data(LUNES) });
+  const day = computeDay({
+    date: LUNES,
+    mode: "taller",
+    now: NOW,
+    config: CONFIG,
+    ...data(LUNES),
+  });
   return 4 - day.used;
 }
 

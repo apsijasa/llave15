@@ -1,12 +1,15 @@
 import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
-import { addDays, localToday, localToInstant, TIMEZONE } from "../../src/lib/time.ts";
-import { TIMEZONE as bookingTimezone } from "../../src/server/booking/rules.ts";
 import {
+  addDays,
+  localToday,
+  localToInstant,
+  TIMEZONE,
+  TIMEZONE as bookingTimezone,
   addDays as bookingAddDays,
   localToday as bookingLocalToday,
   localToInstant as bookingLocalToInstant,
-} from "../../src/server/booking/slots.ts";
+} from "../../src/lib/time.ts";
 
 function firstMissingHour(): { date: string; hhmm: string } | null {
   const september = DateTime.utc(2026, 9, 1);

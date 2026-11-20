@@ -6,7 +6,8 @@ import type { AppDb } from "../db/client.ts";
 import { type Booking, bookings } from "../db/schema.ts";
 import { notifyBookingCancelled } from "../email/notifications.ts";
 import { cancelBooking } from "./cancel-booking.ts";
-import { type BookingMode, TIMEZONE } from "./rules.ts";
+import { TIMEZONE } from "../../lib/time.ts";
+import type { BookingMode } from "./rules.ts";
 import { hashCancelToken } from "./tokens.ts";
 
 /** Lo mínimo para que el cliente reconozca su reserva; sin datos de contacto. */

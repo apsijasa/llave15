@@ -40,6 +40,14 @@ export function icsSequence(updatedAt: Date): number {
   return Math.max(1, Math.floor(updatedAt.getTime() / 1000 - ICS_SEQUENCE_EPOCH_SECONDS));
 }
 
+/**
+ * Dominio del UID del evento: el host de `PUBLIC_SITE_URL` sin `www.`. Es el mismo de siempre en
+ * producción, así que una reserva ya enviada que se reprograma actualiza el mismo evento.
+ */
+function icsDomain(): string {
+  return new URL(getSiteEnv().PUBLIC_SITE_URL).hostname.replace(/^www\./, "");
+}
+
 /** Evento de calendario en UTC; el cliente de correo lo muestra en la zona del usuario. */
 export function buildIcs(
   booking: Booking,
@@ -47,9 +55,9 @@ export function buildIcs(
   profile: Pick<ShopProfile, "name" | "streetAddress" | "locality">,
 ): string {
   const { error, value } = createEvent({
-    uid: `${booking.code}@vectorbikes.cl`,
+    uid: `${booking.code}@${icsDomain()}`,
     sequence,
-    productId: "vectorbikes/reservas",
+    productId: `${icsDomain()}/reservas`,
     title: `${profile.name} · Reserva ${booking.code}`,
     description: `Reserva ${booking.code}. Bicicleta: ${booking.bike}.`,
     location:

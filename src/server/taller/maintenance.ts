@@ -1,9 +1,8 @@
+import { TIMEZONE, localToday } from "../../lib/time.ts";
 import { and, asc, eq, inArray, isNull, lt, notInArray } from "drizzle-orm";
 import { DateTime } from "luxon";
 import { getEmailEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
-import { TIMEZONE } from "../booking/rules.ts";
-import { localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import { orderPhotos, workOrders } from "../db/schema-orders.ts";
 import { bikes, customers } from "../db/schema-taller.ts";

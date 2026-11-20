@@ -1,3 +1,4 @@
+import { localToInstant } from "../../src/lib/time.ts";
 import { describe, expect, it } from "vitest";
 import { missingHolidayYears } from "../../src/server/booking/holidays.ts";
 import type { BookingMode } from "../../src/server/booking/rules.ts";
@@ -6,8 +7,8 @@ import {
   checkStart,
   computeDay,
   gridForDate,
-  localToInstant,
 } from "../../src/server/booking/slots.ts";
+import { VECTOR_BIKES_BOOKING_CONFIG as CONFIG } from "../helpers/shops.ts";
 
 /** 2026-09-16 16:04 hora local (UTC-3). */
 const NOW = new Date("2026-09-16T19:04:00.000Z");
@@ -20,6 +21,7 @@ function dayInput(date: string, mode: BookingMode, extra: Partial<DayInput> = {}
     activeBlockStarts: [],
     blocked: [],
     usedCount: 0,
+    config: CONFIG,
     ...extra,
   };
 }
@@ -30,15 +32,15 @@ function stateOf(day: ReturnType<typeof computeDay>, start: string): string | un
 
 describe("grilla", () => {
   it("abre de tarde entre semana, de mañana el sábado y cierra el domingo", () => {
-    const wednesday = gridForDate("2026-09-16");
+    const wednesday = gridForDate("2026-09-16", "taller", CONFIG);
     expect(wednesday.at(0)).toBe("15:00");
     expect(wednesday.at(-1)).toBe("19:30");
 
-    const saturday = gridForDate("2026-09-26");
+    const saturday = gridForDate("2026-09-26", "taller", CONFIG);
     expect(saturday.at(0)).toBe("10:00");
     expect(saturday.at(-1)).toBe("13:30");
 
-    expect(gridForDate("2026-09-20")).toEqual([]);
+    expect(gridForDate("2026-09-20", "taller", CONFIG)).toEqual([]);
   });
 });
 

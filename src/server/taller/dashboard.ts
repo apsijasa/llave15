@@ -1,3 +1,4 @@
+import { TIMEZONE, addDays, localToday } from "../../lib/time.ts";
 import {
   and,
   asc,
@@ -15,8 +16,6 @@ import {
 import { DateTime } from "luxon";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
-import { TIMEZONE } from "../booking/rules.ts";
-import { addDays, localToday } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import { workOrders } from "../db/schema-orders.ts";
 import { payments } from "../db/schema-payments.ts";

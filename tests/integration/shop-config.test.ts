@@ -1,10 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { ZodError } from "zod";
-import {
-  LEGACY_BOOKING_CONFIG,
-  bookingConfigFromShop,
-  weekHoursSchema,
-} from "../../src/server/booking/config.ts";
+import { bookingConfigFromShop, weekHoursSchema } from "../../src/server/booking/config.ts";
 import { hoursFor } from "../../src/server/booking/rules.ts";
 import type { DayInput } from "../../src/server/booking/slots.ts";
 import {
@@ -19,7 +15,12 @@ import { ShopScopeError, scopeForBranch, singleShopScope } from "../../src/serve
 import { createLegacyTestDb, NO_SHOP } from "../helpers/legacy-db.ts";
 import type { TestDb } from "../helpers/pglite.ts";
 import { createTestDb } from "../helpers/pglite.ts";
-import { DEMO_SHOP_PROFILE, insertBranchForShop, seedShop } from "../helpers/shops.ts";
+import {
+  DEMO_SHOP_PROFILE,
+  insertBranchForShop,
+  seedShop,
+  VECTOR_BIKES_BOOKING_CONFIG as CONFIG,
+} from "../helpers/shops.ts";
 
 function dayInput(extra: Partial<DayInput> = {}): DayInput {
   return {
@@ -29,6 +30,7 @@ function dayInput(extra: Partial<DayInput> = {}): DayInput {
     activeBlockStarts: [],
     blocked: [],
     usedCount: 0,
+    config: CONFIG,
     ...extra,
   };
 }
@@ -50,7 +52,7 @@ describe("configuración de reservas desde shops", () => {
   });
 
   it("carga Vector Bikes con la misma configuración heredada y prefijo VB", () => {
-    expect(bookingConfigFromShop(vector)).toEqual(LEGACY_BOOKING_CONFIG);
+    expect(bookingConfigFromShop(vector)).toEqual(CONFIG);
     expect(bookingConfigFromShop(vector).codePrefix).toBe("VB");
   });
 
@@ -93,10 +95,10 @@ describe("configuración de reservas desde shops", () => {
   it("genera bloques de una hora y respeta el horario por modalidad", () => {
     const config = bookingConfigFromShop(demo);
     expect(gridForDate("2026-10-05", "taller", config)).toEqual(["10:00", "11:00", "12:00"]);
-    expect(hoursFor("taller", 1, config)).toEqual({ open: "10:00", close: "13:00" });
+    expect(hoursFor(config, "taller", 1)).toEqual({ open: "10:00", close: "13:00" });
     const morningPickup = { ...config, pickupHours: vector.pickupHours };
     expect(gridForDate("2026-10-05", "retiro", morningPickup).at(0)).toBe("09:00");
-    expect(hoursFor("retiro", 1, morningPickup)).toEqual({ open: "09:00", close: "20:00" });
+    expect(hoursFor(morningPickup, "retiro", 1)).toEqual({ open: "09:00", close: "20:00" });
     expect(calendarClosure("2026-10-10", [], "taller", config)?.status).toBe("closed");
   });
 
@@ -143,7 +145,7 @@ describe("configuración de reservas desde shops", () => {
 
   it("cierra el retiro cuando el taller lo deshabilita", () => {
     const config = { ...bookingConfigFromShop(demo), pickupEnabled: false };
-    expect(hoursFor("retiro", 1, config)).toBeNull();
+    expect(hoursFor(config, "retiro", 1)).toBeNull();
     expect(gridForDate("2026-10-05", "retiro", config)).toEqual([]);
     expect(computeDay(dayInput({ mode: "retiro", config })).status).toBe("closed");
     expect(gridForDate("2026-10-05", "taller", config)).toHaveLength(3);
@@ -151,9 +153,9 @@ describe("configuración de reservas desde shops", () => {
 
   it("sin configuración conserva los horarios, cupos y duración heredados", () => {
     const input = dayInput();
-    expect(hoursFor("taller", 1)).toEqual({ open: "15:00", close: "20:00" });
-    expect(hoursFor("retiro", 1)).toEqual({ open: "09:00", close: "20:00" });
-    expect(gridForDate(input.date)).toEqual([
+    expect(hoursFor(CONFIG, "taller", 1)).toEqual({ open: "15:00", close: "20:00" });
+    expect(hoursFor(CONFIG, "retiro", 1)).toEqual({ open: "09:00", close: "20:00" });
+    expect(gridForDate(input.date, "taller", CONFIG)).toEqual([
       "15:00",
       "15:30",
       "16:00",
@@ -172,7 +174,7 @@ describe("configuración de reservas desde shops", () => {
       blockStarts: ["15:00"],
       endsAt: new Date("2026-10-05T18:30:00Z"),
     });
-    expect(computeDay(input)).toEqual(computeDay({ ...input, config: LEGACY_BOOKING_CONFIG }));
+    expect(computeDay(input)).toEqual(computeDay({ ...input, config: CONFIG }));
   });
 });
 
@@ -202,7 +204,7 @@ describe("alcance del taller", () => {
       shopId: vector.id,
       slug: vector.slug,
       branchId: branch.id,
-      config: LEGACY_BOOKING_CONFIG,
+      config: CONFIG,
     };
     expect(await singleShopScope(test.db)).toEqual(expected);
     expect(await scopeForBranch(test.db, branch.id)).toEqual(expected);

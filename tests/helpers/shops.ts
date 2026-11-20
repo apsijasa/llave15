@@ -1,5 +1,7 @@
 import { VECTOR_BIKES_PROFILE } from "../../scripts/vector-bikes-profile.ts";
 import { PLATFORM } from "../../src/lib/platform.ts";
+import { bookingConfigFromShop } from "../../src/server/booking/config.ts";
+import type { BookingConfig } from "../../src/server/booking/config.ts";
 import type { GarageBrand } from "../../src/server/email/garage/templates.ts";
 import type { EmailBrand } from "../../src/server/email/brand.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
@@ -114,3 +116,9 @@ export function vectorBikesGarageBrand(): GarageBrand {
     certifications: VECTOR_BIKES_PROFILE.certifications,
   };
 }
+
+/** La configuración de reserva del primer taller, con los valores de su siembra (BG-28). */
+export const VECTOR_BIKES_BOOKING_CONFIG: BookingConfig = bookingConfigFromShop({
+  ...VECTOR_BIKES_PROFILE,
+  pickupComunas: [...VECTOR_BIKES_PROFILE.pickupComunas],
+});

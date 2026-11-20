@@ -1,3 +1,4 @@
+import { addDays } from "../../lib/time.ts";
 import { and, asc, between, eq, getTableColumns, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { log } from "../../lib/log.ts";
@@ -6,17 +7,16 @@ import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
 import { readRange } from "../booking/availability.ts";
 import type { BookingConfig } from "../booking/config.ts";
-import { LEGACY_BOOKING_CONFIG } from "../booking/config.ts";
 import { createBooking } from "../booking/create-booking.ts";
 import type { BookingMode } from "../booking/rules.ts";
 import { MAX_BIKES_PER_BOOKING } from "../booking/rules.ts";
-import { addDays, computeDay } from "../booking/slots.ts";
+import { computeDay } from "../booking/slots.ts";
 import type { AppDb } from "../db/client.ts";
 import { workOrders } from "../db/schema-orders.ts";
 import { type Booking, bookings } from "../db/schema.ts";
 import { notifyBookingCreated } from "../email/notifications.ts";
 import type { BookingScope } from "../shops/scope.ts";
-import { scopeForBranch } from "../shops/scope.ts";
+import { scopeForBranch, singleShopScope } from "../shops/scope.ts";
 import { recordAudit } from "./audit.ts";
 
 /** "Elige A o B." con las comunas del taller, como en la reserva en línea. */
@@ -66,11 +66,19 @@ const manualBookingFields = z.strictObject({
   consentimiento: z.literal(true, "Confirma que el cliente aceptó el aviso de privacidad."),
 });
 
+/** Lo que el esquema necesita del taller; `pickupComunas: null` acepta cualquier comuna. */
+type SchemaConfig = { pickupComunas: string[] | null; pickupEnabled: boolean };
+
+function comunaField(comunas: string[] | null, message: string) {
+  return comunas ? z.enum(comunas, message).nullish() : z.string().trim().min(1, message).nullish();
+}
+
 /** Comunas, tarifa y retiro salen de la configuración del taller (BG-12). */
-export function manualBookingSchemaFor(config: BookingConfig) {
-  const message = comunaMessage(config.pickupComunas);
+export function manualBookingSchemaFor(config: SchemaConfig | BookingConfig) {
+  const comunas = config.pickupComunas;
+  const message = comunas ? comunaMessage(comunas) : "Escribe la comuna.";
   return manualBookingFields
-    .extend({ comuna: z.enum(config.pickupComunas, message).nullish() })
+    .extend({ comuna: comunaField(comunas, message) })
     .superRefine((value, ctx) => {
       for (const index of [2, 3] as const) {
         if (value.bicis < index) continue;
@@ -118,8 +126,14 @@ export function manualBookingSchemaFor(config: BookingConfig) {
     });
 }
 
-/** Compatibilidad transitoria hasta BG-28: el esquema con la configuración heredada. */
-export const manualBookingSchema = manualBookingSchemaFor(LEGACY_BOOKING_CONFIG);
+/**
+ * Esquema sin taller (BG-28): cualquier comuna no vacía, como el CHECK de la base. La reserva real
+ * se valida siempre con `manualBookingSchemaFor(scope.config)`.
+ */
+export const manualBookingSchema = manualBookingSchemaFor({
+  pickupComunas: null,
+  pickupEnabled: true,
+});
 
 export type ManualBookingInput = z.input<typeof manualBookingSchema>;
 type ManualBookingDeps = { notify?: typeof notifyBookingCreated };
@@ -281,10 +295,10 @@ export async function freeBlocks(
   branchId?: string,
 ) {
   const scope: BookingScope | null =
-    branchId === undefined ? null : await scopeForBranch(db, branchId);
-  if (branchId !== undefined && !scope) return [];
-  const dayData = await readRange(db, date, date, excludeBookingId, scope?.branchId);
-  const config = scope?.config ?? LEGACY_BOOKING_CONFIG;
+    branchId === undefined ? await singleShopScope(db) : await scopeForBranch(db, branchId);
+  if (!scope) return [];
+  const dayData = await readRange(db, date, date, excludeBookingId, scope.branchId);
+  const config = scope.config;
   return computeDay({ date, mode, now, bikeCount, config, ...dayData(date) }).blocks.filter(
     (block) => block.state === "free",
   );
