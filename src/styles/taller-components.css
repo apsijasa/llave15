@@ -3,7 +3,7 @@
 .taller .card {
   padding: 16px;
   border: 1px solid var(--rule);
-  border-radius: 2px;
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 /* Avisos: el borde los distingue sin depender del color. */
@@ -12,12 +12,14 @@
   padding: 10px 12px;
   border: 1px solid var(--rule);
   border-inline-start: 3px solid var(--ink);
-  border-radius: 2px;
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 .taller [role="alert"] {
   border-inline-start-style: double;
   border-inline-start-width: 6px;
+  background: var(--status-blocking-bg);
+  color: var(--status-blocking-ink);
 }
 .taller [role="alert"] ul {
   margin: 0;
@@ -61,14 +63,25 @@
   gap: 16px;
 }
 .taller .btn {
-  background: var(--ink);
+  background: var(--accent);
   color: var(--on-ink);
-  border-color: var(--ink);
+  border-color: var(--accent);
+  border-radius: var(--radius-control);
 }
-.taller .btn.ghost,
 .taller .btn:hover {
+  background: var(--accent-hover);
+  color: var(--on-ink);
+  border-color: var(--accent-hover);
+}
+.taller .btn.ghost {
   background: var(--surface);
   color: var(--ink);
+  border-color: var(--field-border);
+}
+.taller .btn.ghost:hover {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--ink);
 }
 .taller .fields {
   align-items: start;
@@ -99,7 +112,7 @@
   min-width: 48px;
   padding: 10px 12px;
   border: 1px solid var(--field-border);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
@@ -121,8 +134,10 @@
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
-  border: 1px solid var(--ink);
-  border-radius: 2px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-control);
+  background: var(--status-bg, transparent);
+  color: var(--status-ink, inherit);
   font-family: var(--mono);
   font-size: 0.8rem;
 }
@@ -142,11 +157,15 @@
 }
 .taller .status--control_calidad,
 .taller .status--lista_para_retirar {
-  border: 3px double var(--ink);
+  border: 3px double currentColor;
 }
 .taller .status--reservada {
   border-style: dashed;
-  background: repeating-linear-gradient(135deg, var(--surface) 0 4px, var(--hatch) 4px 5px);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--status-bg, var(--surface)) 0 4px,
+    var(--hatch) 4px 5px
+  );
 }
 .taller .status--reservada::before {
   content: "◇";
@@ -203,11 +222,15 @@
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border: 1px solid var(--rule);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
 }
 .taller :focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.taller .on-dark :focus-visible {
+  outline: 2px solid var(--on-ink);
+  outline-offset: 2px;
 }
 /* Biblioteca: validación, confianza y relaciones con forma + texto. */
 .taller .status--verificado::before,
@@ -225,7 +248,11 @@
 }
 .taller .status--desactualizado {
   border-style: dashed;
-  background: repeating-linear-gradient(135deg, var(--surface) 0 4px, var(--hatch) 4px 5px);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--status-bg, var(--surface)) 0 4px,
+    var(--hatch) 4px 5px
+  );
 }
 .taller .status--desactualizado::before {
   content: "⌛";
@@ -240,7 +267,7 @@
 }
 .taller .status--sin_dato_verificado,
 .taller .status--no_verificada {
-  border: 3px double var(--ink);
+  border: 3px double currentColor;
 }
 .taller .status--sin_dato_verificado::before,
 .taller .status--no_verificada::before {
@@ -270,7 +297,7 @@
   min-width: 48px;
   padding: 16px;
   border: 1px solid var(--rule);
-  border-radius: 2px;
+  border-radius: var(--radius-card);
   background: var(--surface);
   color: var(--ink);
   text-decoration: none;
@@ -296,12 +323,16 @@
   border-style: dotted;
 }
 .taller .status--approved {
-  border: 3px double var(--ink);
+  border: 3px double currentColor;
 }
 .taller .status--rejected,
 .taller .status--withdrawn {
   border-style: dashed;
-  background: repeating-linear-gradient(135deg, var(--surface) 0 4px, var(--hatch) 4px 5px);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--status-bg, var(--surface)) 0 4px,
+    var(--hatch) 4px 5px
+  );
 }
 .taller .status--draft::before {
   content: "✎";

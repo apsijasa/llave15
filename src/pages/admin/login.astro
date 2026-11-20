@@ -74,6 +74,10 @@ if (Astro.request.method === "POST") {
 >
   <section class="section">
     <div class="wrap" style="max-width:32rem">
+      <div class="login-brand">
+        <img src="/brand/llave15-firma.svg" alt="Llave 15" width="176" height="40" />
+        <p>{PLATFORM.descriptor}</p>
+      </div>
       <div class="sec-head">
         <span class="label">Panel del taller</span>
         <h1>Ingresar</h1>
@@ -119,3 +123,12 @@ if (Astro.request.method === "POST") {
     </div>
   </section>
 </AppLayout>
+
+<style>
+  .login-brand {
+    padding: 12px;
+    margin-bottom: 24px;
+    display: grid;
+    gap: 12px;
+  }
+</style>

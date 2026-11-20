@@ -1,0 +1,160 @@
+/* Identidad Llave 15 desde BG-48; la portada heredada no usa .l15. */
+.l15 body {
+  font-size: 16px;
+  line-height: 24px;
+}
+.l15 h1 {
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 36px;
+}
+.l15 h2,
+.l15 .sec-head h2 {
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 28px;
+}
+.l15 table.dense,
+.l15 .label {
+  font-size: 14px;
+  line-height: 20px;
+}
+.l15 .label {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.l15 table,
+.l15 .mono,
+.l15 .status,
+.l15 .mode .p,
+.l15 .ticket-total strong,
+.l15 .big-price,
+.l15 .data dd {
+  font-variant-numeric: tabular-nums;
+}
+.l15 input,
+.l15 select,
+.l15 textarea,
+.l15 button,
+.l15 .field input,
+.l15 .field select,
+.l15 .field textarea,
+.l15 .taller button:not(.btn),
+.l15 .taller select,
+.l15 .taller textarea,
+.l15 .taller input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]) {
+  border-radius: var(--radius-control);
+  border-color: var(--field-border);
+}
+.l15 .btn {
+  background: var(--accent);
+  color: var(--on-ink);
+  border-color: var(--accent);
+  border-radius: var(--radius-control);
+}
+.l15 .btn:hover {
+  background: var(--accent-hover);
+  color: var(--on-ink);
+  border-color: var(--accent-hover);
+}
+.l15 .btn.ghost {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--field-border);
+}
+.l15 .btn.ghost:hover {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.l15 .day {
+  border-radius: var(--radius-control);
+}
+.l15 .mode,
+.l15 .slots,
+.l15 .ticket,
+.l15 .card,
+.l15 [role="status"],
+.l15 [role="alert"] {
+  border-radius: var(--radius-card);
+}
+.l15 [role="alert"] {
+  background: var(--status-blocking-bg);
+  color: var(--status-blocking-ink);
+}
+/* Los campos de global.css tienen :focus propio; este foco debe prevalecer. */
+.l15 :focus-visible,
+.l15 .field input:focus-visible,
+.l15 .field select:focus-visible,
+.l15 .field textarea:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.l15 .on-dark :focus-visible,
+.l15 .on-dark .field input:focus-visible,
+.l15 .on-dark .field select:focus-visible,
+.l15 .on-dark .field textarea:focus-visible {
+  outline: 2px solid var(--on-ink);
+  outline-offset: 2px;
+}
+/* El color de fondo conserva los rayados que identifican algunos estados. */
+.l15 .status {
+  background-color: var(--status-bg, transparent);
+  color: var(--status-ink, inherit);
+  border-color: currentColor;
+  border-radius: var(--radius-control);
+}
+.l15 .status,
+.l15 .status--reservada,
+.l15 .status--recibida,
+.l15 .status--entregada,
+.l15 .status--cancelada,
+.l15 .status--anulada,
+.l15 .status--draft,
+.l15 .status--published,
+.l15 .status--withdrawn,
+.l15 .status--sin_dato_verificado,
+.l15 .status--no_verificada {
+  --status-bg: var(--status-neutral-bg);
+  --status-ink: var(--status-neutral-ink);
+}
+.l15 .status--diagnostico,
+.l15 .status--en_reparacion,
+.l15 .status--control_calidad,
+.l15 .status--abierta,
+.l15 .status--submitted,
+.l15 .status--in_review,
+.l15 .status--en_revision {
+  --status-bg: var(--status-progress-bg);
+  --status-ink: var(--status-progress-ink);
+}
+.l15 .status--esperando_aprobacion,
+.l15 .status--esperando_repuesto,
+.l15 .status--bajo,
+.l15 .status--needs_changes,
+.l15 .status--condicionado,
+.l15 .status--condicionada,
+.l15 .status--desactualizado,
+.l15 .status--media,
+.l15 .status--baja {
+  --status-bg: var(--status-waiting-bg);
+  --status-ink: var(--status-waiting-ink);
+}
+.l15 .status--lista_para_retirar,
+.l15 .status--verificado,
+.l15 .status--oficial_confirmada,
+.l15 .status--approved,
+.l15 .status--alta,
+.l15 .status--activo {
+  --status-bg: var(--status-ready-bg);
+  --status-ink: var(--status-ready-ink);
+}
+.l15 .status--trabajo_rechazado,
+.l15 .status--sin-stock,
+.l15 .status--diferencia,
+.l15 .status--rejected,
+.l15 .status--incompatible,
+.l15 .status--suspendido {
+  --status-bg: var(--status-blocking-bg);
+  --status-ink: var(--status-blocking-ink);
+}
