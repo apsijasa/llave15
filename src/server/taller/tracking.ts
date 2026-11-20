@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { getCancelEnv } from "../../lib/env.ts";
+import { getTrackingEnv } from "../../lib/env.ts";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import { can } from "../auth/permissions.ts";
 import type { AppDb } from "../db/client.ts";
@@ -31,17 +31,42 @@ type EnsureResult =
 
 /**
  * Token estable por orden: HMAC del id con un prefijo propio, para poder reemitirlo en cada correo
- * sin guardarlo en claro. Rotar `CANCEL_TOKEN_SECRET` invalida todos los enlaces (decisión 49).
+ * sin guardarlo en claro. Lo firma `TRACKING_TOKEN_SECRET` (BG-35); las órdenes cuyo enlace ya se
+ * envió firmado con `CANCEL_TOKEN_SECRET` lo conservan hasta BG-DC2 (decisión 49).
  */
 export function trackingTokenFor(
   orderId: string,
-  secret: string = getCancelEnv().CANCEL_TOKEN_SECRET,
+  secret: string = getTrackingEnv().TRACKING_TOKEN_SECRET,
 ): string {
   return createHmac("sha256", secret).update(`tracking:${orderId}`).digest().toString("base64url");
 }
 
 export function trackingLink(siteUrl: string, token: string): string {
   return new URL(`/seguimiento/${token}`, siteUrl).toString();
+}
+
+/**
+ * Con fila: reemite el candidato (secreto propio o heredado) cuyo hash coincide, para no romper el
+ * enlace ya enviado; si ninguno coincide (las dos claves rotaron), firma con el propio y actualiza
+ * el hash. Sin fila: el del secreto propio.
+ */
+async function tokenForOrder(db: AppDb, orderId: string, now: Date): Promise<string> {
+  const env = getTrackingEnv();
+  const own = trackingTokenFor(orderId, env.TRACKING_TOKEN_SECRET);
+  const [row] = await db
+    .select({ tokenHash: orderTrackingTokens.tokenHash })
+    .from(orderTrackingTokens)
+    .where(eq(orderTrackingTokens.workOrderId, orderId))
+    .limit(1);
+  if (!row) return own;
+  const legacy = trackingTokenFor(orderId, env.LEGACY_SECRET);
+  const match = [own, legacy].find((candidate) => hashShareToken(candidate) === row.tokenHash);
+  if (match) return match;
+  await db
+    .update(orderTrackingTokens)
+    .set({ tokenHash: hashShareToken(own), updatedAt: now })
+    .where(eq(orderTrackingTokens.workOrderId, orderId));
+  return own;
 }
 
 /** Crea la fila la primera vez que alguien necesita el enlace; las siguientes, la reutiliza. */
@@ -56,7 +81,7 @@ export async function ensureTrackingLink(
   const header = await getOrderHeader(db, actor, orderId);
   if (!header || header.order.voidedAt) return { ok: false, code: "not_found" };
   if (!canAccessOrder(actor, header.order)) return { ok: false, code: "forbidden" };
-  const token = trackingTokenFor(orderId);
+  const token = await tokenForOrder(db, orderId, now);
   await db
     .insert(orderTrackingTokens)
     .values({

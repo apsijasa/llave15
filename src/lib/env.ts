@@ -32,6 +32,9 @@ const tasksSchema = z.object({ TASKS_SECRET: secret });
 const cronSchema = z.object({ CRON_SECRET: z.string().optional() });
 const siteSchema = z.object({ PUBLIC_SITE_URL: z.url() });
 const absentIfEmpty = (value: unknown) => (value === "" ? undefined : value);
+const trackingSchema = z.object({
+  TRACKING_TOKEN_SECRET: z.preprocess(absentIfEmpty, secret.optional()),
+});
 const appSchema = z.object({ APP_URL: z.preprocess(absentIfEmpty, z.url().optional()) });
 const storageSchema = z
   .object({
@@ -165,6 +168,19 @@ export function getSiteEnv(source: EnvSource = process.env) {
 export function getAppEnv(source: EnvSource = process.env): { APP_URL: string } {
   const { APP_URL } = parseSource(appSchema, source);
   return { APP_URL: APP_URL ?? getSiteEnv(source).PUBLIC_SITE_URL };
+}
+
+/** Secreto del seguimiento (BG-35); sin él, el de cancelación, que firma los enlaces heredados. */
+export function getTrackingEnv(source: EnvSource = process.env): {
+  TRACKING_TOKEN_SECRET: string;
+  LEGACY_SECRET: string;
+} {
+  const { TRACKING_TOKEN_SECRET } = parseSource(trackingSchema, source);
+  const { CANCEL_TOKEN_SECRET } = getCancelEnv(source);
+  return {
+    TRACKING_TOKEN_SECRET: TRACKING_TOKEN_SECRET ?? CANCEL_TOKEN_SECRET,
+    LEGACY_SECRET: CANCEL_TOKEN_SECRET,
+  };
 }
 
 /**
