@@ -1,0 +1,91 @@
+---
+import { z } from "zod";
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { PLATFORM } from "../../../lib/platform.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { setShopStatus, shopUsage } from "../../../server/shops/platform-shops.ts";
+
+export const prerender = false;
+
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user) {
+  const response = Astro.redirect(loginRedirect(Astro.url.pathname), 303);
+  response.headers.set("cache-control", "no-store");
+  return response;
+}
+if (user.isPlatformAdmin !== true) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+
+const id = z.uuid().safeParse(Astro.params.id);
+if (!id.success) return new Response(null, { status: 404 });
+const PATH = `/plataforma/talleres/${id.data}`;
+const actionSchema = z.enum(["suspender", "reactivar"]);
+
+let error: string | null = null;
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  const action = actionSchema.safeParse((await Astro.request.formData()).get("accion"));
+  if (!action.success) return new Response(null, { status: 422 });
+  const status = action.data === "suspender" ? "suspendido" : "activo";
+  const result = await setShopStatus(db, user, id.data, status, now);
+  if (result.ok) return Astro.redirect(`${PATH}?hecho=${action.data}`, 303);
+  if (result.code === "forbidden") return forbiddenResponse();
+  if (result.code === "not_found") return new Response(null, { status: 404 });
+  error = "No puedes suspender el taller de tu propio usuario.";
+  Astro.response.status = 409;
+}
+
+const shop = await shopUsage(db, user, id.data, now);
+if (!shop) return new Response(null, { status: 404 });
+const done = Astro.url.searchParams.get("hecho");
+const notice =
+  done === "suspender" ? "Taller suspendido." : done === "reactivar" ? "Taller reactivado." : null;
+const suspended = shop.status === "suspendido";
+const USAGE = [
+  ["Usuarios activos", shop.activeUsers],
+  ["Órdenes abiertas", shop.openOrders],
+  ["Reservas (30 días)", shop.recentBookings],
+  ["Ventas (30 días)", shop.recentSales],
+] as const;
+---
+
+<TallerLayout title={`${shop.name} — ${PLATFORM.name}`} description="Uso y estado de un taller de la plataforma." path={PATH} user={user}>
+  <div class="stack">
+    <PageHeader
+      title={shop.name}
+      subtitle={shop.slug}
+      status={{ status: shop.status, label: suspended ? "Suspendido" : "Activo" }}
+    />
+    {notice && <p role="status">{notice}</p>}
+    {error && <p role="alert">{error}</p>}
+    <Card title="Uso">
+      <dl class="data">
+        {USAGE.map(([label, total]) => (
+          <div>
+            <dt>{label}</dt>
+            <dd class="num">{total}</dd>
+          </div>
+        ))}
+      </dl>
+    </Card>
+    <Card title="Estado">
+      <p class="muted">
+        {suspended
+          ? "Sus usuarios no pueden entrar y su página de reservas no está publicada."
+          : "Suspender cierra las sesiones de sus usuarios, bloquea su ingreso y saca su página de reservas."}
+      </p>
+      <form method="post" action={PATH}>
+        <input type="hidden" name="accion" value={suspended ? "reactivar" : "suspender"} />
+        <button type="submit" class="btn">{suspended ? "Reactivar" : "Suspender"}</button>
+      </form>
+    </Card>
+    <p><a class="btn ghost" href="/plataforma">Volver a la plataforma</a></p>
+  </div>
+</TallerLayout>

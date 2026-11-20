@@ -183,6 +183,16 @@ async function recentFailures(db: AppDb, ipHash: string, email: string, now: Dat
   return Number(row?.n ?? 0);
 }
 
+async function branchShopActive(db: AppDb, branchId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ status: shops.status })
+    .from(branches)
+    .innerJoin(shops, eq(shops.id, branches.shopId))
+    .where(eq(branches.id, branchId))
+    .limit(1);
+  return row?.status === "activo";
+}
+
 /** Rate limit antes de la clave; correo inexistente igual paga un scrypt. */
 export async function loginAdmin(
   db: AppDb,
@@ -196,7 +206,9 @@ export async function loginAdmin(
 
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   const matches = await loginPasswordMatches(args.password, user?.passwordHash);
-  if (!user || !matches || !user.isActive) {
+  // Un taller suspendido rechaza a sus usuarios igual que a uno inactivo (BG-43).
+  const shopActive = user ? await branchShopActive(db, user.branchId) : false;
+  if (!user || !matches || !user.isActive || !shopActive) {
     await db.insert(loginAttempts).values({ ipHash, email, createdAt: now });
     return { ok: false, code: "invalid" };
   }
@@ -238,12 +250,15 @@ export async function requireAdmin(
     })
     .from(adminSessions)
     .innerJoin(users, eq(users.id, adminSessions.userId))
+    .innerJoin(branches, eq(branches.id, users.branchId))
+    .innerJoin(shops, eq(shops.id, branches.shopId))
     .where(
       and(
         eq(adminSessions.tokenHash, hashSessionToken(parsed.data)),
         isNull(adminSessions.revokedAt),
         gt(adminSessions.expiresAt, now),
         eq(users.isActive, true),
+        eq(shops.status, "activo"),
       ),
     )
     .limit(1);
