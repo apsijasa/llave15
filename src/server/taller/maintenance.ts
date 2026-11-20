@@ -76,6 +76,16 @@ type OverdueOrder = Awaited<ReturnType<typeof overdueOrderRows>>[number];
 type LowStockProduct = Awaited<ReturnType<typeof lowStockProducts>>[number];
 type ShopDigest = { profile: ShopProfile; orders: OverdueOrder[]; products: LowStockProduct[] };
 
+/** Sucursales de talleres `activo`: un taller suspendido no recibe el resumen (BG-36). */
+async function activeBranchIds(db: AppDb): Promise<Set<string>> {
+  const rows = await db
+    .select({ id: branches.id })
+    .from(branches)
+    .innerJoin(shops, eq(shops.id, branches.shopId))
+    .where(eq(shops.status, "activo"));
+  return new Set(rows.map((row) => row.id));
+}
+
 async function shopDigests(db: AppDb, orders: OverdueOrder[], products: LowStockProduct[]) {
   const branchIds = [...new Set([...orders, ...products].map((row) => row.branchId))];
   const rows = await db
@@ -130,8 +140,9 @@ export async function sendOverdueDigest(
   now: Date,
   deps: { transport?: EmailTransport } = {},
 ): Promise<{ overdue: number; sent: boolean; lowStock?: number }> {
-  const orders = await overdueOrderRows(db, now);
-  const products = await lowStockProducts(db);
+  const active = await activeBranchIds(db);
+  const orders = (await overdueOrderRows(db, now)).filter((row) => active.has(row.branchId));
+  const products = (await lowStockProducts(db)).filter((row) => active.has(row.branchId));
   if (orders.length === 0 && products.length === 0) return { overdue: 0, sent: false };
   const groups = await shopDigests(db, orders, products);
   const failures: unknown[] = [];

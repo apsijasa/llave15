@@ -6,6 +6,7 @@ import { sendReminders } from "../email/reminders.ts";
 import type { EmailTransport } from "../email/transport.ts";
 import { getStorage } from "../storage/storage.ts";
 import type { ObjectStorage } from "../storage/storage.ts";
+import { taskScopes } from "../shops/scope.ts";
 import { sendMaintenanceReminders } from "../taller/maintenance-plan.ts";
 import {
   OverdueDigestError,
@@ -47,7 +48,15 @@ export async function handleRemindersTask(
   const rejected = taskGuard(request, "reminders", deps.secret);
   if (rejected) return rejected;
   try {
-    const { sent, failed } = await (deps.send ?? sendReminders)(db, now);
+    const send = deps.send ?? sendReminders;
+    let sent = 0;
+    let failed = 0;
+    for (const scope of await taskScopes(db)) {
+      const totals =
+        scope === undefined ? await send(db, now) : await send(db, now, undefined, scope);
+      sent += totals.sent;
+      failed += totals.failed;
+    }
     return failed === 0
       ? jsonResponse(200, { ok: true, sent })
       : jsonResponse(500, { ok: false, sent, failed });

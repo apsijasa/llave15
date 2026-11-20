@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { BookingConfig } from "../booking/config.ts";
 import { bookingConfigFromShop } from "../booking/config.ts";
 import type { AppDb } from "../db/client.ts";
@@ -81,4 +81,31 @@ export async function singleShopScope(db: AppDb): Promise<BookingScope> {
     branchId: branch.id,
     config: bookingConfigFromShop(shop),
   };
+}
+
+/** Un alcance por cada taller `activo` con su sucursal, en orden de `slug` (BG-36). */
+export async function activeShopScopes(db: AppDb): Promise<BookingScope[]> {
+  const rows = await db
+    .select({ shop: shops, branchId: branches.id })
+    .from(shops)
+    .innerJoin(branches, eq(branches.shopId, shops.id))
+    .where(eq(shops.status, "activo"))
+    .orderBy(asc(shops.slug), asc(branches.id));
+  return rows.map((row) => ({
+    shopId: row.shop.id,
+    slug: row.shop.slug,
+    branchId: row.branchId,
+    config: bookingConfigFromShop(row.shop),
+  }));
+}
+
+/**
+ * Alcances que recorre una tarea diaria. Con un único taller en la base, una sola pasada sin
+ * alcance, igual que antes de BG-36 (o ninguna si está suspendido); con varios, cada activo.
+ */
+export async function taskScopes(db: AppDb): Promise<(BookingScope | undefined)[]> {
+  const rows = await db.select({ status: shops.status }).from(shops).limit(2);
+  const [only] = rows;
+  if (rows.length === 1 && only) return only.status === "activo" ? [undefined] : [];
+  return activeShopScopes(db);
 }
