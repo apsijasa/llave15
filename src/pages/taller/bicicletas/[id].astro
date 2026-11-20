@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../lib/platform.ts";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
@@ -89,7 +90,7 @@ const notice = Astro.url.searchParams.get("hecho") === "editar" ? "Bicicleta act
 const history = await bikeTimeline(db, user, id.data);
 ---
 
-<TallerLayout title={`${bike.brand} ${bike.model} — Vector Bikes`} description="Ficha y edición de la bicicleta del cliente." path="/taller/clientes" user={user}>
+<TallerLayout title={`${bike.brand} ${bike.model} — ${PLATFORM.name}`} description="Ficha y edición de la bicicleta del cliente." path="/taller/clientes" user={user}>
   <div class="stack">
     <PageHeader title={`${bike.brand} ${bike.model}`}>
       <a slot="actions" href={`/taller/clientes/${customer.id}`}>Volver al cliente: {customer.name}</a>

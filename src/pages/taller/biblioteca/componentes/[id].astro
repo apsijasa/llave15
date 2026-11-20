@@ -6,7 +6,7 @@ import LibraryStatus from "../../../../components/taller/library/LibraryStatus.a
 import LibraryTabs from "../../../../components/taller/library/LibraryTabs.astro";
 import SourceList from "../../../../components/taller/library/SourceList.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
@@ -97,7 +97,7 @@ const documentItems = documents.map((document) => ({
 }));
 ---
 
-<TallerLayout title={`${title} — ${SITE.name}`} description="Ficha técnica de la variante." path={`${PATH}/componentes/${id.data}`} user={user}>
+<TallerLayout title={`${title} — ${PLATFORM.name}`} description="Ficha técnica de la variante." path={`${PATH}/componentes/${id.data}`} user={user}>
   <div class="stack library-sheet">
     <PageHeader title={title} subtitle={`${manufacturer.name} · ${family.name} · ${model.name}`}>
       <LibraryStatus slot="actions" status={model.status === "descontinuado" ? "desactualizado" : model.status} label={label(modelLabels, model.status)} />

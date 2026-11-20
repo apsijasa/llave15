@@ -3,7 +3,7 @@ import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
@@ -126,7 +126,7 @@ const notice = ["create", "update"].includes(Astro.url.searchParams.get("hecho")
   : "";
 ---
 
-<TallerLayout title={`Proveedores — ${SITE.name}`} description="Proveedores del taller." path={PATH} user={user}>
+<TallerLayout title={`Proveedores — ${PLATFORM.name}`} description="Proveedores del taller." path={PATH} user={user}>
   <div class="stack supplier-list">
     <PageHeader title="Proveedores" />
     {notice && <p role="status">{notice}</p>}

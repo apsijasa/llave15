@@ -4,8 +4,6 @@
   "src/components/islands/BookingSchedule.tsx": 6,
   "src/components/islands/booking-state.ts": 5,
   "src/layouts/Base.astro": 6,
-  "src/lib/faq.ts": 3,
-  "src/lib/site.ts": 13,
   "src/pages/404.astro": 1,
   "src/pages/admin/bloqueos.astro": 1,
   "src/pages/admin/index.astro": 1,

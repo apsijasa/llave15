@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { z } from "zod";
 import PhotoCapture from "../../../../components/taller/PhotoCapture.tsx";
 import Card from "../../../../components/taller/Card.astro";
@@ -54,7 +55,7 @@ const stages = [
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---
 
-<TallerLayout title={`${number} · Galería — Vector Bikes`} description="Fotos de la orden agrupadas por etapa." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Galería — ${PLATFORM.name}`} description="Fotos de la orden agrupadas por etapa." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={`${number} · Galería`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="galeria" tabs={tabs} />

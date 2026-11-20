@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../lib/platform.ts";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
@@ -174,7 +175,7 @@ const customerBikes = await listBikesOfCustomer(db, user, id.data);
 const history = await customerTimeline(db, user, id.data);
 ---
 
-<TallerLayout title={`${customer.name} — Vector Bikes`} description="Ficha y edición del cliente del taller." path="/taller/clientes" user={user}>
+<TallerLayout title={`${customer.name} — ${PLATFORM.name}`} description="Ficha y edición del cliente del taller." path="/taller/clientes" user={user}>
   <div class="stack">
     <PageHeader title={customer.name}>
       <a slot="actions" href="/taller/clientes">Volver a clientes</a>

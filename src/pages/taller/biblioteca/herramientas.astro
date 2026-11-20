@@ -3,7 +3,7 @@ import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import LibraryStatus from "../../../components/taller/library/LibraryStatus.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
 import { getDb } from "../../../server/db/client.ts";
@@ -69,7 +69,7 @@ const statusLabel = (status: string) =>
   (VALIDATION_LABELS as Record<string, string>)[status] ?? status;
 ---
 
-<TallerLayout title={`Herramientas y especificaciones — ${SITE.name}`} description="Consulta herramientas, consumibles y datos técnicos con su fuente." path={PATH} user={user}>
+<TallerLayout title={`Herramientas y especificaciones — ${PLATFORM.name}`} description="Consulta herramientas, consumibles y datos técnicos con su fuente." path={PATH} user={user}>
   <div class="stack library-specifications">
     <PageHeader title="Herramientas y especificaciones" />
     {error && <p role="alert" id="spec-error">{error}</p>}

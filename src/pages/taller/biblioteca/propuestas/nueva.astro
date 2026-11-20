@@ -3,7 +3,7 @@ import Card from "../../../../components/taller/Card.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import ProposalFields from "../../../../components/taller/library/ProposalFields.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
@@ -54,7 +54,7 @@ if (Astro.request.method === "POST") {
 const targets = await proposalTargets(db);
 ---
 
-<TallerLayout title={`Nueva propuesta — ${SITE.name}`} description="Proponer conocimiento para la biblioteca." path={PATH} user={user}>
+<TallerLayout title={`Nueva propuesta — ${PLATFORM.name}`} description="Proponer conocimiento para la biblioteca." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Nueva propuesta" />
     {error && <p role="alert">{error}</p>}

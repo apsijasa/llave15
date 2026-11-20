@@ -3,7 +3,7 @@ import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
@@ -150,7 +150,7 @@ const numberFields = [
 ];
 ---
 
-<TallerLayout title={`${formatPurchaseNumber(purchase.number)} — ${SITE.name}`} description="Detalle de la compra al proveedor." path="/taller/compras" user={user}>
+<TallerLayout title={`${formatPurchaseNumber(purchase.number)} — ${PLATFORM.name}`} description="Detalle de la compra al proveedor." path="/taller/compras" user={user}>
   <div class="stack purchase-detail">
     <PageHeader title={formatPurchaseNumber(purchase.number)}>
       <a slot="actions" class="btn ghost" href="/taller/compras">Volver a compras</a>

@@ -8,7 +8,7 @@ import DiagnosisChecklist from "../../../../components/taller/library/DiagnosisC
 import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
 import { getAiEnv } from "../../../../lib/env.ts";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
@@ -241,7 +241,7 @@ const saveForms = [
 const invalid = (field: string) => (fieldErrors.has(field) ? "true" : undefined);
 ---
 
-<TallerLayout title={`${number} · Biblioteca — ${SITE.name}`} description="Contexto y diagnósticos técnicos de la orden." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Biblioteca — ${PLATFORM.name}`} description="Contexto y diagnósticos técnicos de la orden." path="/taller/ordenes" user={user}>
   <div class="stack order-library">
     <PageHeader title={number} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="biblioteca" tabs={ORDER_TABS.filter((tab) => can(user.role, tab.permission))} />

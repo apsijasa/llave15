@@ -6,7 +6,7 @@ import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import ReceptionSteps from "../../../../components/taller/ReceptionSteps.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
@@ -218,7 +218,7 @@ const [signature, nextReception] = receptionFinished
   : [null, null];
 ---
 
-<TallerLayout title={`${number} · Recepción — ${SITE.name}`} description="Recepción de la bicicleta y datos de la orden." path="/taller/recepcion/nueva" user={user}>
+<TallerLayout title={`${number} · Recepción — ${PLATFORM.name}`} description="Recepción de la bicicleta y datos de la orden." path="/taller/recepcion/nueva" user={user}>
   <div class="stack">
     <PageHeader title={number} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     {receptionFinished && (

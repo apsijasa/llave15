@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../lib/platform.ts";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import BookingActions from "../../../components/admin/BookingActions.astro";
@@ -155,7 +156,7 @@ const noticeStatusLabel: Record<string, string> = {
 ---
 
 <TallerLayout
-  title="Reserva — Vector Bikes"
+  title={`Reserva — ${PLATFORM.name}`}
   description="Detalle de una reserva."
   path="/admin"
   user={admin}

@@ -1,13 +1,10 @@
 import { createEvent } from "ics";
 import { type EmailEnv, getEmailEnv, getSiteEnv } from "../../lib/env.ts";
 import { errorMessage, log } from "../../lib/log.ts";
-import { PLATFORM } from "../../lib/platform.ts";
-import { SITE } from "../../lib/site.ts";
 import type { AppDb } from "../db/client.ts";
 import { profileForBranch } from "../shops/profile.ts";
 import type { ShopProfile } from "../shops/profile.ts";
 import { emailBrand, senderFor } from "./brand.ts";
-import type { EmailBrand } from "./brand.ts";
 import type { Booking } from "../db/schema.ts";
 import type { OrderNoticeSender } from "../whatsapp/order-notices.ts";
 import type { BookingBikeLine } from "./templates.ts";
@@ -47,18 +44,18 @@ export function icsSequence(updatedAt: Date): number {
 export function buildIcs(
   booking: Booking,
   sequence = 0,
-  profile?: Pick<ShopProfile, "name" | "streetAddress" | "locality">,
+  profile: Pick<ShopProfile, "name" | "streetAddress" | "locality">,
 ): string {
   const { error, value } = createEvent({
     uid: `${booking.code}@vectorbikes.cl`,
     sequence,
     productId: "vectorbikes/reservas",
-    title: `${profile?.name ?? SITE.name} · Reserva ${booking.code}`,
+    title: `${profile.name} · Reserva ${booking.code}`,
     description: `Reserva ${booking.code}. Bicicleta: ${booking.bike}.`,
     location:
       booking.mode === "retiro"
         ? `${booking.address ?? ""}, ${booking.comuna ?? ""}`
-        : `${profile?.streetAddress ?? SITE.streetAddress}, ${profile?.locality ?? SITE.locality}`,
+        : `${profile.streetAddress}, ${profile.locality}`,
     start: booking.startsAt.getTime(),
     startInputType: "utc",
     startOutputType: "utc",
@@ -140,21 +137,8 @@ export async function sendShopCopy(
   }
 }
 
-/** Sin base, solo la compatibilidad de BG-D45; con base nunca se inventa un perfil. */
-async function bookingIdentity(booking: Booking, env: EmailEnv, db?: AppDb) {
-  if (!db) {
-    const brand: EmailBrand & { certifications: readonly string[] } = {
-      shopName: SITE.name,
-      replyTo: env.EMAIL_REPLY_TO,
-      notifyEmail: env.SHOP_NOTIFY_EMAIL,
-      phoneDisplay: SITE.phoneDisplay,
-      addressShort: SITE.addressShort,
-      logoPath: SITE.logoPath,
-      footerLine: PLATFORM.footerLine,
-      certifications: SITE.certifications,
-    };
-    return { brand, env, profile: undefined };
-  }
+/** La identidad de una reserva siempre pertenece al taller de su sucursal. */
+async function bookingIdentity(booking: Booking, env: EmailEnv, db: AppDb) {
   const profile = await profileForBranch(db, booking.branchId);
   if (!profile) throw new Error("No se encontró el perfil del taller de la reserva.");
   const brand = { ...emailBrand(profile), certifications: profile.certifications };
@@ -171,7 +155,7 @@ export async function notifyBookingCreated(
   cancelToken: string,
   deps: NotifyDeps = {},
   bikes: BookingBikeLine[] = [],
-  db?: AppDb,
+  db: AppDb,
 ): Promise<void> {
   const { brand, env, profile } = await bookingIdentity(booking, deps.env ?? getEmailEnv(), db);
   const transport = deps.transport ?? createTransport(env);
@@ -203,7 +187,7 @@ export async function notifyBookingCreated(
 export async function notifyBookingCancelled(
   booking: Booking,
   deps: NotifyDeps = {},
-  db?: AppDb,
+  db: AppDb,
 ): Promise<void> {
   const { brand, env } = await bookingIdentity(booking, deps.env ?? getEmailEnv(), db);
   const transport = deps.transport ?? createTransport(env);
@@ -221,7 +205,7 @@ export async function notifyBookingRescheduled(
   previous: { serviceDate: string; start: string },
   deps: NotifyDeps = {},
   bikes: BookingBikeLine[] = [],
-  db?: AppDb,
+  db: AppDb,
 ): Promise<void> {
   const { brand, env, profile } = await bookingIdentity(booking, deps.env ?? getEmailEnv(), db);
   const transport = deps.transport ?? createTransport(env);

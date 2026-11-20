@@ -1,17 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { VECTOR_BIKES_PROFILE } from "../../scripts/vector-bikes-profile.ts";
-import { SITE } from "../../src/lib/site.ts";
-import {
-  BLOCK_MINUTES,
-  DAILY_CAPACITY,
-  HORIZON_DAYS,
-  MIN_NOTICE_MINUTES,
-  PICKUP_COMUNAS,
-  PICKUP_FEE_CLP,
-  PICKUP_HOURS,
-  RECEPTION_HOURS,
-  TIMEZONE,
-} from "../../src/server/booking/rules.ts";
+import { VECTOR_BIKES_SITE } from "../../web/vector-bikes/src/content/site.ts";
 import { shops } from "../../src/server/db/schema-shops.ts";
 import { branches } from "../../src/server/db/schema.ts";
 import { createBookingTestDb, createTestDb } from "../helpers/pglite.ts";
@@ -20,34 +9,50 @@ import { DEMO_SHOP_PROFILE, insertBranchForShop, seedShop } from "../helpers/sho
 describe("perfil de Vector Bikes", () => {
   it("conserva los datos de contacto, direcciones y enlaces del sitio", () => {
     expect(VECTOR_BIKES_PROFILE).toMatchObject({
-      name: SITE.name,
-      email: SITE.email,
-      notifyEmail: SITE.email,
-      phone: SITE.phone,
-      phoneDisplay: SITE.phoneDisplay,
-      streetAddress: SITE.streetAddress,
-      addressShort: SITE.addressShort,
-      locality: SITE.locality,
-      region: SITE.region,
-      mapsUrl: SITE.mapsUrl,
-      instagramUrl: SITE.instagramUrl,
-      certifications: SITE.certifications,
-      codePrefix: "VB",
+      name: VECTOR_BIKES_SITE.name,
+      email: VECTOR_BIKES_SITE.email,
+      notifyEmail: VECTOR_BIKES_SITE.email,
+      phone: VECTOR_BIKES_SITE.phone,
+      phoneDisplay: VECTOR_BIKES_SITE.phoneDisplay,
+      streetAddress: VECTOR_BIKES_SITE.streetAddress,
+      addressShort: VECTOR_BIKES_SITE.addressShort,
+      locality: VECTOR_BIKES_SITE.locality,
+      region: VECTOR_BIKES_SITE.region,
+      mapsUrl: VECTOR_BIKES_SITE.mapsUrl,
+      instagramUrl: VECTOR_BIKES_SITE.instagramUrl,
+      certifications: VECTOR_BIKES_SITE.certifications,
+      codePrefix: VECTOR_BIKES_SITE.islandShop.codePrefix,
     });
   });
 
   it("conserva los horarios, la capacidad y las reglas de reserva y retiro", () => {
     expect(VECTOR_BIKES_PROFILE).toMatchObject({
-      timezone: TIMEZONE,
-      receptionHours: RECEPTION_HOURS,
-      pickupHours: PICKUP_HOURS,
-      dailyCapacity: DAILY_CAPACITY,
-      blockMinutes: BLOCK_MINUTES,
-      minNoticeMinutes: MIN_NOTICE_MINUTES,
-      horizonDays: HORIZON_DAYS,
-      pickupEnabled: true,
-      pickupFeeClp: PICKUP_FEE_CLP,
-      pickupComunas: PICKUP_COMUNAS,
+      timezone: "America/Santiago",
+      receptionHours: {
+        "1": { open: "15:00", close: "20:00" },
+        "2": { open: "15:00", close: "20:00" },
+        "3": { open: "15:00", close: "20:00" },
+        "4": { open: "15:00", close: "20:00" },
+        "5": { open: "15:00", close: "20:00" },
+        "6": { open: "10:00", close: "14:00" },
+        "7": null,
+      },
+      pickupHours: {
+        "1": { open: "09:00", close: "20:00" },
+        "2": { open: "09:00", close: "20:00" },
+        "3": { open: "09:00", close: "20:00" },
+        "4": { open: "09:00", close: "20:00" },
+        "5": { open: "09:00", close: "20:00" },
+        "6": { open: "10:00", close: "14:00" },
+        "7": null,
+      },
+      dailyCapacity: 4,
+      blockMinutes: VECTOR_BIKES_SITE.islandShop.blockMinutes,
+      minNoticeMinutes: 120,
+      horizonDays: 30,
+      pickupEnabled: VECTOR_BIKES_SITE.islandShop.pickupEnabled,
+      pickupFeeClp: VECTOR_BIKES_SITE.islandShop.pickupFeeClp,
+      pickupComunas: VECTOR_BIKES_SITE.islandShop.pickupComunas,
     });
   });
 });

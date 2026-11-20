@@ -3,7 +3,7 @@ import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import CategoryIcon from "../../../components/taller/library/CategoryIcon.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
 import type { Action } from "../../../server/auth/permissions.ts";
@@ -31,7 +31,7 @@ const shortcuts: { label: string; href: string; action: Action }[] = [
 ];
 ---
 
-<TallerLayout title={`Biblioteca — ${SITE.name}`} description="Consulta técnica del taller." path={PATH} user={user}>
+<TallerLayout title={`Biblioteca — ${PLATFORM.name}`} description="Consulta técnica del taller." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Biblioteca" subtitle="Componentes, procedimientos, compatibilidad y documentación verificada" />
     <Card>

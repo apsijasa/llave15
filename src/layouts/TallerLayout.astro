@@ -1,8 +1,8 @@
 ---
-import Base from "./Base.astro";
+import AppLayout from "./AppLayout.astro";
 import "../styles/taller-layout.css";
 import "../styles/taller-components.css";
-import { SITE } from "../lib/site.ts";
+import { PLATFORM } from "../lib/platform.ts";
 import { can, ROLE_LABELS } from "../server/auth/permissions.ts";
 import type { Action, Role } from "../server/auth/permissions.ts";
 
@@ -76,11 +76,11 @@ const knowledgeCurrent = groups
   .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 ---
 
-<Base title={title} description={description} path={path} chrome="none" noindex>
+<AppLayout title={title} description={description} noindex>
   <div class="taller">
     <aside class="taller-aside">
       <div class="taller-id">
-        <p class="taller-brand">{SITE.name} · Taller</p>
+        <p class="taller-brand">{PLATFORM.name} · Taller</p>
         <p class="taller-user">{user.name} · <span class="role">{ROLE_LABELS[user.role]}</span></p>
         <button type="button" class="taller-toggle" popovertarget="taller-menu">Menú</button>
       </div>
@@ -118,4 +118,4 @@ const knowledgeCurrent = groups
     </aside>
     <section class="taller-content"><slot /></section>
   </div>
-</Base>
+</AppLayout>

@@ -6,7 +6,7 @@ import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import SignaturePad from "../../../../components/taller/SignaturePad.tsx";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
@@ -191,7 +191,7 @@ function invalid(field: string) {
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---
 
-<TallerLayout title={`${number} · Pagos y entrega — ${SITE.name}`} description="Pagos y saldo de la orden de trabajo." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Pagos y entrega — ${PLATFORM.name}`} description="Pagos y saldo de la orden de trabajo." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={`${number} · Pagos y entrega`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="entrega" tabs={tabs} />

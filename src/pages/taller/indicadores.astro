@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../lib/platform.ts";
 import { DateTime } from "luxon";
 import Card from "../../components/taller/Card.astro";
 import FinanceBlocks from "../../components/taller/FinanceBlocks.astro";
@@ -175,7 +176,7 @@ function financeSections(data: FinanceIndicators) {
 }
 ---
 
-<TallerLayout title="Indicadores — Vector Bikes" description="Indicadores financieros y operativos del taller." path="/taller/indicadores" user={user}>
+<TallerLayout title={`Indicadores — ${PLATFORM.name}`} description="Indicadores financieros y operativos del taller." path="/taller/indicadores" user={user}>
   <div class="stack indicators-page">
     <PageHeader title="Indicadores" subtitle="Ingresos y operación del taller para el período seleccionado." />
     <Card title="Rango de fechas" id="range-title">

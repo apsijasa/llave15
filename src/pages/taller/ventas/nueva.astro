@@ -3,7 +3,7 @@ import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { isAllowedOrigin, normalizePhone } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
@@ -167,7 +167,7 @@ const sections = [
 ];
 ---
 
-<TallerLayout title={`Nueva venta — ${SITE.name}`} description="Registrar una venta de mostrador." path="/taller/ventas" user={user}>
+<TallerLayout title={`Nueva venta — ${PLATFORM.name}`} description="Registrar una venta de mostrador." path="/taller/ventas" user={user}>
   <div class="stack sale-new">
     <PageHeader title="Nueva venta"><a slot="actions" href="/taller/ventas">Volver a ventas</a></PageHeader>
     {error && <p role="alert" id="sale-error">{error}</p>}

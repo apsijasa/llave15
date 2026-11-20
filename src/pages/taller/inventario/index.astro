@@ -3,7 +3,7 @@ import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
 import { getDb } from "../../../server/db/client.ts";
@@ -49,7 +49,7 @@ const products = parsed.success
 const showCosts = can(user.role, "costs.view");
 ---
 
-<TallerLayout title={`Inventario — ${SITE.name}`} description="Productos, existencias y mínimos del taller." path={PATH} user={user}>
+<TallerLayout title={`Inventario — ${PLATFORM.name}`} description="Productos, existencias y mínimos del taller." path={PATH} user={user}>
   <div class="stack inventory-list">
     <PageHeader title="Inventario">
       {can(user.role, "inventory.adjust") && <a slot="actions" class="btn" href={`${PATH}/nuevo`}>Nuevo producto</a>}

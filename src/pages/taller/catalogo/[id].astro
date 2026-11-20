@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../lib/platform.ts";
 import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
@@ -148,7 +149,7 @@ const notices: Record<string, string> = {
 const notice = notices[Astro.url.searchParams.get("hecho") ?? ""];
 ---
 
-<TallerLayout title={`${service.name} — Vector Bikes`} description="Detalle del servicio y precios por tipo de bicicleta." path="/taller/catalogo" user={user}>
+<TallerLayout title={`${service.name} — ${PLATFORM.name}`} description="Detalle del servicio y precios por tipo de bicicleta." path="/taller/catalogo" user={user}>
   <div class="stack">
     <PageHeader title={service.name}>
       <a slot="actions" href="/taller/catalogo">Volver al catálogo</a>

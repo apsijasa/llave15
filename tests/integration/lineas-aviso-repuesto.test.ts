@@ -1,7 +1,7 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { eq } from "drizzle-orm";
 import { beforeEach, expect, it, vi } from "vitest";
-import { SITE } from "../../src/lib/site.ts";
+import { SITE } from "../helpers/shops.ts";
 import type { SessionUser } from "../../src/server/auth/admin-auth.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { products } from "../../src/server/db/schema-inventory.ts";

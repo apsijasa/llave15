@@ -1,4 +1,3 @@
-import { SITE } from "../../lib/site.ts";
 import type { EmailBrand } from "./brand.ts";
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -36,11 +35,11 @@ export type BookingBikeLine = { position: number; bike: string; description: str
 
 type RenderBrand = EmailBrand & { certifications?: readonly string[] };
 
-function renderHtml(content: EmailContent, brand?: RenderBrand): string {
-  const name = brand?.shopName ?? SITE.name;
-  const address = brand?.addressShort ?? SITE.addressShort;
-  const email = brand?.replyTo ?? SITE.email;
-  const certifications = brand ? (brand.certifications ?? []) : SITE.certifications;
+function renderHtml(content: EmailContent, brand: RenderBrand): string {
+  const name = brand.shopName;
+  const address = brand.addressShort;
+  const email = brand.replyTo;
+  const certifications = brand.certifications ?? [];
   const paragraph = (text: string) =>
     `<p style="margin:0 0 12px;line-height:1.55">${escapeHtml(text)}</p>`;
   const rows = content.rows
@@ -63,12 +62,12 @@ function renderHtml(content: EmailContent, brand?: RenderBrand): string {
     link,
     `<p style="margin:24px 0 0;font-size:13px;color:#5A5E63">${escapeHtml(`${name} · ${address} · ${email}`)}</p>`,
     certifications.length > 0 ? paragraph(`Certificaciones: ${certifications.join(" · ")}`) : "",
-    brand ? paragraph(brand.footerLine) : "",
+    paragraph(brand.footerLine),
     "</div></body></html>",
   ].join("");
 }
 
-function renderText(content: EmailContent, brand?: RenderBrand): string {
+function renderText(content: EmailContent, brand: RenderBrand): string {
   const lines = [content.heading, "", ...content.intro, ""];
   for (const [label, value] of content.rows) {
     lines.push(`${label}: ${value}`);
@@ -77,14 +76,11 @@ function renderText(content: EmailContent, brand?: RenderBrand): string {
   if (content.link) {
     lines.push("", `${content.link.label}: ${content.link.href}`);
   }
-  lines.push(
-    "",
-    `${brand?.shopName ?? SITE.name} · ${brand?.addressShort ?? SITE.addressShort} · ${brand?.replyTo ?? SITE.email}`,
-  );
-  if (brand) lines.push(brand.footerLine);
+  lines.push("", `${brand.shopName} · ${brand.addressShort} · ${brand.replyTo}`);
+  lines.push(brand.footerLine);
   return lines.join("\n");
 }
 
-export function render(subject: string, content: EmailContent, brand?: RenderBrand): RenderedEmail {
+export function render(subject: string, content: EmailContent, brand: RenderBrand): RenderedEmail {
   return { subject, html: renderHtml(content, brand), text: renderText(content, brand) };
 }

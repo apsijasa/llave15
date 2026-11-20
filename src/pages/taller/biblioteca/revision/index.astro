@@ -3,7 +3,7 @@ import Card from "../../../../components/taller/Card.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
@@ -32,7 +32,7 @@ const when = (date: Date | null) =>
   date ? date.toLocaleDateString("es-CL", { timeZone: "America/Santiago" }) : "Sin fecha";
 ---
 
-<TallerLayout title={`Revisión central — ${SITE.name}`} description="Cola de propuestas para la biblioteca global." path={PATH} user={user}>
+<TallerLayout title={`Revisión central — ${PLATFORM.name}`} description="Cola de propuestas para la biblioteca global." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Revisión central" subtitle="Propuestas de todos los talleres. Solo se ve el contenido propuesto, nunca datos del taller." />
     {Astro.url.searchParams.get("hecho") === "publicada" && <p role="status">Versión publicada e indexada.</p>}

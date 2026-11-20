@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../lib/platform.ts";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
@@ -28,7 +29,7 @@ const scope = orderScopeSchema.parse({ scope: "open" });
 const orders = await listOrders(db, user, scope);
 ---
 
-<TallerLayout title="Órdenes — Vector Bikes" description="Órdenes abiertas del taller." path={PATH} user={user}>
+<TallerLayout title={`Órdenes — ${PLATFORM.name}`} description="Órdenes abiertas del taller." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Órdenes abiertas" />
     <Card><div class="scroll-x">

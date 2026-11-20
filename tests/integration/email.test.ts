@@ -10,6 +10,7 @@ import {
   notifyBookingCancelled,
   notifyBookingCreated,
 } from "../../src/server/email/notifications.ts";
+import { profileForBranch } from "../../src/server/shops/profile.ts";
 import { escapeHtml } from "../../src/server/email/templates.ts";
 import { reminderEmail } from "../../src/server/email/booking/templates.ts";
 import {
@@ -99,7 +100,9 @@ describe("correos transaccionales", () => {
   it("sin correo envía solo el aviso al taller, sin adjunto ni error", async () => {
     const { booking, cancelToken } = await newBooking(test, { email: null });
 
-    await expect(notifyBookingCreated(booking, cancelToken)).resolves.toBeUndefined();
+    await expect(
+      notifyBookingCreated(booking, cancelToken, {}, [], test.db),
+    ).resolves.toBeUndefined();
 
     expect(consoleOutbox).toHaveLength(1);
     expect(consoleOutbox[0]?.to).toBe(SHOP);
@@ -113,7 +116,7 @@ describe("correos transaccionales", () => {
   it("muestra Sin correo en el aviso de cancelación al taller", async () => {
     const { booking } = await newBooking(test, { email: null });
 
-    await notifyBookingCancelled(booking);
+    await notifyBookingCancelled(booking, {}, test.db);
 
     expect(consoleOutbox).toHaveLength(1);
     expect(consoleOutbox[0]?.to).toBe(SHOP);
@@ -131,7 +134,7 @@ describe("correos transaccionales", () => {
       now: NOW,
       ip: "203.0.113.7",
       fetchFn: turnstileFetch,
-      onCreated: notifyBookingCreated,
+      onCreated: (booking, token) => notifyBookingCreated(booking, token, {}, [], test.db),
     };
 
     const response = await handleCreateBooking(postRequest(body()), ctx);
@@ -144,7 +147,7 @@ describe("correos transaccionales", () => {
 
   it("adjunta el .ics y el enlace de cancelación en la confirmación", async () => {
     const { booking, cancelToken } = await newBooking(test);
-    await notifyBookingCreated(booking, cancelToken);
+    await notifyBookingCreated(booking, cancelToken, {}, [], test.db);
 
     const confirmation = consoleOutbox.find((entry) => entry.to === booking.email);
     expect(confirmation).toBeDefined();
@@ -167,7 +170,7 @@ describe("correos transaccionales", () => {
 
   it("escapa el texto del cliente en el HTML", async () => {
     const { booking, cancelToken } = await newBooking(test);
-    await notifyBookingCreated(booking, cancelToken);
+    await notifyBookingCreated(booking, cancelToken, {}, [], test.db);
 
     expect(consoleOutbox).toHaveLength(2);
     for (const entry of consoleOutbox) {
@@ -190,7 +193,7 @@ describe("correos transaccionales", () => {
     expect(cancelled.ok).toBe(true);
     const cancelledBooking = (cancelled as { ok: true; booking: Booking }).booking;
 
-    await notifyBookingCancelled(cancelledBooking);
+    await notifyBookingCancelled(cancelledBooking, {}, test.db);
 
     expect(consoleOutbox).toHaveLength(1);
     expect(consoleOutbox[0]?.to).toBe(SHOP);
@@ -211,7 +214,7 @@ describe("correos transaccionales", () => {
     };
 
     await expect(
-      notifyBookingCreated(booking, cancelToken, { transport: flaky }),
+      notifyBookingCreated(booking, cancelToken, { transport: flaky }, [], test.db),
     ).resolves.toBeUndefined();
     expect(sent).toEqual([SHOP]);
   });
@@ -219,7 +222,7 @@ describe("correos transaccionales", () => {
   it("arma el payload de Resend con replyTo y adjunto en base64", async () => {
     const { booking } = await newBooking(test);
     if (booking.email === null) throw new Error("la reserva de prueba debe tener correo");
-    const ics = buildIcs(booking);
+    const ics = buildIcs(booking, 0, (await profileForBranch(test.db, booking.branchId))!);
     const env = { ...getEmailEnv(), EMAIL_TRANSPORT: "resend" as const, RESEND_API_KEY: "re_x" };
 
     const payload = toResendPayload(

@@ -4,7 +4,7 @@ import LowStockNotice from "../../components/taller/LowStockNotice.astro";
 import PageHeader from "../../components/taller/PageHeader.astro";
 import TallerLayout from "../../layouts/TallerLayout.astro";
 import { getSiteEnv } from "../../lib/env.ts";
-import { SITE } from "../../lib/site.ts";
+import { PLATFORM } from "../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
 import type { Action } from "../../server/auth/permissions.ts";
@@ -99,7 +99,7 @@ try {
 }
 ---
 
-<TallerLayout title={`Taller — ${SITE.name}`} description="Área interna del taller." path="/taller" user={user}>
+<TallerLayout title={`Taller — ${PLATFORM.name}`} description="Área interna del taller." path="/taller" user={user}>
   <div class="dash">
     <PageHeader title="Taller" subtitle={`Hola, ${name}`}>
       {bookingUrl && (

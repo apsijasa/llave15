@@ -4,7 +4,7 @@ import PageHeader from "../../../../components/taller/PageHeader.astro";
 import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
 import { lineDiff } from "../../../../lib/line-diff.ts";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { forbiddenResponse } from "../../../../server/auth/permissions.ts";
@@ -108,7 +108,7 @@ const label = (labels: Record<string, string>, value: string) => labels[value] ?
 const when = (date: Date) => date.toLocaleString("es-CL", { timeZone: "America/Santiago" });
 ---
 
-<TallerLayout title={`Revisar propuesta — ${SITE.name}`} description="Revisión central de una propuesta." path={BASE} user={user}>
+<TallerLayout title={`Revisar propuesta — ${PLATFORM.name}`} description="Revisión central de una propuesta." path={BASE} user={user}>
   <div class="stack">
     <PageHeader title={proposal.title} subtitle={label(PROPOSAL_KIND_LABELS, proposal.kind)} status={{ status, label: label(PROPOSAL_LABELS, status) }} />
     {Astro.url.searchParams.get("hecho") === "decidida" && <p role="status">Decisión registrada.</p>}

@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../lib/platform.ts";
 import { z } from "zod";
 import Card from "../../components/taller/Card.astro";
 import PageHeader from "../../components/taller/PageHeader.astro";
@@ -146,7 +147,7 @@ function roleLabel(value: unknown) {
 }
 ---
 
-<TallerLayout title="Usuarios — Vector Bikes" description="Usuarios y registro de auditoría del taller." path={PATH} user={user}>
+<TallerLayout title={`Usuarios — ${PLATFORM.name}`} description="Usuarios y registro de auditoría del taller." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Usuarios" />
     {notice && <p role="status">{notice}</p>}

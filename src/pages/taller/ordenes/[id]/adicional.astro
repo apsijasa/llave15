@@ -6,11 +6,12 @@ import PageHeader from "../../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { getSiteEnv } from "../../../../lib/env.ts";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
+import { profileForBranch } from "../../../../server/shops/profile.ts";
 import { formatClp } from "../../../../server/email/templates.ts";
 import {
   approvalFormSchema,
@@ -50,6 +51,8 @@ if (!detail.ok)
   return detail.code === "forbidden"
     ? forbidden()
     : new Response("Orden no encontrada.", { status: 404, headers });
+const profile = await profileForBranch(db, user.branchId);
+if (!profile) throw new Error("No se encontró el perfil del taller.");
 const PATH = `/taller/ordenes/${id.data}/adicional`;
 const actionSchema = z.discriminatedUnion("action", [
   approvalFormSchema.extend({ action: z.literal("create") }),
@@ -106,7 +109,7 @@ if (Astro.request.method === "POST") {
   if (result.ok && result.token) {
     link = approvalLink(getSiteEnv().PUBLIC_SITE_URL, result.token);
     const firstName = detail.customer.name.trim().split(/\s+/)[0];
-    const message = `Hola ${firstName}, en ${SITE.name} revisamos tu bicicleta y encontramos algo. Revisa y responde aquí: ${link}`;
+    const message = `Hola ${firstName}, en ${profile.name} revisamos tu bicicleta y encontramos algo. Revisa y responde aquí: ${link}`;
     if (detail.customer.phoneE164) whatsapp = whatsappShareLink(detail.customer.phoneE164, message);
     values = {};
     approvals = await listApprovals(db, user, id.data);
@@ -128,7 +131,7 @@ const { order } = detail;
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---
 
-<TallerLayout title={`${number} · Adicional — ${SITE.name}`} description="Propuestas de trabajo adicional." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Adicional — ${PLATFORM.name}`} description="Propuestas de trabajo adicional." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={`${number} · Adicional`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="adicional" tabs={tabs} />

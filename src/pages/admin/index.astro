@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../lib/platform.ts";
 import MonthCalendar from "../../components/admin/MonthCalendar.astro";
 import Card from "../../components/taller/Card.astro";
 import PageHeader from "../../components/taller/PageHeader.astro";
@@ -37,7 +38,7 @@ const [agenda, overview] = await Promise.all([
 const warning = holidayWarning(now);
 ---
 
-<TallerLayout title="Agenda — Vector Bikes" description="Agenda del taller." path="/admin" user={admin}>
+<TallerLayout title={`Agenda — ${PLATFORM.name}`} description="Agenda del taller." path="/admin" user={admin}>
   <div class="stack">
     <PageHeader title="Agenda" subtitle="Panel del taller" />
     {warning && <p role="status" style="margin-bottom:20px;font-weight:600">{warning}</p>}

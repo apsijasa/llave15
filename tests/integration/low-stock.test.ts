@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeEach, expect, it, vi } from "vitest";
 import { getEmailEnv } from "../../src/lib/env.ts";
-import { SITE } from "../../src/lib/site.ts";
+import { SITE } from "../helpers/shops.ts";
 import { handleAlertsTask } from "../../src/server/api/task-handlers.ts";
 import { hashPassword, loginAdmin } from "../../src/server/auth/admin-auth.ts";
 import type { SessionUser } from "../../src/server/auth/admin-auth.ts";

@@ -3,7 +3,7 @@ import Card from "../../../../components/taller/Card.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
@@ -30,7 +30,7 @@ const when = (date: Date | null) =>
   date ? date.toLocaleDateString("es-CL", { timeZone: "America/Santiago" }) : "Sin enviar";
 ---
 
-<TallerLayout title={`Propuestas — ${SITE.name}`} description="Propuestas de conocimiento del taller." path={PATH} user={user}>
+<TallerLayout title={`Propuestas — ${PLATFORM.name}`} description="Propuestas de conocimiento del taller." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Propuestas" subtitle="Lo que tu taller propone para la biblioteca. Solo el curador central publica.">
       <a slot="actions" class="btn" href={`${PATH}/nueva`}>Nueva propuesta</a>

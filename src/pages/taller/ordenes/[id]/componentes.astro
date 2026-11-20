@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { z } from "zod";
 import Card from "../../../../components/taller/Card.astro";
 import OrderTabs from "../../../../components/taller/OrderTabs.astro";
@@ -125,7 +126,7 @@ function value(field: string, fallback = "") {
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---
 
-<TallerLayout title={`${number} · Componentes — Vector Bikes`} description="Componentes instalados y reemplazados de la bicicleta." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Componentes — ${PLATFORM.name}`} description="Componentes instalados y reemplazados de la bicicleta." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={`${number} · Componentes`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="componentes" tabs={tabs} />

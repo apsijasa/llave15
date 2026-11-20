@@ -4,7 +4,7 @@ import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
@@ -132,7 +132,7 @@ const dateFormat = new Intl.DateTimeFormat("es-CL", {
 });
 ---
 
-<TallerLayout title={`Ventas — ${SITE.name}`} description="Ventas de mostrador del taller." path={PATH} user={user}>
+<TallerLayout title={`Ventas — ${PLATFORM.name}`} description="Ventas de mostrador del taller." path={PATH} user={user}>
   <div class="stack sale-list">
     <PageHeader title="Ventas"><a slot="actions" class="btn" href="/taller/ventas/nueva">Nueva venta</a></PageHeader>
     {success && Astro.request.method === "GET" && <p role="status">{success}</p>}

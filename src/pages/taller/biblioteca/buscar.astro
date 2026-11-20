@@ -4,7 +4,7 @@ import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import LibraryStatus from "../../../components/taller/library/LibraryStatus.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
 import { getDb } from "../../../server/db/client.ts";
@@ -59,7 +59,7 @@ const empty =
   ![results.exact, results.models, results.articles, results.documents].some((hits) => hits.length);
 ---
 
-<TallerLayout title={`Buscar en biblioteca — ${SITE.name}`} description="Busca componentes y documentación técnica." path={PATH} user={user}>
+<TallerLayout title={`Buscar en biblioteca — ${PLATFORM.name}`} description="Busca componentes y documentación técnica." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Buscar en biblioteca" />
     <Card>

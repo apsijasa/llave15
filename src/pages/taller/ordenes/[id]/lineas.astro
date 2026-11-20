@@ -5,7 +5,7 @@ import OrderAmounts from "../../../../components/taller/OrderAmounts.astro";
 import OrderTabs from "../../../../components/taller/OrderTabs.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { ORDER_TABS } from "../../../../lib/taller-tabs.ts";
 import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
@@ -243,7 +243,7 @@ const notice =
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 ---
 
-<TallerLayout title={`${number} · Líneas — ${SITE.name}`} description="Líneas, precios y documento tributario de la orden." path="/taller/ordenes" user={user}>
+<TallerLayout title={`${number} · Líneas — ${PLATFORM.name}`} description="Líneas, precios y documento tributario de la orden." path="/taller/ordenes" user={user}>
   <div class="stack">
     <PageHeader title={`${number} · Líneas`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
     <OrderTabs orderId={order.id} active="lineas" tabs={tabs} />

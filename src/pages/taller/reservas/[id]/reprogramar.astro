@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import Card from "../../../../components/taller/Card.astro";
@@ -137,7 +138,7 @@ const currentDate = DateTime.fromISO(booking.serviceDate, { zone: TIMEZONE })
 const currentTime = DateTime.fromJSDate(booking.startsAt).setZone(TIMEZONE).toFormat("HH:mm");
 ---
 
-<TallerLayout title="Reprogramar reserva — Vector Bikes" description="Cambiar el día y bloque de una reserva." path="/taller/reservas" user={user}>
+<TallerLayout title={`Reprogramar reserva — ${PLATFORM.name}`} description="Cambiar el día y bloque de una reserva." path="/taller/reservas" user={user}>
   <div class="stack">
     <PageHeader title="Reprogramar reserva">
       <a slot="actions" href="/taller/reservas">Volver a reservas</a>

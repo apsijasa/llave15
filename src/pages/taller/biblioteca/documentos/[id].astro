@@ -4,7 +4,7 @@ import Card from "../../../../components/taller/Card.astro";
 import PageHeader from "../../../../components/taller/PageHeader.astro";
 import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
@@ -52,7 +52,7 @@ const typeLabels: Record<string, string> = {
 };
 ---
 
-<TallerLayout title={`${document.title} — ${SITE.name}`} description="Documentación técnica y condiciones de acceso." path={`/taller/biblioteca/documentos/${id.data}`} user={user}>
+<TallerLayout title={`${document.title} — ${PLATFORM.name}`} description="Documentación técnica y condiciones de acceso." path={`/taller/biblioteca/documentos/${id.data}`} user={user}>
   <div class="stack library-document">
     <PageHeader title={document.title} subtitle="Documento técnico" />
     <Card title="Metadatos">

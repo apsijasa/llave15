@@ -3,7 +3,7 @@ import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
@@ -166,7 +166,7 @@ const dateTimeFormat = new Intl.DateTimeFormat("es-CL", {
 });
 ---
 
-<TallerLayout title={`Caja — ${SITE.name}`} description="Caja diaria del taller." path={PATH} user={user}>
+<TallerLayout title={`Caja — ${PLATFORM.name}`} description="Caja diaria del taller." path={PATH} user={user}>
   <div class="stack cash-page">
     <PageHeader title="Caja" />
     {success && Astro.request.method === "GET" && <p role="status">{success}</p>}

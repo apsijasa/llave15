@@ -5,7 +5,7 @@ import PageHeader from "../../../../components/taller/PageHeader.astro";
 import LibraryStatus from "../../../../components/taller/library/LibraryStatus.astro";
 import SourceList from "../../../../components/taller/library/SourceList.astro";
 import TallerLayout from "../../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../../lib/site.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
@@ -50,7 +50,7 @@ const label = (labels: Record<string, string>, value: string) => labels[value] ?
 const riskLabel = `Riesgo ${label(PROCEDURE_RISK_LABELS, procedure.risk).toLocaleLowerCase("es-CL")}`;
 ---
 
-<TallerLayout title={`${procedure.title} — ${SITE.name}`} description="Procedimiento técnico paso a paso." path={`${PATH}/procedimientos/${id.data}`} user={user}>
+<TallerLayout title={`${procedure.title} — ${PLATFORM.name}`} description="Procedimiento técnico paso a paso." path={`${PATH}/procedimientos/${id.data}`} user={user}>
   <div class="stack library-procedure">
     <PageHeader title={procedure.title} subtitle={article.title}>
       <LibraryStatus slot="actions" status={procedure.risk} label={riskLabel} />

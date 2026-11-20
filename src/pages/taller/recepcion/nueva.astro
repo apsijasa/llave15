@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../lib/platform.ts";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
@@ -187,7 +188,7 @@ const bikeFields = [
 ];
 ---
 
-<TallerLayout title="Nueva recepción — Vector Bikes" description="Iniciar la recepción de una bicicleta." path={PATH} user={user}>
+<TallerLayout title={`Nueva recepción — ${PLATFORM.name}`} description="Iniciar la recepción de una bicicleta." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Nueva recepción" />
     <ReceptionSteps current={1} />

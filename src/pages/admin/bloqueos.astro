@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../lib/platform.ts";
 import Card from "../../components/taller/Card.astro";
 import PageHeader from "../../components/taller/PageHeader.astro";
 import TallerLayout from "../../layouts/TallerLayout.astro";
@@ -77,7 +78,7 @@ const FIELDS = [
 ---
 
 <TallerLayout
-  title="Bloqueos — Vector Bikes"
+  title={`Bloqueos — ${PLATFORM.name}`}
   description="Bloqueos de agenda del taller."
   path="/admin/bloqueos"
   user={admin}

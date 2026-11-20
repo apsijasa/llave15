@@ -4,7 +4,7 @@ import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
@@ -111,7 +111,7 @@ const dateFormat = new Intl.DateTimeFormat("es-CL", { dateStyle: "short", timeZo
 const total = rows.filter((row) => !row.voidedAt).reduce((sum, row) => sum + row.amountClp, 0);
 ---
 
-<TallerLayout title={`Gastos — ${SITE.name}`} description="Gastos del taller." path={PATH} user={user}>
+<TallerLayout title={`Gastos — ${PLATFORM.name}`} description="Gastos del taller." path={PATH} user={user}>
   <div class="stack expense-page">
     <PageHeader title="Gastos" />
     {success && Astro.request.method === "GET" && <p role="status">{success}</p>}

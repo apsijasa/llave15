@@ -1,5 +1,6 @@
 ---
-import Base from "../../layouts/Base.astro";
+import { PLATFORM } from "../../lib/platform.ts";
+import AppLayout from "../../layouts/AppLayout.astro";
 import { getSiteEnv } from "../../lib/env.ts";
 import { clientIp } from "../../server/api/client-ip.ts";
 import { hashIp, isAllowedOrigin } from "../../server/api/handlers.ts";
@@ -66,11 +67,9 @@ if (Astro.request.method === "POST") {
 }
 ---
 
-<Base
-  title="Ingresar — Vector Bikes"
-  description="Acceso al panel del taller Vector Bikes."
-  path="/admin/login"
-  chrome="none"
+<AppLayout
+  title={`Ingresar — ${PLATFORM.name}`}
+  description={`Acceso al panel del taller ${PLATFORM.name}.`}
   noindex
 >
   <section class="section">
@@ -119,4 +118,4 @@ if (Astro.request.method === "POST") {
       </form>
     </div>
   </section>
-</Base>
+</AppLayout>

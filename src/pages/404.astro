@@ -1,11 +1,12 @@
 ---
 import Base from "../layouts/Base.astro";
+import { PLATFORM } from "../lib/platform.ts";
 
 export const prerender = true;
 ---
 
 <Base
-  title="Página no encontrada — Vector Bikes"
+  title={`Página no encontrada — ${PLATFORM.name}`}
   description="La página que buscas no existe."
   path="/404"
   noindex

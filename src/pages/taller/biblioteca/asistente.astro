@@ -5,7 +5,7 @@ import ConfidenceCard from "../../../components/taller/library/ConfidenceCard.as
 import LibraryStatus from "../../../components/taller/library/LibraryStatus.astro";
 import TallerLayout from "../../../layouts/TallerLayout.astro";
 import { getAiEnv } from "../../../lib/env.ts";
-import { SITE } from "../../../lib/site.ts";
+import { PLATFORM } from "../../../lib/platform.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
@@ -63,7 +63,7 @@ const mode =
 const when = (date: Date) => date.toLocaleString("es-CL", { timeZone: "America/Santiago" });
 ---
 
-<TallerLayout title={`Asistente técnico — ${SITE.name}`} description="Preguntas técnicas respondidas con fuentes de la biblioteca." path={PATH} user={user}>
+<TallerLayout title={`Asistente técnico — ${PLATFORM.name}`} description="Preguntas técnicas respondidas con fuentes de la biblioteca." path={PATH} user={user}>
   <div class="stack">
     <PageHeader title="Asistente técnico" subtitle="Responde con fuentes de la biblioteca. No reemplaza el manual oficial." />
     {misconfigured && <p role="alert">El asistente funciona en modo solo fuentes: falta configurar el proveedor.</p>}

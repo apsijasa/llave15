@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../lib/platform.ts";
 import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
@@ -100,7 +101,7 @@ if (Astro.request.method === "POST") {
 }
 ---
 
-<TallerLayout title="Nuevo cliente — Vector Bikes" description="Crear una ficha de cliente del taller." path="/taller/clientes" user={user}>
+<TallerLayout title={`Nuevo cliente — ${PLATFORM.name}`} description="Crear una ficha de cliente del taller." path="/taller/clientes" user={user}>
   <div class="stack">
     <PageHeader title="Nuevo cliente">
       <a slot="actions" href="/taller/clientes">Volver a clientes</a>

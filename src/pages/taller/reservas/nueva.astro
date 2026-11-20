@@ -1,4 +1,5 @@
 ---
+import { PLATFORM } from "../../../lib/platform.ts";
 import { z } from "zod";
 import Card from "../../../components/taller/Card.astro";
 import PageHeader from "../../../components/taller/PageHeader.astro";
@@ -160,7 +161,7 @@ const fields: {
 ];
 ---
 
-<TallerLayout title="Nueva reserva — Vector Bikes" description="Crear una reserva manual del taller." path="/taller/reservas" user={user}>
+<TallerLayout title={`Nueva reserva — ${PLATFORM.name}`} description="Crear una reserva manual del taller." path="/taller/reservas" user={user}>
   <div class="stack">
     <PageHeader title="Nueva reserva">
       <a slot="actions" href="/taller/reservas">Volver a reservas</a>
