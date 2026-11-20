@@ -88,6 +88,8 @@ export type SessionUser = {
   role: Role;
   branchId: string;
   libraryCurator?: boolean;
+  /** Solo presente cuando el usuario tiene la marca de plataforma (BG-41); no es un rol. */
+  isPlatformAdmin?: boolean;
 };
 
 /** La primera sucursal se llama como la comuna del taller (BG-28: sin nombres fijos en src/). */
@@ -232,6 +234,7 @@ export async function requireAdmin(
       role: users.role,
       branchId: users.branchId,
       libraryCurator: users.libraryCurator,
+      isPlatformAdmin: users.isPlatformAdmin,
     })
     .from(adminSessions)
     .innerJoin(users, eq(users.id, adminSessions.userId))
@@ -244,7 +247,11 @@ export async function requireAdmin(
       ),
     )
     .limit(1);
-  return row ? { ...row, role: row.role as Role } : null;
+  if (!row) return null;
+  const { isPlatformAdmin, ...user } = row;
+  if (!isPlatformAdmin) return { ...user, role: user.role as Role };
+  // El administrador de plataforma es además curador de la biblioteca (decisión 12).
+  return { ...user, role: user.role as Role, libraryCurator: true, isPlatformAdmin: true };
 }
 
 export function safeNextPath(raw: unknown): string | null {

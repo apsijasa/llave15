@@ -9,7 +9,7 @@ interface Props {
   title: string;
   description: string;
   path: string;
-  user: { name: string; role: Role; libraryCurator?: boolean };
+  user: { name: string; role: Role; libraryCurator?: boolean; isPlatformAdmin?: boolean };
 }
 
 const { title, description, path, user } = Astro.props;
@@ -68,6 +68,9 @@ const menu = groups
     ),
   }))
   .filter((group) => group.links.length > 0);
+// La marca de plataforma no es un rol: su enlace no pasa por `can` (BG-41).
+const platformLinks =
+  user.isPlatformAdmin === true ? [{ label: "Plataforma", href: "/plataforma" }] : [];
 // En "Conocimiento" una subruta marca el enlace de prefijo más largo (Asistente, no Biblioteca).
 const knowledgeCurrent = groups
   .flatMap((group) => (group.label === "Conocimiento" ? group.links : []))
@@ -111,6 +114,22 @@ const knowledgeCurrent = groups
                 </ul>
               </div>
             ))
+          }
+          {
+            platformLinks.length > 0 && (
+              <div class="taller-group">
+                <p class="label">Plataforma</p>
+                <ul>
+                  {platformLinks.map((link) => (
+                    <li>
+                      <a href={link.href} aria-current={path === link.href ? "page" : undefined}>
+                        {link.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
           }
         </nav>
         <form method="post" action="/admin/logout" class="taller-exit">

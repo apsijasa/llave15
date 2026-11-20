@@ -1,0 +1,76 @@
+---
+import Card from "../../components/taller/Card.astro";
+import PageHeader from "../../components/taller/PageHeader.astro";
+import TallerLayout from "../../layouts/TallerLayout.astro";
+import { PLATFORM } from "../../lib/platform.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
+import { forbiddenResponse } from "../../server/auth/permissions.ts";
+import { getDb } from "../../server/db/client.ts";
+import { listShopsWithUsage } from "../../server/shops/platform-shops.ts";
+
+export const prerender = false;
+
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user) {
+  const response = Astro.redirect(loginRedirect(Astro.url.pathname + Astro.url.search), 303);
+  response.headers.set("cache-control", "no-store");
+  return response;
+}
+// La marca de plataforma no es un rol: se decide aquí, en el servidor (regla 11).
+const shops = user.isPlatformAdmin === true ? await listShopsWithUsage(db, user, now) : null;
+if (shops === null) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+
+const STATUS_LABELS: Record<string, string> = { activo: "Activo", suspendido: "Suspendido" };
+const PATH = "/plataforma";
+---
+
+<TallerLayout
+  title={`Plataforma — ${PLATFORM.name}`}
+  description="Talleres de la plataforma y su uso."
+  path={PATH}
+  user={user}
+>
+  <div class="stack">
+    <PageHeader title="Plataforma" subtitle="Talleres y su uso de los últimos 30 días." />
+    <Card title="Talleres">
+      <div class="scroll-x">
+        <table class="dense">
+          <caption>Solo metadatos y conteos; los datos de cada taller los ve su personal.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Taller</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Usuarios activos</th>
+              <th scope="col">Órdenes abiertas</th>
+              <th scope="col">Reservas (30 días)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              shops.map((shop) => (
+                <tr>
+                  <th scope="row">
+                    {shop.name}
+                    <br />
+                    <span class="mono">{shop.slug}</span>
+                  </th>
+                  <td>
+                    <span class={`status status--${shop.status}`}>
+                      {STATUS_LABELS[shop.status] ?? shop.status}
+                    </span>
+                  </td>
+                  <td class="num">{shop.activeUsers}</td>
+                  <td class="num">{shop.openOrders}</td>
+                  <td class="num">{shop.recentBookings}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  </div>
+</TallerLayout>
