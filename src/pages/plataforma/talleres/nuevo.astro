@@ -1,0 +1,167 @@
+---
+import Card from "../../../components/taller/Card.astro";
+import PageHeader from "../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../layouts/TallerLayout.astro";
+import { PLATFORM } from "../../../lib/platform.ts";
+import { isAllowedOrigin } from "../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
+import { forbiddenResponse } from "../../../server/auth/permissions.ts";
+import { getDb } from "../../../server/db/client.ts";
+import { createShop, createShopFromForm } from "../../../server/shops/create-shop.ts";
+import type { FieldErrors } from "../../../server/shops/create-shop.ts";
+import { listShopsWithUsage } from "../../../server/shops/platform-shops.ts";
+
+export const prerender = false;
+
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user) {
+  const response = Astro.redirect(loginRedirect(Astro.url.pathname), 303);
+  response.headers.set("cache-control", "no-store");
+  return response;
+}
+if (user.isPlatformAdmin !== true) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+
+let fields: FieldErrors = {};
+let values: Record<string, string> = {};
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  const form = await Astro.request.formData();
+  const result = await createShop(db, user, createShopFromForm(form), now);
+  if (result.ok) return Astro.redirect("/plataforma?hecho=crear", 303);
+  if (result.code === "forbidden") return forbiddenResponse();
+  fields = result.fields;
+  values = Object.fromEntries(
+    [...form.entries()]
+      .filter(([name]) => name !== "ownerPassword")
+      .map(([name, value]) => [name, String(value)]),
+  );
+  Astro.response.status = 422;
+}
+
+const templates = (await listShopsWithUsage(db, user, now)) ?? [];
+const DAYS = [
+  ["1", "Lunes"],
+  ["2", "Martes"],
+  ["3", "Miércoles"],
+  ["4", "Jueves"],
+  ["5", "Viernes"],
+  ["6", "Sábado"],
+  ["7", "Domingo"],
+] as const;
+const PROFILE = [
+  ["name", "Nombre del taller", "text"],
+  ["slug", "Dirección de reservas (slug)", "text"],
+  ["codePrefix", "Prefijo de códigos (2 a 4 letras)", "text"],
+  ["email", "Correo público", "email"],
+  ["notifyEmail", "Correo de avisos", "email"],
+  ["phone", "Teléfono (+569XXXXXXXX)", "tel"],
+  ["phoneDisplay", "Teléfono como se muestra", "text"],
+  ["streetAddress", "Dirección", "text"],
+  ["addressShort", "Dirección corta", "text"],
+  ["locality", "Comuna", "text"],
+  ["region", "Región", "text"],
+  ["legalName", "Razón social (opcional)", "text"],
+  ["rut", "RUT (opcional)", "text"],
+  ["mapsUrl", "Enlace a Google Maps (opcional)", "url"],
+  ["instagramUrl", "Instagram (opcional)", "url"],
+] as const;
+const BOOKING = [
+  ["dailyCapacity", "Bicis por día", "2"],
+  ["blockMinutes", "Minutos por bloque (15, 20, 30, 45 o 60)", "60"],
+  ["minNoticeMinutes", "Antelación mínima (minutos)", "120"],
+  ["horizonDays", "Días hacia adelante", "30"],
+  ["pickupFeeClp", "Tarifa de retiro (CLP)", "0"],
+] as const;
+const value = (name: string, fallback = "") => values[name] ?? fallback;
+const errorId = (name: string) => (fields[name] ? `${name}-error` : undefined);
+---
+
+<TallerLayout title={`Crear taller — ${PLATFORM.name}`} description="Alta de un taller en la plataforma." path="/plataforma/talleres/nuevo" user={user}>
+  <div class="stack">
+    <PageHeader title="Crear taller" subtitle="El taller queda activo con su primer dueño y el catálogo de la plantilla." />
+    {Object.keys(fields).length > 0 && <p role="alert">Revisa los campos marcados.</p>}
+    <form method="post" action="/plataforma/talleres/nuevo" class="stack">
+      <Card title="Perfil">
+        <div class="fields">
+          {PROFILE.map(([name, label, type]) => (
+            <div class="field">
+              <label for={`f-${name}`}>{label}</label>
+              <input id={`f-${name}`} name={name} type={type} value={value(name)} aria-invalid={Boolean(fields[name])} aria-describedby={errorId(name)} />
+              {fields[name] && <p id={`${name}-error`}>{fields[name]}</p>}
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card title="Reservas">
+        <div class="fields">
+          {BOOKING.map(([name, label, fallback]) => (
+            <div class="field">
+              <label for={`f-${name}`}>{label}</label>
+              <input id={`f-${name}`} name={name} inputmode="numeric" value={value(name, fallback)} aria-invalid={Boolean(fields[name])} aria-describedby={errorId(name)} />
+              {fields[name] && <p id={`${name}-error`}>{fields[name]}</p>}
+            </div>
+          ))}
+          <div class="field">
+            <label for="f-pickupComunas">Comunas de retiro (separadas por coma)</label>
+            <input id="f-pickupComunas" name="pickupComunas" value={value("pickupComunas")} aria-invalid={Boolean(fields.pickupComunas)} aria-describedby={errorId("pickupComunas")} />
+            {fields.pickupComunas && <p id="pickupComunas-error">{fields.pickupComunas}</p>}
+          </div>
+          <label class="field" for="f-pickupEnabled">
+            <span><input id="f-pickupEnabled" name="pickupEnabled" type="checkbox" checked={values.pickupEnabled === "on"} /> Ofrece retiro a domicilio</span>
+          </label>
+        </div>
+        {(["recepcion", "retiro"] as const).map((prefix) => (
+          <fieldset>
+            <legend>{prefix === "recepcion" ? "Horario de recepción" : "Horario de retiro"}</legend>
+            {fields[prefix === "recepcion" ? "receptionHours" : "pickupHours"] && (
+              <p role="alert">{fields[prefix === "recepcion" ? "receptionHours" : "pickupHours"]}</p>
+            )}
+            <p class="muted">Deja ambos campos vacíos en los días cerrados.</p>
+            <div class="fields">
+              {DAYS.map(([day, label]) => (
+                <div class="field">
+                  <span>{label}</span>
+                  <label for={`${prefix}-${day}-open`}>Abre</label>
+                  <input id={`${prefix}-${day}-open`} name={`${prefix}-${day}-open`} type="time" value={value(`${prefix}-${day}-open`)} />
+                  <label for={`${prefix}-${day}-close`}>Cierra</label>
+                  <input id={`${prefix}-${day}-close`} name={`${prefix}-${day}-close`} type="time" value={value(`${prefix}-${day}-close`)} />
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </Card>
+      <Card title="Primer dueño y catálogo">
+        <div class="fields">
+          <div class="field">
+            <label for="f-ownerName">Nombre del dueño</label>
+            <input id="f-ownerName" name="ownerName" value={value("ownerName")} autocomplete="off" aria-invalid={Boolean(fields.ownerName)} aria-describedby={errorId("ownerName")} />
+            {fields.ownerName && <p id="ownerName-error">{fields.ownerName}</p>}
+          </div>
+          <div class="field">
+            <label for="f-ownerEmail">Correo del dueño</label>
+            <input id="f-ownerEmail" name="ownerEmail" type="email" value={value("ownerEmail")} autocomplete="off" aria-invalid={Boolean(fields.ownerEmail)} aria-describedby={errorId("ownerEmail")} />
+            {fields.ownerEmail && <p id="ownerEmail-error">{fields.ownerEmail}</p>}
+          </div>
+          <div class="field">
+            <label for="f-ownerPassword">Clave inicial</label>
+            <input id="f-ownerPassword" name="ownerPassword" type="password" minlength="12" autocomplete="new-password" aria-invalid={Boolean(fields.ownerPassword)} aria-describedby={fields.ownerPassword ? "ownerPassword-error" : "ownerPassword-help"} />
+            <p class="muted" id="ownerPassword-help">Al menos 12 caracteres. Entrégala al dueño por un canal seguro.</p>
+            {fields.ownerPassword && <p id="ownerPassword-error">{fields.ownerPassword}</p>}
+          </div>
+          <div class="field">
+            <label for="f-templateShopId">Copiar el catálogo de</label>
+            <select id="f-templateShopId" name="templateShopId" aria-invalid={Boolean(fields.templateShopId)} aria-describedby={errorId("templateShopId")}>
+              {templates.map((shop) => <option value={shop.id} selected={value("templateShopId") === shop.id}>{shop.name}</option>)}
+            </select>
+            {fields.templateShopId && <p id="templateShopId-error">{fields.templateShopId}</p>}
+          </div>
+        </div>
+      </Card>
+      <p><button type="submit" class="btn">Crear taller</button> <a class="btn ghost" href="/plataforma">Volver</a></p>
+    </form>
+  </div>
+</TallerLayout>

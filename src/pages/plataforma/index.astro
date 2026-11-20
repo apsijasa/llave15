@@ -25,6 +25,7 @@ Astro.response.headers.set("cache-control", "no-store");
 
 const STATUS_LABELS: Record<string, string> = { activo: "Activo", suspendido: "Suspendido" };
 const PATH = "/plataforma";
+const notice = Astro.url.searchParams.get("hecho") === "crear" ? "Taller creado." : null;
 ---
 
 <TallerLayout
@@ -34,7 +35,10 @@ const PATH = "/plataforma";
   user={user}
 >
   <div class="stack">
-    <PageHeader title="Plataforma" subtitle="Talleres y su uso de los últimos 30 días." />
+    <PageHeader title="Plataforma" subtitle="Talleres y su uso de los últimos 30 días.">
+      <a slot="actions" class="btn" href="/plataforma/talleres/nuevo">Crear taller</a>
+    </PageHeader>
+    {notice && <p role="status">{notice}</p>}
     <Card title="Talleres">
       <div class="scroll-x">
         <table class="dense">
