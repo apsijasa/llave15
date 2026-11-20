@@ -37,6 +37,8 @@ export const SEED = {
   libraryDocumentId: "00000000-0000-4000-8000-000000000086",
   libraryArticleId: "00000000-0000-4000-8000-000000000087",
   libraryVersionId: "00000000-0000-4000-8000-000000000088",
+  demoShopId: "00000000-0000-4000-8000-000000000091",
+  demoBranchId: "00000000-0000-4000-8000-000000000092",
 } as const;
 
 export const USERS = {

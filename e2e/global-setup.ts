@@ -95,6 +95,43 @@ async function seedUsers(sql: Sql): Promise<boolean> {
   return true;
 }
 
+const DEMO_WEEKDAY = { open: "10:00", close: "13:00" };
+const DEMO_HOURS = {
+  "1": DEMO_WEEKDAY,
+  "2": DEMO_WEEKDAY,
+  "3": DEMO_WEEKDAY,
+  "4": DEMO_WEEKDAY,
+  "5": DEMO_WEEKDAY,
+  "6": null,
+  "7": null,
+};
+
+/** Segundo taller (BG-33): la página `/taller-demo/reservar` con otra marca y otra configuración. */
+async function seedDemoShop(sql: Sql): Promise<void> {
+  if (!(await hasTable(sql, "shops"))) return;
+  await sql`
+    insert into shops (
+      id, slug, name, legal_name, rut, email, notify_email, phone, phone_display,
+      street_address, address_short, locality, region, maps_url, instagram_url,
+      certifications, timezone, reception_hours, pickup_hours, daily_capacity,
+      block_minutes, min_notice_minutes, horizon_days, pickup_enabled,
+      pickup_fee_clp, pickup_comunas, code_prefix, status
+    ) values (
+      ${SEED.demoShopId}, 'taller-demo', 'Taller Demo E2E', null, null,
+      'hola@tallerdemo.cl', 'avisos@tallerdemo.cl', '+56911112222', '+56 9 1111 2222',
+      'Avenida Irarrázaval 1000', 'Av. Irarrázaval 1000, Ñuñoa', 'Ñuñoa',
+      'Región Metropolitana', null, 'https://instagram.com/tallerdemo',
+      ${sql.array([] as string[])}, 'America/Santiago', ${sql.json(DEMO_HOURS)},
+      ${sql.json(DEMO_HOURS)}, 2, 60, 60, 14, true, 9000,
+      ${sql.array(["Ñuñoa", "Providencia"])}, 'TD', 'activo'
+    )
+  `;
+  await sql`
+    insert into branches (id, shop_id, name, next_order_number)
+    values (${SEED.demoBranchId}, ${SEED.demoShopId}, 'Ñuñoa', 1)
+  `;
+}
+
 async function seedBookings(sql: Sql): Promise<void> {
   const serviceDate = localDate(1);
   const startsAt = new Date(Date.now() + DAY_MS);
@@ -272,6 +309,7 @@ export default async function globalSetup(): Promise<void> {
   try {
     await truncateAll(sql);
     if (await seedUsers(sql)) {
+      await seedDemoShop(sql);
       await seedBookings(sql);
       await seedCatalog(sql);
       await seedOrders(sql);
