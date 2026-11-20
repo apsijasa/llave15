@@ -934,7 +934,7 @@
       "test \"$(node -p \"Object.keys(require('./tests/unit/shop-literals-baseline.json')).length\")\" = 0   # expect: exit 0",
       "test \"$(grep -rFoI -e 'Vector Bikes' -e 'Vitacura' -e 'Las Condes' -e 'Kennedy' -e 'vectorbikes' -e 'vector.bikes' -e '$15.000' -e '85095780' -e '8509 5780' src | wc -l | tr -d ' ')\" = 0   # expect: exit 0",
       "pnpm check && pnpm test   # expect: exit 0, 0 failed",
-      "node scripts/bg-expect-parity.ts   # expect: exit 0 — solo cambian imports y llamadas",
+      "node scripts/bg-expect-parity.ts --skip tests/integration/shop-config.test.ts --skip tests/unit/pickup-hours.test.ts   # expect: exit 0 — solo cambian imports y llamadas; las dos pruebas omitidas comparaban contra la configuración heredada que este paso elimina (BG-D49, aprobado por el dueño 19-11-2026)",
       "pnpm format && pnpm gate   # expect: exit 0"
     ],
     "checkpoint": "bg-28",
