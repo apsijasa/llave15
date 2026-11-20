@@ -31,7 +31,7 @@ Solo el enlace del recordatorio de mantención: `…/#reserva` → `…/vector-b
 
 ## Verificación
 
-1. Codex: `pnpm format && pnpm check && pnpm test && pnpm build` → exit 0; `pnpm test tests/integration/booking-links.test.ts tests/integration/maintenance-plan.test.ts tests/integration/tasks-maintenance-reminders.test.ts tests/integration/dashboard.test.ts` → exit 0; `grep -Eq '#reserva([^r]|$)' src/server/taller/maintenance-plan.ts; test $? -eq 1` → 0; `node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar'` → 0.
+1. Codex: `pnpm format && pnpm check && pnpm test && pnpm build` → exit 0; `pnpm test tests/integration/booking-links.test.ts tests/integration/maintenance-plan.test.ts tests/integration/tasks-maintenance-reminders.test.ts tests/integration/dashboard.test.ts` → exit 0; `grep -Eq '#reserva([^r]|$)' src/server/taller/maintenance-plan.ts; test $? -eq 1` → 0; `node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar' --allow '/#reserva'` → 0.
 2. Claude: el Verify completo del bloque BG-32 y `pnpm gate` → exit 0.
 
 ## Reporte

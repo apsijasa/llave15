@@ -219,14 +219,14 @@ Reglas: `taller-domain.md`, `taller-ui.md`.
 1. **WHEN** se envía el recordatorio de mantención de una orden del Taller Demo **THE SYSTEM SHALL** enlazar a `/taller-demo/reservar` del sitio
 2. **WHEN** se envía el de una orden de Vector Bikes **THE SYSTEM SHALL** enlazar a `/vector-bikes/reservar` en lugar de `/#reserva`
 3. **WHEN** el personal abre `/taller` **THE SYSTEM SHALL** apuntar el enlace que hoy va a `/#reservar` a `/<slug de su taller>/reservar`
-4. **WHEN** corre `node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar'` **THE SYSTEM SHALL** salir 0
+4. **WHEN** corre `node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar' --allow '/#reserva'` **THE SYSTEM SHALL** salir 0
 
 **Verify**
 
 ```bash
 pnpm test tests/integration/booking-links.test.ts tests/integration/maintenance-plan.test.ts tests/integration/tasks-maintenance-reminders.test.ts tests/integration/dashboard.test.ts   # expect: exit 0, 0 failed
 grep -Eq '#reserva([^r]|$)' src/server/taller/maintenance-plan.ts; test $? -eq 1   # expect: 1 = sin el ancla rota (#reservar no cuenta) → la línea sale 0
-node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar'   # expect: exit 0 — solo cambian expectativas declaradas
+node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar' --allow '/#reserva'   # expect: exit 0 — solo cambian expectativas declaradas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 

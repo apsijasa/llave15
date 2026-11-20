@@ -1497,16 +1497,17 @@ git tag -l bg-31 | grep -qx bg-31   # expect: exit 0
 **Valores esperados que cambian (declarados):** el enlace del recordatorio de mantención pasa de `/#reserva` (ancla incorrecta hoy, FASE §6) a `/vector-bikes/reservar`.
 **Hacer:** `maintenance-plan.ts:217` enlaza a `<sitio>/<slug>/reservar` con el `slug` del perfil de la orden; el enlace de `taller/index.astro` que hoy va a `/#reservar` apunta a `/<slug del taller del usuario>/reservar`.
 **Reglas:** R-dom · R-tui · No cambia: el resto del correo.
+**Nota (2026-11-20, aprobada por el dueño):** la paridad agrega `--allow '/#reserva'` porque las dos colas quitadas contienen el valor viejo declarado; ningún otro valor esperado cambia.
 **Done when**
 - [ ] WHEN se envía el recordatorio de mantención de una orden del Taller Demo THE SYSTEM SHALL enlazar a `/taller-demo/reservar` del sitio
 - [ ] WHEN se envía el de una orden de Vector Bikes THE SYSTEM SHALL enlazar a `/vector-bikes/reservar` en lugar de `/#reserva`
 - [ ] WHEN el personal abre `/taller` THE SYSTEM SHALL apuntar el enlace que hoy va a `/#reservar` a `/<slug de su taller>/reservar`
-- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar'` THE SYSTEM SHALL salir 0
+- [ ] WHEN corre `node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar' --allow '/#reserva'` THE SYSTEM SHALL salir 0
 **Verify**
 ```bash
 pnpm test tests/integration/booking-links.test.ts tests/integration/maintenance-plan.test.ts tests/integration/tasks-maintenance-reminders.test.ts tests/integration/dashboard.test.ts   # expect: exit 0, 0 failed
 grep -Eq '#reserva([^r]|$)' src/server/taller/maintenance-plan.ts; test $? -eq 1   # expect: 1 = sin el ancla rota (#reservar no cuenta) → la línea sale 0
-node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar'   # expect: exit 0 — solo cambian expectativas declaradas
+node scripts/bg-expect-parity.ts --allow '/vector-bikes/reservar' --allow '/#reserva'   # expect: exit 0 — solo cambian expectativas declaradas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
@@ -2295,7 +2296,7 @@ pnpm test:web                    # expect: exit 0
 sh scripts/smoke.sh              # expect: exit 0
 test "$(node -p "Object.keys(require('./tests/unit/shop-literals-baseline.json')).length")" = 0   # expect: exit 0 — guardia vacía
 git rev-parse --verify -q bg-16 >/dev/null && git diff --quiet 8bca898 bg-16 -- tests/build   # expect: exit 0 — el tag existe y la etapa 1 no tocó las pruebas del build
-node scripts/bg-expect-parity.ts --base 8bca898 --allow 'Llave 15' --allow '/vector-bikes/logo' --allow '/vector-bikes/reservar' --skip tests/unit/vector-bikes-profile.test.ts --skip tests/unit/permissions.test.ts --skip tests/integration/customers.test.ts   # expect: exit 0 — solo cambiaron las expectativas declaradas
+node scripts/bg-expect-parity.ts --base 8bca898 --allow 'Llave 15' --allow '/vector-bikes/logo' --allow '/vector-bikes/reservar' --allow '/#reserva' --skip tests/unit/vector-bikes-profile.test.ts --skip tests/unit/permissions.test.ts --skip tests/integration/customers.test.ts   # expect: exit 0 — solo cambiaron las expectativas declaradas
 pnpm gate                        # expect: exit 0
 ```
 **Criterios FASE §14 → prueba:** tabla al final de BG-45 (§9).
