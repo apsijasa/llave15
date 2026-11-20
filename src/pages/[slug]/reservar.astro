@@ -1,0 +1,53 @@
+---
+import BookingIsland from "../../components/islands/BookingIsland.tsx";
+import type { IslandShop } from "../../components/islands/booking-state.ts";
+import PublicLayout from "../../layouts/PublicLayout.astro";
+import { getDb } from "../../server/db/client.ts";
+import { profileBySlug } from "../../server/shops/profile.ts";
+import { scopeBySlug } from "../../server/shops/scope.ts";
+
+export const prerender = false;
+
+Astro.response.headers.set("cache-control", "no-store");
+const db = getDb();
+const slug = Astro.params.slug ?? "";
+const scope = await scopeBySlug(db, slug);
+if (!scope) return new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
+const profile = await profileBySlug(db, slug);
+if (!profile) return new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
+
+const shop: IslandShop = {
+  slug: scope.slug,
+  name: profile.name,
+  addressShort: profile.addressShort,
+  email: profile.email,
+  pickupEnabled: scope.config.pickupEnabled,
+  pickupComunas: scope.config.pickupComunas,
+  pickupFeeClp: scope.config.pickupFeeClp,
+  horizonDays: Math.min(scope.config.horizonDays, 14),
+  blockMinutes: scope.config.blockMinutes,
+  codePrefix: scope.config.codePrefix,
+  privacyHref: `/${scope.slug}/privacidad`,
+};
+---
+
+<PublicLayout
+  profile={profile}
+  title={`Reservar — ${profile.name}`}
+  description={`Reserva tu hora para la bicicleta en ${profile.name}.`}
+  noindex={false}
+>
+  <section class="section">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Reservar hora</span>
+        <h1>{profile.name}</h1>
+      </div>
+      <BookingIsland
+        client:visible
+        siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? ""}
+        shop={shop}
+      />
+    </div>
+  </section>
+</PublicLayout>
