@@ -39,10 +39,10 @@ const RECEIVED = {
 };
 const READY = { ...RECEIVED, totalClp: 45000, paidClp: 20000 };
 
-// Huellas de subject, html y text anteriores a BG-19, agregando únicamente el pie declarado.
+// Huellas de subject, html y text anteriores a BG-19 con el pie declarado; desde BG-49 el pie lleva el nombre del taller.
 const VECTOR_BASELINE = [
-  "d59ebc9a065e92dfee05618d909cfc751da74b643207eb8b155a677c022e1e38",
-  "b183f82d0e6c5de96674b070b21aecbab5438577070be6f2135179068815f524",
+  "f4b8fb9dcef20c2bb8061501ddb82a1099926bf8b6c84215bff0cbc92babc6fb",
+  "ad296f4ada6a7fb0ab29a43eb270e7dd65f2cb83a4f009bdb130657194d466b6",
 ];
 
 function memoryStorage(): ObjectStorage {

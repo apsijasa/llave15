@@ -29,7 +29,10 @@ const { title, description, noindex = true, profile } = Astro.props;
   <footer class="public-foot">
     <div class="wrap">
       <p>{profile.name} · {profile.addressShort} · <a href={`mailto:${profile.email}`}>{profile.email}</a></p>
-      <p>{PLATFORM.footerLine}</p>
+      <p class="public-signature">
+        <img src="/brand/llave15-distintivo.svg" alt="" width="24" height="24" />
+        <span>{profile.name} · {PLATFORM.footerLine}</span>
+      </p>
     </div>
   </footer>
 </AppLayout>
@@ -50,6 +53,15 @@ const { title, description, noindex = true, profile } = Astro.props;
     margin-top: 48px;
     padding: 24px 0;
     color: var(--steel);
+  }
+  .public-signature {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+  }
+  .public-signature img {
+    flex-shrink: 0;
   }
   .public-name {
     font-family: var(--display);

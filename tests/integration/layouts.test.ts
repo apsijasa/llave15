@@ -109,7 +109,7 @@ describe("PublicLayout", () => {
     });
 
     expect(html).toMatch(/<header\b[^>]*>[\s\S]*?Taller Demo[\s\S]*?<\/header>/);
-    expect(html).not.toContain("<img");
+    expect(html).not.toMatch(/<header\b[^>]*>[\s\S]*?<img[\s\S]*?<\/header>/);
     expect(html).toMatch(/<main\b[^>]*>\s*<h1>Tu bicicleta<\/h1>\s*<\/main>/);
     expect(html).toMatch(/<footer\b[^>]*>[\s\S]*?Taller Demo[\s\S]*?<\/footer>/);
     expect(html).toContain(profile.addressShort);

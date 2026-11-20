@@ -91,5 +91,5 @@ Si encontramos algo que no estaba en lo que pediste, te contactamos antes de hac
 Ver el estado de tu bicicleta: https://vectorbikes.cl/seguimiento/abc
 
 Vector Bikes · Av. Kennedy 7666, Vitacura · info@vectorbikes.cl
-Gestionado con Llave 15`);
+Vector Bikes · Gestionado con Llave 15`);
 });

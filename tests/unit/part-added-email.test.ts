@@ -49,7 +49,7 @@ Si tienes dudas sobre este repuesto, responde este correo.
 Ver el estado de tu bicicleta: ${input.trackingUrl}
 
 ${SITE.name} · ${SITE.addressShort} · ${SITE.email}
-Gestionado con Llave 15`);
+Vector Bikes · Gestionado con Llave 15`);
   for (const label of ["Neto", "IVA (19%)", "Total"]) expect(email.html).toContain(label);
   expect(email.text).not.toContain("Nuevo total");
 });

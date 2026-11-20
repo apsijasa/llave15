@@ -62,7 +62,7 @@ function renderHtml(content: EmailContent, brand: RenderBrand): string {
     link,
     `<p style="margin:24px 0 0;font-size:13px;color:#5A5E63">${escapeHtml(`${name} · ${address} · ${email}`)}</p>`,
     certifications.length > 0 ? paragraph(`Certificaciones: ${certifications.join(" · ")}`) : "",
-    paragraph(brand.footerLine),
+    paragraph(`${brand.shopName} · ${brand.footerLine}`),
     "</div></body></html>",
   ].join("");
 }
@@ -77,7 +77,7 @@ function renderText(content: EmailContent, brand: RenderBrand): string {
     lines.push("", `${content.link.label}: ${content.link.href}`);
   }
   lines.push("", `${brand.shopName} · ${brand.addressShort} · ${brand.replyTo}`);
-  lines.push(brand.footerLine);
+  lines.push(`${brand.shopName} · ${brand.footerLine}`);
   return lines.join("\n");
 }
 

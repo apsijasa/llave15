@@ -24,14 +24,19 @@
 .taller input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]) {
   padding: 10px 12px;
   border: 1px solid var(--field-border);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--ink);
   font: inherit;
 }
 .taller .taller-aside {
-  background: var(--surface);
+  background: var(--ink);
+  color: var(--on-ink);
   border-bottom: 1px solid var(--rule);
+}
+.taller .taller-aside :focus-visible {
+  outline: 2px solid var(--on-ink);
+  outline-offset: 2px;
 }
 .taller .taller-id {
   display: flex;
@@ -41,11 +46,20 @@
   padding: 12px clamp(16px, 4vw, 40px);
 }
 .taller .taller-brand {
+  gap: 8px;
+  padding: 8px;
+  color: var(--on-ink);
+  text-decoration: none;
+}
+.taller .taller-brand img {
+  flex-shrink: 0;
+}
+.taller .taller-area {
   font-family: var(--display);
   font-size: 0.95rem;
 }
 .taller .taller-user {
-  color: var(--ink-2);
+  color: var(--on-ink);
   font-size: 0.9rem;
 }
 .taller .role {
@@ -65,7 +79,7 @@
   overflow-y: auto;
   padding: 16px;
   border: 1px solid var(--rule);
-  border-radius: 2px;
+  border-radius: var(--radius-card);
   background: var(--surface);
   color: var(--ink);
 }
@@ -92,7 +106,7 @@
   display: flex;
   width: 100%;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   color: var(--ink-2);
   text-decoration: none;
   transition:
@@ -123,6 +137,12 @@
   margin-inline: auto;
   padding: 32px clamp(16px, 4vw, 40px);
 }
+@media (max-width: 1023px) {
+  .taller .taller-panel:popover-open :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+}
 @media (min-width: 1024px) {
   .taller {
     --aside-w: 240px;
@@ -130,7 +150,7 @@
     --aside-pad-x: 16px;
     --aside-gap: 24px;
     /* Alto fijo del bloque de identidad: de él cuelga el borde superior del panel. */
-    --aside-head: 56px;
+    --aside-head: 80px;
     display: grid;
     grid-template-columns: var(--aside-w) minmax(0, 1fr);
   }
@@ -184,6 +204,18 @@
     border-radius: 0;
     background: transparent;
     color: inherit;
+  }
+  .taller .taller-panel nav a,
+  .taller .taller-panel .label {
+    color: var(--on-ink);
+  }
+  .taller .taller-panel nav a:hover {
+    border-color: var(--on-ink);
+    color: var(--on-ink);
+  }
+  .taller .taller-panel nav a[aria-current="page"] {
+    background: var(--surface);
+    color: var(--ink);
   }
 }
 /* Con mouse el menú se compacta un 30%; con el dedo (tablet, también apaisada) conserva los 48px. */

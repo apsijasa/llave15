@@ -135,7 +135,7 @@ describe("correos de reserva aislados por taller", () => {
         `Cancelar mi reserva: https://vectorbikes.cl/reservas/cancelar?token=${cancelToken}`,
         "",
         "Vector Bikes · Av. Kennedy 7666, Vitacura · info@vectorbikes.cl",
-        "Gestionado con Llave 15",
+        "Vector Bikes · Gestionado con Llave 15",
       ].join("\n"),
     );
     expect(customer?.html).toContain('<table role="presentation"');

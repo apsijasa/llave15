@@ -2,7 +2,6 @@
 import AppLayout from "./AppLayout.astro";
 import "../styles/taller-layout.css";
 import "../styles/taller-components.css";
-import { PLATFORM } from "../lib/platform.ts";
 import { can, ROLE_LABELS } from "../server/auth/permissions.ts";
 import type { Action, Role } from "../server/auth/permissions.ts";
 
@@ -80,7 +79,10 @@ const knowledgeCurrent = groups
   <div class="taller">
     <aside class="taller-aside">
       <div class="taller-id">
-        <p class="taller-brand">{PLATFORM.name} · Taller</p>
+        <a class="taller-brand on-dark" href="/taller">
+          <img src="/brand/llave15-firma-invertida.svg" alt="Llave 15" width="132" height="30" />
+          <span class="taller-area">Taller</span>
+        </a>
         <p class="taller-user">{user.name} · <span class="role">{ROLE_LABELS[user.role]}</span></p>
         <button type="button" class="taller-toggle" popovertarget="taller-menu">Menú</button>
       </div>

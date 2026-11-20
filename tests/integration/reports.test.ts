@@ -376,7 +376,7 @@ it("POST muestra el enlace una vez y GET conserva el informe sin token ni hash",
   const headings = [...html.matchAll(/<h2[^>]*>([^<]+)<\/h2>/g)].map((match) => match[1]);
   expect(headings.slice(-9)).toEqual(sections);
   expect(html).toContain("$25.000");
-  expect(html.match(/<img /g)).toHaveLength(4);
+  expect(html.match(/<img /g)).toHaveLength(5);
   const getHtml = await (await render()).text();
   expect(getHtml).not.toContain(token);
   expect(getHtml).not.toContain(hashShareToken(token));

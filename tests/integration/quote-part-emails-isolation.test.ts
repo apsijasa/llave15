@@ -41,10 +41,10 @@ const PART = {
   totalClp: 11900,
 };
 
-// Huellas anteriores a BG-20: solo se agregó el pie declarado a HTML y texto.
+// Huellas anteriores a BG-20 con el pie declarado en HTML y texto; desde BG-49 el pie lleva el nombre del taller.
 const VECTOR_BASELINE = [
-  "5ed04d61cde0d47a56b508472b827c8c7aea8b78d8786c4b57b84f681bef9ec0",
-  "1380abfedb62ff00bbf49fd70632b0d0f301d7f42683875360072af99966cc4c",
+  "6bc20473f1eee344fa45c1b50e25dc84a951e08bf396dcbf1b1c3750dbf1a614",
+  "0bffc95b9b46cb64cb401cf2ed155e64a65d0843a421830d4f86b87d89528521",
 ];
 
 async function seedCustomerBike(db: TestDb["db"], actor: SessionUser) {
