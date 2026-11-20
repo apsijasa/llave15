@@ -1,0 +1,15 @@
+---
+import Home from "../components/Home.astro";
+import SiteLayout from "../layouts/SiteLayout.astro";
+import { VECTOR_BIKES_SITE } from "../content/site.ts";
+
+export const prerender = true;
+---
+
+<SiteLayout
+  title={VECTOR_BIKES_SITE.home.title}
+  description={VECTOR_BIKES_SITE.home.description}
+  path="/"
+>
+  <Home />
+</SiteLayout>

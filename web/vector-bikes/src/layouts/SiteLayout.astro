@@ -1,0 +1,148 @@
+---
+import "@fontsource/michroma/400.css";
+import "@fontsource-variable/archivo/index.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import archivoLatin from "@fontsource-variable/archivo/files/archivo-latin-wght-normal.woff2?url";
+import michromaLatin from "@fontsource/michroma/files/michroma-latin-400-normal.woff2?url";
+import { VECTOR_BIKES_SITE } from "../content/site.ts";
+import "../styles/site.css";
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+  noindex?: boolean;
+}
+
+const { title, description, path, noindex = false } = Astro.props;
+const canonical = new URL(path, Astro.site).href;
+const whatsappDigits = (import.meta.env.PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
+const whatsapp = whatsappDigits.length < 8 ? null : `https://wa.me/${whatsappDigits}`;
+const ogImage = new URL(VECTOR_BIKES_SITE.logoPath, Astro.site).href;
+
+const localBusiness = {
+  "@type": "LocalBusiness",
+  name: VECTOR_BIKES_SITE.name,
+  url: new URL("/", Astro.site).href,
+  image: ogImage,
+  email: VECTOR_BIKES_SITE.email,
+  telephone: VECTOR_BIKES_SITE.phone,
+  areaServed: VECTOR_BIKES_SITE.pickupComunas.map((name) => ({ "@type": "City", name })),
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: VECTOR_BIKES_SITE.streetAddress,
+    addressLocality: VECTOR_BIKES_SITE.locality,
+    addressRegion: VECTOR_BIKES_SITE.region,
+    addressCountry: VECTOR_BIKES_SITE.country,
+  },
+  openingHoursSpecification: VECTOR_BIKES_SITE.openingHoursSpecification,
+  sameAs: [VECTOR_BIKES_SITE.instagramUrl],
+};
+// `<` escapado: el JSON va dentro de un <script> y no debe poder cerrarlo.
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    localBusiness,
+    {
+      "@type": "FAQPage",
+      mainEntity: VECTOR_BIKES_SITE.faq.map(({ q, a }) => ({
+        "@type": "Question",
+        name: q,
+        acceptedAnswer: { "@type": "Answer", text: a },
+      })),
+    },
+  ],
+}).replace(/</g, "\\u003c");
+---
+
+<!doctype html>
+<html lang="es-CL">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href={archivoLatin} />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href={michromaLatin} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={VECTOR_BIKES_SITE.name} />
+    <meta property="og:locale" content="es_CL" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary" />
+    {path === "/" && <script is:inline type="application/ld+json" set:html={jsonLd} />}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/brand/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+  </head>
+  <body>
+    <a class="skip" href="#contenido">Saltar al contenido</a>
+    <header class="site-head">
+      <div class="wrap">
+        <a href="/" class="wordmark" aria-label={`${VECTOR_BIKES_SITE.name}, inicio`}></a>
+        <nav class="nav" aria-label="Principal">
+          <a href="/#como-funciona">Cómo funciona</a>
+          <a href="/#retiro">Retiro a domicilio</a>
+          <a href="/#taller">Taller</a>
+          <a href="/#preguntas">Preguntas</a>
+          <a href="/#reservar" class="btn">Reservar hora</a>
+        </nav>
+      </div>
+    </header>
+    <main id="contenido"><slot /></main>
+    <footer class="foot">
+      <div class="wrap">
+        <div>
+          <a href="/" class="wordmark" aria-label={`${VECTOR_BIKES_SITE.name}, inicio`}></a>
+          <p style="margin-top:14px;font-size:.84rem;color:var(--steel);max-width:46ch">
+            {VECTOR_BIKES_SITE.privacyNotice}
+          </p>
+          <p style="margin-top:12px;font-size:.84rem">
+            <a href="/privacidad">Aviso de privacidad</a>
+          </p>
+        </div>
+        <div class="foot-links">
+          <a href={VECTOR_BIKES_SITE.instagramUrl} rel="noopener" target="_blank">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="5"></rect>
+              <circle cx="12" cy="12" r="4"></circle>
+              <circle cx="17.5" cy="6.5" r=".6"></circle>
+            </svg>
+            {VECTOR_BIKES_SITE.instagramHandle}
+          </a>
+          <a href={`mailto:${VECTOR_BIKES_SITE.email}`}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="1"></rect>
+              <path d="M3 7l9 6 9-6"></path>
+            </svg>
+            {VECTOR_BIKES_SITE.email}
+          </a>
+          <a href={VECTOR_BIKES_SITE.mapsUrl} rel="noopener" target="_blank">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path>
+              <circle cx="12" cy="10" r="2.5"></circle>
+            </svg>
+            {VECTOR_BIKES_SITE.addressShort}
+          </a>
+        </div>
+      </div>
+    </footer>
+    {
+      whatsapp && (
+        <a class="wa" href={whatsapp} rel="noopener" target="_blank" aria-label="Escríbenos por WhatsApp">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 20l1.4-4.2A8 8 0 1 1 8.4 19z" />
+            <path d="M9 9.5c.3 2 2.2 4 4.5 4.5l1-1.2 1.8.8-.4 1.6c-3.6.2-7.4-3.4-7.3-7l1.6-.4.8 1.8z" />
+          </svg>
+          <span>WhatsApp</span>
+        </a>
+      )
+    }
+  </body>
+</html>
