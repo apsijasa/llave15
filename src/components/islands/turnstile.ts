@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 
 export type TurnstileOptions = {
   sitekey: string;
+  cdata?: string;
   language: string;
   callback: (token: string) => void;
   "expired-callback": () => void;
@@ -122,6 +123,7 @@ export function useTurnstile(
   siteKey: string,
   containerRef: { current: HTMLElement | null },
   onToken: (token: string | null) => void,
+  cdata?: string,
 ) {
   const [loaded, setLoaded] = useState(false);
   const widgetId = useRef<string | null>(null);
@@ -145,6 +147,7 @@ export function useTurnstile(
     safeRemove(window.turnstile, widgetId.current);
     widgetId.current = safeRender(window.turnstile, container, {
       sitekey: siteKey,
+      cdata,
       language: "es",
       callback: (token) => onToken(token),
       "expired-callback": () => onToken(null),

@@ -48,7 +48,7 @@ async function loadAvailability(
   dispatch({ type: "loadStart" });
   try {
     const response = await fetch(
-      `/api/disponibilidad?desde=${todayInSantiago()}&dias=${shop.horizonDays}&modo=${mode}`,
+      `/api/disponibilidad?desde=${todayInSantiago()}&dias=${shop.horizonDays}&modo=${mode}&taller=${encodeURIComponent(shop.slug)}`,
     );
     if (!response.ok) {
       throw new Error(String(response.status));
@@ -79,8 +79,9 @@ function revealFirstError(errors: FormErrors, form: HTMLFormElement | null): voi
   scrollTo?.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
 }
 
-function requestBody(state: State, turnstileToken: string): string {
+function requestBody(state: State, turnstileToken: string, shop: IslandShop): string {
   return JSON.stringify({
+    taller: shop.slug,
     mode: state.mode,
     service_date: state.selectedDate,
     start: state.selectedStart,
@@ -104,7 +105,7 @@ async function postBooking(context: SubmitContext, token: string): Promise<void>
     const response = await fetch("/api/reservas", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: requestBody(state, token),
+      body: requestBody(state, token, shop),
     });
     // El estado HTTP sigue eligiendo el mensaje si un proxy devuelve HTML o un cuerpo vacío.
     const body = parseResponseBody(await response.text());
@@ -193,8 +194,11 @@ export default function BookingIsland({ siteKey, shop }: { siteKey: string; shop
   const today = useMemo(todayInSantiago, []);
   const turnstileRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const turnstile = useTurnstile(siteKey, turnstileRef, (token) =>
-    dispatch({ type: "setTurnstile", token }),
+  const turnstile = useTurnstile(
+    siteKey,
+    turnstileRef,
+    (token) => dispatch({ type: "setTurnstile", token }),
+    shop.slug,
   );
   const chosen = selectedBlocks(state, shop);
   useEffect(() => {

@@ -13,7 +13,7 @@ import type { AppDb } from "../db/client.ts";
 import type { Booking } from "../db/schema.ts";
 import { bookingRequests } from "../db/schema.ts";
 import type { BookingScope } from "../shops/scope.ts";
-import { singleShopScope } from "../shops/scope.ts";
+import { scopeBySlug, ShopScopeError, singleShopScope } from "../shops/scope.ts";
 import { verifyTurnstile } from "./turnstile.ts";
 
 export type HandlerContext = {
@@ -36,6 +36,7 @@ const MESSAGES = {
     "Ya tienes una reserva próxima con este teléfono. Cancélala desde tu correo para reservar otra.",
   rate: "Demasiados intentos desde tu conexión. Vuelve a intentar en 10 minutos.",
   internal: "Algo falló de nuestro lado. Vuelve a intentar en unos minutos.",
+  shop_not_found: "No encontramos ese taller.",
 } as const;
 
 export function jsonResponse(
@@ -74,11 +75,7 @@ function allowedOrigins(siteUrl: string): string[] {
   });
 }
 
-/**
- * Todo POST con efecto exige `Origin` igual al origin de `PUBLIC_SITE_URL`,
- * o al mismo origin con o sin `www.` (el esquema y el puerto deben coincidir).
- * `security.checkOrigin` de Astro está desactivado por el proxy de Replit; esta es la defensa CSRF.
- */
+/** Defensa CSRF ante el proxy de Replit: mismo esquema y puerto, con o sin `www.`. */
 export function isAllowedOrigin(
   request: Request,
   siteUrl: string = getSiteEnv().PUBLIC_SITE_URL,
@@ -94,10 +91,7 @@ export function isAllowedOrigin(
   }
 }
 
-/**
- * Solo el origen (esquema, host y puerto) del `Origin` recibido, nunca la ruta ni la consulta:
- * sirve para ver qué mandan los navegadores y visores de correo reales, sin datos personales.
- */
+/** Solo esquema, host y puerto del `Origin`, sin rutas, consultas ni datos personales. */
 export function originForLog(request: Request): string {
   const origin = request.headers.get("origin");
   if (!origin) {
@@ -143,6 +137,7 @@ function fieldsOf(error: z.ZodError): Record<string, string> {
 }
 
 const availabilitySchema = z.object({
+  taller: z.string().optional(),
   desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige un día."),
   dias: z.coerce
     .number()
@@ -154,6 +149,7 @@ const availabilitySchema = z.object({
 });
 
 const bookingFields = z.strictObject({
+  taller: z.string().optional(),
   mode: z.enum(["taller", "retiro"], "Elige cómo nos entregas la bici."),
   service_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige un día."),
   start: z.string().regex(/^\d{2}:(00|30)$/, "Elige un bloque."),
@@ -194,20 +190,10 @@ function bookingSchemaFor(config: BookingConfig) {
       if (isPickup && !config.pickupEnabled) {
         ctx.addIssue({ code: "custom", path: ["mode"], message: "El retiro no está disponible." });
       }
-      if (isPickup && !value.comuna) {
+      if (isPickup !== Boolean(value.comuna)) {
         ctx.addIssue({ code: "custom", path: ["comuna"], message });
       }
-      if (isPickup && !value.direccion) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["direccion"],
-          message: "Escribe la dirección de retiro.",
-        });
-      }
-      if (!isPickup && value.comuna) {
-        ctx.addIssue({ code: "custom", path: ["comuna"], message });
-      }
-      if (!isPickup && value.direccion) {
+      if (isPickup !== Boolean(value.direccion)) {
         ctx.addIssue({
           code: "custom",
           path: ["direccion"],
@@ -219,12 +205,35 @@ function bookingSchemaFor(config: BookingConfig) {
 
 type BookingData = z.infer<ReturnType<typeof bookingSchemaFor>>;
 
+async function resolveScope(ctx: HandlerContext, raw: unknown): Promise<BookingScope | Response> {
+  const parsed = z.object({ taller: z.string().optional() }).safeParse(raw ?? {});
+  if (!parsed.success) {
+    return errorResponse(422, "validation_error", MESSAGES.validation, fieldsOf(parsed.error));
+  }
+  try {
+    const scope =
+      parsed.data.taller === undefined
+        ? (ctx.scope ?? (await singleShopScope(ctx.db)))
+        : await scopeBySlug(ctx.db, parsed.data.taller);
+    return scope ?? errorResponse(404, "shop_not_found", MESSAGES.shop_not_found);
+  } catch (error) {
+    if (!(error instanceof ShopScopeError)) throw error;
+    return errorResponse(422, "validation_error", MESSAGES.validation, {
+      taller: "Falta el taller.",
+    });
+  }
+}
+
 export async function handleAvailability(url: URL, ctx: HandlerContext): Promise<Response> {
-  const parsed = availabilitySchema.safeParse({
+  const query = {
+    taller: url.searchParams.get("taller") ?? undefined,
     desde: url.searchParams.get("desde") ?? undefined,
     dias: url.searchParams.get("dias") ?? undefined,
     modo: url.searchParams.get("modo") ?? undefined,
-  });
+  };
+  const scope = await resolveScope(ctx, query);
+  if (scope instanceof Response) return scope;
+  const parsed = availabilitySchema.safeParse(query);
   if (!parsed.success) {
     return errorResponse(422, "validation_error", MESSAGES.validation, fieldsOf(parsed.error));
   }
@@ -235,7 +244,6 @@ export async function handleAvailability(url: URL, ctx: HandlerContext): Promise
     });
   }
 
-  const scope = ctx.scope ?? (await singleShopScope(ctx.db));
   const { config } = scope;
   const dates = Array.from({ length: dias }, (_, index) => addDays(desde, index));
   const last = dates.at(-1) ?? desde;
@@ -252,8 +260,11 @@ function rateLimitKey(ctx: HandlerContext): string | null {
   return hashIp(ctx.ip) ?? hashIp("sin-ip-conocida");
 }
 
-/** Devuelve la respuesta 429 cuando la IP se pasó del límite; no registra nada. */
-export async function checkRateLimit(ctx: HandlerContext): Promise<Response | null> {
+/** 429 por IP y, si se indica, sucursal; sin sucursal mantiene el límite global de los tokens. */
+export async function checkRateLimit(
+  ctx: HandlerContext,
+  branchId?: string,
+): Promise<Response | null> {
   const ipHash = rateLimitKey(ctx);
   if (ipHash === null) {
     return null;
@@ -262,7 +273,13 @@ export async function checkRateLimit(ctx: HandlerContext): Promise<Response | nu
   const [row] = await ctx.db
     .select({ n: sql<number>`count(*)` })
     .from(bookingRequests)
-    .where(and(eq(bookingRequests.ipHash, ipHash), gt(bookingRequests.createdAt, since)));
+    .where(
+      and(
+        eq(bookingRequests.ipHash, ipHash),
+        gt(bookingRequests.createdAt, since),
+        branchId === undefined ? undefined : eq(bookingRequests.branchId, branchId),
+      ),
+    );
   if (Number(row?.n ?? 0) >= RATE_LIMIT_MAX) {
     return errorResponse(429, "rate_limited", MESSAGES.rate, undefined, {
       "Retry-After": String(RATE_LIMIT_MINUTES * 60),
@@ -288,14 +305,8 @@ function localHhmm(instant: Date): string {
   return DateTime.fromJSDate(instant).setZone(TIMEZONE).toFormat("HH:mm");
 }
 
-async function parseBooking(
-  request: Request,
-  config: BookingConfig,
-): Promise<BookingData | Response> {
-  let raw: unknown;
-  try {
-    raw = await request.json();
-  } catch {
+function parseBooking(raw: unknown, config: BookingConfig): BookingData | Response {
+  if (raw === undefined) {
     return errorResponse(422, "validation_error", MESSAGES.validation, {
       formulario: "No pudimos leer el formulario.",
     });
@@ -311,20 +322,15 @@ export async function handleCreateBooking(
   ctx: HandlerContext,
 ): Promise<Response> {
   try {
-    const limited = await checkRateLimit(ctx);
-    if (limited) {
-      return limited;
-    }
+    const raw: unknown = await request.json().catch(() => undefined);
+    const scope = await resolveScope(ctx, raw);
+    if (scope instanceof Response) return scope;
+    const limited = await checkRateLimit(ctx, scope.branchId);
+    if (limited) return limited;
 
-    const scope = ctx.scope ?? (await singleShopScope(ctx.db));
-    const data = await parseBooking(request, scope.config);
+    const data = parseBooking(raw, scope.config);
     if (data instanceof Response) return data;
-    const phone = normalizePhone(data.telefono);
-    if (phone === null) {
-      return errorResponse(422, "validation_error", MESSAGES.validation, {
-        telefono: "Faltan dígitos: son 8 después del +56 9.",
-      });
-    }
+    const phone = normalizePhone(data.telefono)!;
     await recordAttempt(ctx, scope.branchId);
 
     const token = data.turnstile_token ?? "";
@@ -336,7 +342,7 @@ export async function handleCreateBooking(
         secret: getTurnstileEnv().TURNSTILE_SECRET_KEY,
         fetchFn: ctx.fetchFn,
       }));
-    if (!human) {
+    if (!human || !human.success || (human.cdata !== null && human.cdata !== scope.slug)) {
       return errorResponse(403, "turnstile_failed", MESSAGES.turnstile);
     }
     return await createValidatedBooking(data, phone, ctx, scope);
