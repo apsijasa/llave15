@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" role="img" aria-label="Llave 15">
+  <title>Llave 15</title>
+  <path fill="#ae3718" d="M6 0H29L40 11V34A6 6 0 0 1 34 40H6A6 6 0 0 1 0 34V6A6 6 0 0 1 6 0Z" />
+  <g fill="#ffffff">
+    <path d="M9 13L14 9H17V31H13V14.5L9 17Z" />
+    <path d="M20 9H31V13H24V18Q25.5 17 27 17Q31 17 31 22V26Q31 31 25.5 31Q20 31 20 26V25H24V26Q24 27.5 25.5 27.5Q27 27.5 27 26V22.5Q27 20.5 25.5 20.5Q24 20.5 24 22H20Z" />
+  </g>
+</svg>
