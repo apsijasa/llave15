@@ -9,9 +9,9 @@
         "node_modules/astro/bin/astro.mjs",
         "dev",
         "--port",
-        "4322"
+        "4323"
       ],
-      "port": 4322
+      "port": 4323
     }
   ]
 }
