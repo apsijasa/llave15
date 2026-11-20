@@ -449,3 +449,29 @@ Antes de diciembre de 2026 (el panel lo advierte cuando el horizonte de 30 días
 ### 11. Certificaciones del taller
 
 Se escriben en `certifications` de `src/lib/site.ts`; aparecen al pie del informe, al pie de los correos y en la sección del taller de la portada. Con la lista vacía no se muestra nada. El logo aparece en el informe público; en los correos todavía no (decisión 51).
+
+## Operación de Llave 15
+
+Llave 15 es una sola app para varios talleres (decisión 57). Vector Bikes es el primer taller: su página de reservas es `/vector-bikes/reservar`. Su sitio informativo vive en `web/vector-bikes/` hasta que sale a `vector-bikes-web` (`BG-DC4`).
+
+- **Plataforma.** En `/plataforma`, el administrador de plataforma crea, suspende y reactiva talleres y ve sus conteos de uso, nunca datos de clientes. La marca se pone con `pnpm platform:admin <correo>` y se quita con `--off`.
+- **Alta de un taller.** Paso a paso en `docs/nuevo-taller.md`.
+- **Mi taller.** Cada dueño edita sus datos, horarios, retiro, correo de avisos y logo en `/taller/mi-taller`. El `slug` y el prefijo no cambian.
+- **Corte de dominio.** `llave15.cl` para el sistema, y `vectorbikes.cl` para el sitio con redirecciones permanentes. Plan y criterios de aborto en `docs/corte-bike-garage.md`.
+- **Chequeos.** `pnpm bg:check` (sin cruces de sucursal: sale 0 sano, 1 con cruce, 2 sin conexión) y `pnpm test:web` (sitio y redirecciones, dentro de `pnpm gate`).
+
+### Criterios de la fase y sus pruebas
+
+| Criterio (FASE-BIKE-GARAGE §14) | Prueba |
+|---|---|
+| 1. Con dos talleres, ninguna pantalla, tarea, correo ni página con token cruza datos | Los `*-isolation.test.ts` (BG-07, 12–16, 18–21, 23, 24, 36, 41) y `pnpm gate` |
+| 2. Tablas de reserva con `branch_id` NOT NULL e índices únicos por taller | `shops-contract.test.ts` (BG-09) y `shops-unique.test.ts` (BG-10) |
+| 3. Un segundo taller reserva con sus reglas en `/<slug>/reservar` | `api-by-shop.test.ts` (BG-30), `booking-page.test.ts` (BG-31) y `e2e/reservar-taller.spec.ts` (BG-33) |
+| 4. La guardia falla con literales del taller en `src/` | `shop-literals.test.ts` (BG-01; línea base vacía desde BG-28) |
+| 5. Llave 15 para el personal; la marca del taller para el cliente | `layouts.test.ts`, títulos (BG-27), `booking-emails-isolation.test.ts`, `token-pages-isolation.test.ts`, `report-brand-isolation.test.ts` y `llave15-*.test.ts` (BG-46–49) |
+| 6. Dominio propio con su cookie y CSRF; `vectorbikes.cl` sirve el sitio nuevo | `app-url.test.ts` (BG-34), `pnpm test:web` (BG-39) y el checklist de corte |
+| 7. Los enlaces enviados antes de la etapa 4 siguen funcionando | `tracking-secret.test.ts` (BG-35), `redirects.test.ts` y `check-redirects.ts` (BG-38) |
+| 8. La plataforma crea un taller; su dueño entra y edita "Mi taller" | `create-shop.test.ts` (BG-42) y `my-shop.test.ts` (BG-44) |
+| 9. Las tareas diarias recorren todos los talleres activos | `tasks-isolation.test.ts` (BG-36) |
+| 10. `pnpm gate` en verde en cada paso | `pnpm gate` |
+| 11. Un segundo taller opera un mes sin cruces | Lo confirma el dueño, con `pnpm bg:check` en 0 cada día (checklist de lanzamiento, §20.1) |
