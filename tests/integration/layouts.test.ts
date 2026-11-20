@@ -35,7 +35,11 @@ describe("tokens de diseño", () => {
     const tokens = readFileSync("src/styles/tokens.css", "utf8");
     const global = readFileSync("src/styles/global.css", "utf8");
 
-    expect(tokens).toBe(originalTokens);
+    expect(tokens.split(":root.l15 {")[0]).toBe(
+      originalTokens
+        .replace(':root:not([data-theme="light"])', ':root:not([data-theme="light"]):not(.l15)')
+        .replace(':root[data-theme="dark"]', ':root[data-theme="dark"]:not(.l15)'),
+    );
     expect(global).toBe(
       originalCss
         .replace(`${originalTokens}\n`, "")
@@ -51,7 +55,11 @@ describe("tokens de diseño", () => {
       .map((path) => readFileSync(path, "utf8"))
       .join("\n");
 
-    expect(hexColors(css)).toEqual(hexColors(originalCss));
+    expect(hexColors(css)).toEqual(
+      hexColors(
+        `${originalCss} #171c22 #195faf #1a5d3b #235285 #48525d #515a64 #734800 #858e97 #8d2b13 #942b2b #ae3718 #d9d9d9 #dfefe5 #e6eef8 #eceff2 #f5f4f1 #fbe5e2 #ff774f #fff2d9`,
+      ),
+    );
   });
 });
 
@@ -66,15 +74,14 @@ describe("AppLayout", () => {
     });
 
     expect(html).toContain("<!DOCTYPE html>");
-    expect(html).toContain('<html lang="es-CL">');
+    expect(html).toContain('<html lang="es-CL" class="l15">');
     expect(html).toContain('<meta charset="utf-8">');
     expect(html).toContain('name="viewport" content="width=device-width, initial-scale=1"');
     expect(html).toContain('name="color-scheme" content="light dark"');
     expect(html).toContain("<title>Órdenes — Llave 15</title>");
     expect(html).toContain('name="description" content="Gestión del taller"');
-    expect(html).toContain("archivo-latin-wght-normal.woff2");
-    expect(html).toContain("michroma-latin-400-normal.woff2");
-    expect(html.match(/rel="preload"/g)).toHaveLength(2);
+    expect(html).toContain("inter-latin-wght-normal.woff2");
+    expect(html.match(/rel="preload"/g)).toHaveLength(1);
     expect(html).toContain("<h1>Órdenes</h1>");
     expect(html).not.toContain('name="robots"');
     expectNoLandingContent(html);

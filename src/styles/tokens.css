@@ -17,7 +17,7 @@
   --dur: 160ms;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme="light"]):not(.l15) {
     --ground: #0c0d0e;
     --surface: #151618;
     --ink: #f1f1ee;
@@ -29,7 +29,7 @@
     --logo-filter: invert(1);
   }
 }
-:root[data-theme="dark"] {
+:root[data-theme="dark"]:not(.l15) {
   --ground: #0c0d0e;
   --surface: #151618;
   --ink: #f1f1ee;
@@ -39,4 +39,35 @@
   --hatch: #1e2022;
   --on-ink: #0c0d0e;
   --logo-filter: invert(1);
+}
+:root.l15 {
+  --ground: #f5f4f1;
+  --surface: #ffffff;
+  --ink: #171c22;
+  --ink-2: #515a64;
+  --steel: #515a64;
+  --rule: #d9d9d9;
+  --hatch: #e3e3df;
+  --on-ink: #ffffff;
+  --field-border: #858e97;
+  --logo-filter: none;
+  --accent: #ae3718;
+  --accent-hover: #8d2b13;
+  --brand-on-dark: #ff774f;
+  --focus: #195faf;
+  --status-neutral-bg: #eceff2;
+  --status-neutral-ink: #48525d;
+  --status-progress-bg: #e6eef8;
+  --status-progress-ink: #235285;
+  --status-waiting-bg: #fff2d9;
+  --status-waiting-ink: #734800;
+  --status-ready-bg: #dfefe5;
+  --status-ready-ink: #1a5d3b;
+  --status-blocking-bg: #fbe5e2;
+  --status-blocking-ink: #942b2b;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --display: "Inter Variable", Arial, sans-serif;
+  --body: "Inter Variable", Arial, sans-serif;
+  --mono: "Inter Variable", Arial, sans-serif;
 }
