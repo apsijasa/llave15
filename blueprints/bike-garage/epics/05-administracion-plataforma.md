@@ -238,7 +238,7 @@ Reglas: `server-api.md`, `taller-ui.md`, `shops.md`. RC 11, 13. No negociable 12
 
 ```bash
 pnpm test tests/integration/my-shop.test.ts tests/unit/permissions.test.ts   # expect: exit 0, 0 failed
-d="$(git diff HEAD --name-only -- tests e2e)" && test "$d" = "tests/unit/permissions.test.ts"   # expect: exit 0 — git respondió y solo cambió la prueba autorizada
+d="$(git diff HEAD --name-only -- tests e2e)" && test "$(printf '%s\n' "$d" | LC_ALL=C sort)" = "$(printf '%s\n' tests/integration/llave15-layouts.test.ts tests/unit/permissions.test.ts | LC_ALL=C sort)"   # expect: exit 0 — git respondió y solo cambiaron las dos pruebas autorizadas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 

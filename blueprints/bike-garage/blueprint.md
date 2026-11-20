@@ -1803,6 +1803,7 @@ git tag -l bg-43 | grep -qx bg-43   # expect: exit 0
 #### BG-44 — "Mi taller" para el dueño (E5-T4)
 **Archivos:** `src/server/shops/my-shop.ts` (nuevo) · `src/pages/taller/mi-taller.astro` (nuevo) · `src/server/auth/permissions.ts` · `src/layouts/TallerLayout.astro` · `tests/integration/my-shop.test.ts` (nuevo)
 **Valores esperados que cambian (declarados):** `tests/unit/permissions.test.ts` (37 acciones; `shop.manage` solo `owner`), autorizado por esta fase.
+**Nota (2026-11-20, aprobada por el dueño):** el conteo real es 41 acciones (la biblioteca sumó cuatro después de escrito este paso), y `tests/integration/llave15-layouts.test.ts` (BG-49, posterior a este paso) fija el menú exacto del dueño: suma el enlace `Mi taller`, que es el cambio declarado de este paso. El Verify acepta esas dos pruebas.
 **Hacer:** acción `shop.manage` (solo `owner`) al final de `ACTIONS`; `myShop(db, actor)` y `updateMyShop(db, actor, input, now)` (zod; `slug` y `code_prefix` no editables, BG-D27); logo: formulario `multipart/form-data` sin isla, JPG o PNG ≤ 2 MB → `sharp` a PNG de 512 px → almacenamiento `shops/<id>/logo.png` → recién entonces `logo_key` (RC 13); enlace `Mi taller` con `shop.manage` en el menú.
 **Reglas:** R-api · R-tui · R-shops · RC 11, 13 · NN 12 · No cambia: las 36 acciones existentes.
 **Done when**
@@ -1815,7 +1816,7 @@ git tag -l bg-43 | grep -qx bg-43   # expect: exit 0
 **Verify**
 ```bash
 pnpm test tests/integration/my-shop.test.ts tests/unit/permissions.test.ts   # expect: exit 0, 0 failed
-d="$(git diff HEAD --name-only -- tests e2e)" && test "$d" = "tests/unit/permissions.test.ts"   # expect: exit 0 — git respondió y solo cambió la prueba autorizada
+d="$(git diff HEAD --name-only -- tests e2e)" && test "$(printf '%s\n' "$d" | LC_ALL=C sort)" = "$(printf '%s\n' tests/integration/llave15-layouts.test.ts tests/unit/permissions.test.ts | LC_ALL=C sort)"   # expect: exit 0 — git respondió y solo cambiaron las dos pruebas autorizadas
 pnpm format && pnpm gate   # expect: exit 0
 ```
 **Checkpoint**
