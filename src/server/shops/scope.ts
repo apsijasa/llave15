@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { BookingConfig } from "../booking/config.ts";
 import { bookingConfigFromShop } from "../booking/config.ts";
 import type { AppDb } from "../db/client.ts";
 import { shops } from "../db/schema-shops.ts";
 import { branches } from "../db/schema.ts";
+import { slugSchema } from "./slugs.ts";
 
 export type BookingScope = {
   shopId: string;
@@ -34,6 +35,25 @@ export async function scopeForBranch(db: AppDb, branchId: string): Promise<Booki
     .where(eq(branches.id, branchId))
     .limit(1);
   if (!row) return null;
+  return {
+    shopId: row.shop.id,
+    slug: row.shop.slug,
+    branchId: row.branchId,
+    config: bookingConfigFromShop(row.shop),
+  };
+}
+
+export async function scopeBySlug(db: AppDb, slug: string): Promise<BookingScope | null> {
+  const parsed = slugSchema.safeParse(slug);
+  if (!parsed.success) return null;
+  const rows = await db
+    .select({ shop: shops, branchId: branches.id })
+    .from(shops)
+    .innerJoin(branches, eq(branches.shopId, shops.id))
+    .where(and(eq(shops.slug, parsed.data), eq(shops.status, "activo")))
+    .limit(2);
+  const row = rows[0];
+  if (rows.length !== 1 || !row) return null;
   return {
     shopId: row.shop.id,
     slug: row.shop.slug,
