@@ -50,7 +50,7 @@ Antes de C5, todo esto tiene que estar hecho y verificado:
 ### C6 — Sitio de Vector Bikes en un Replit nuevo
 
 1. Crea un Replit nuevo para el sitio. Hasta `BG-DC4`, publícalo desde un clon de este repositorio con `web/vector-bikes/` como raíz. Desde `BG-DC4`, publícalo desde el repositorio `vector-bikes-web`.
-2. Configura el build con `corepack pnpm@12.4.2 install --frozen-lockfile && corepack pnpm@12.4.2 build` y el arranque con `HOST=0.0.0.0 PORT=4321 node dist/server/entry.mjs`. Agrega `PUBLIC_WHATSAPP_NUMBER` si el botón debe aparecer. El sitio no usa base de datos ni otros secretos.
+2. Mientras el sitio viva en este repositorio, configura el build con `corepack pnpm@12.4.2 install --frozen-lockfile && corepack pnpm@12.4.2 exec astro build --root web/vector-bikes` y el arranque con `HOST=0.0.0.0 PORT=4321 node web/vector-bikes/dist/server/entry.mjs`. Desde `BG-DC4`, en `vector-bikes-web`, son `corepack pnpm@12.4.2 build` y `HOST=0.0.0.0 PORT=4321 node dist/server/entry.mjs`. Agrega `PUBLIC_WHATSAPP_NUMBER` si el botón debe aparecer. El sitio no usa base de datos ni otros secretos.
 3. Publica y anota la URL `*.replit.app`.
 4. Verifica, cada día durante el período sombra (al menos 7 días):
 
