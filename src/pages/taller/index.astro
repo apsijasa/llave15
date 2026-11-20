@@ -10,6 +10,7 @@ import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
 import type { Action } from "../../server/auth/permissions.ts";
 import { getDb } from "../../server/db/client.ts";
 import { formatClp } from "../../server/email/templates.ts";
+import { profileForBranch } from "../../server/shops/profile.ts";
 import { adminDashboard, mechanicDashboard } from "../../server/taller/dashboard.ts";
 import type { DashboardOrder } from "../../server/taller/dashboard.ts";
 import { branchLowStock } from "../../server/taller/low-stock.ts";
@@ -93,7 +94,9 @@ const actions = ACTIONS.filter((entry) => can(role, entry.action));
 /** El enlace público es informativo: si falta `PUBLIC_SITE_URL`, la tarjeta se muestra sin él. */
 let bookingUrl: string | null = null;
 try {
-  bookingUrl = `${getSiteEnv().PUBLIC_SITE_URL.replace(/\/$/, "")}/#reservar`;
+  const profile = await profileForBranch(db, user.branchId);
+  if (profile)
+    bookingUrl = new URL(`/${profile.slug}/reservar`, getSiteEnv().PUBLIC_SITE_URL).toString();
 } catch {
   bookingUrl = null;
 }

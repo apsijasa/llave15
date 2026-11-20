@@ -240,7 +240,6 @@ export async function sendMaintenanceReminders(
   deps: { transport?: EmailTransport; siteUrl?: string } = {},
 ): Promise<{ sent: number; failed: number }> {
   const pending = await dueMaintenanceReminders(db, now);
-  const bookingUrl = new URL("/#reserva", deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL).toString();
   const profiles = new Map<string, ShopProfile | null>();
   let sent = 0;
   let failed = 0;
@@ -251,6 +250,10 @@ export async function sendMaintenanceReminders(
         profiles.set(reminder.branchId, await profileForBranch(db, reminder.branchId));
       const profile = profiles.get(reminder.branchId);
       if (!profile) throw new Error("No se encontró el perfil del taller de la orden.");
+      const bookingUrl = new URL(
+        `/${profile.slug}/reservar`,
+        deps.siteUrl ?? getSiteEnv().PUBLIC_SITE_URL,
+      ).toString();
       const transport = maintenanceTransport(profile, deps.transport);
       await transport.send({
         to: reminder.email,

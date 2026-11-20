@@ -199,10 +199,10 @@ it("envía la fecha a cinco días una sola vez y marca después del envío", asy
     to: EMAIL,
     subject: "Se acerca la mantención de tu bicicleta · Vector Bikes",
   });
-  expect(consoleOutbox[0]?.text).toContain(`Reservar hora: ${SITE_URL}/#reserva`);
+  expect(consoleOutbox[0]?.text).toContain(`Reservar hora: ${SITE_URL}/vector-bikes/reservar`);
   for (const body of [consoleOutbox[0]?.text ?? "", consoleOutbox[0]?.html ?? ""]) {
     expect(body).not.toMatch(/token/i);
-    expect(body.match(/https:\/\/[^\s"<>]+/g)).toEqual([`${SITE_URL}/#reserva`]);
+    expect(body.match(/https:\/\/[^\s"<>]+/g)).toEqual([`${SITE_URL}/vector-bikes/reservar`]);
   }
   const repeated = await handleMaintenanceTask(taskRequest(), test.db, NOW);
   expect(repeated.status).toBe(200);
