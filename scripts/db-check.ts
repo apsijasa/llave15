@@ -10,6 +10,7 @@ import { libraryPrivateTables } from "../src/server/db/schema-library-private.ts
 import { libraryProcedureTables } from "../src/server/db/schema-library-procedures.ts";
 import { orderTables } from "../src/server/db/schema-orders.ts";
 import { paymentTables } from "../src/server/db/schema-payments.ts";
+import { platformTables } from "../src/server/db/schema-platform.ts";
 import { reportTables } from "../src/server/db/schema-reports.ts";
 import { saleTables } from "../src/server/db/schema-sales.ts";
 import { shopTables } from "../src/server/db/schema-shops.ts";
@@ -80,6 +81,7 @@ try {
     ...libraryKnowledgeTables,
     ...libraryProcedureTables,
     ...libraryPrivateTables,
+    ...platformTables,
   ]
     .flatMap((table) =>
       Object.values(getTableColumns(table)).map(

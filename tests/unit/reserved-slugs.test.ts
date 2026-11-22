@@ -30,6 +30,8 @@ const expectedReservedSlugs = [
   "mail",
   "logo",
   "ingresar",
+  "demo",
+  "aviso-de-privacidad",
 ];
 
 describe("slugs reservados", () => {

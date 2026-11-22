@@ -12,6 +12,7 @@ export default getViteConfig(
         : ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
       exclude: ["node_modules/**", "dist/**", "blueprints/**", "docs/**"],
       setupFiles: ["tests/setup.ts"],
+      globalSetup: isBuildSuite ? ["tests/build/global-setup.ts"] : [],
       environment: "node",
       testTimeout: 60000,
       hookTimeout: 60000,

@@ -3,7 +3,7 @@ import { parseEnv } from "node:util";
 import { describe, expect, it } from "vitest";
 import { whatsappHref } from "../../src/lib/whatsapp.ts";
 
-const html = readFileSync("dist/client/index.html", "utf8");
+const html = readFileSync("dist/test-pages/legacy-home.html", "utf8");
 
 function occurrences(needle: string): number {
   return html.split(needle).length - 1;

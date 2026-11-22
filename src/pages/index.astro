@@ -1,15 +1,36 @@
 ---
 import Landing from "../components/Landing.astro";
+import PlatformLanding from "../components/llave15/PlatformLanding.astro";
 import Base from "../layouts/Base.astro";
+import PlatformSiteLayout from "../layouts/PlatformSiteLayout.astro";
+import { getHostEnv } from "../lib/env.ts";
+import { PLATFORM_SITE } from "../lib/platform-site.ts";
+import { isPlatformHost } from "../server/shops/host.ts";
 import { VECTOR_BIKES_SITE } from "../../web/vector-bikes/src/content/site.ts";
 
-export const prerender = true;
+// Convivencia hasta BG-DC1 (BG-D52): llave15.cl muestra la landing de Llave 15 y el dominio
+// heredado su portada de siempre. Por eso `/` deja de prerenderizarse.
+export const prerender = false;
+
+const env = getHostEnv();
+const platform = isPlatformHost(Astro.request, env.APP_URL, env.PUBLIC_SITE_URL);
+Astro.response.headers.set("vary", "Host, X-Forwarded-Host");
+// Sin caché: al publicar, un HTML viejo apuntaría a archivos `_astro` que ya no existen.
+Astro.response.headers.set("cache-control", "no-cache");
 ---
 
-<Base
-  title={VECTOR_BIKES_SITE.home.title}
-  description={VECTOR_BIKES_SITE.home.description}
-  path="/"
->
-  <Landing siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? ""} />
-</Base>
+{
+  platform ? (
+    <PlatformSiteLayout title={PLATFORM_SITE.title} description={PLATFORM_SITE.description}>
+      <PlatformLanding />
+    </PlatformSiteLayout>
+  ) : (
+    <Base
+      title={VECTOR_BIKES_SITE.home.title}
+      description={VECTOR_BIKES_SITE.home.description}
+      path="/"
+    >
+      <Landing siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? ""} />
+    </Base>
+  )
+}

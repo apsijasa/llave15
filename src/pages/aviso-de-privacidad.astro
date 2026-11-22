@@ -1,0 +1,60 @@
+---
+import PlatformSiteLayout from "../layouts/PlatformSiteLayout.astro";
+import { PLATFORM } from "../lib/platform.ts";
+import { PLATFORM_SITE } from "../lib/platform-site.ts";
+
+export const prerender = true;
+---
+
+<PlatformSiteLayout title={PLATFORM_SITE.privacy.title} description={PLATFORM_SITE.privacy.description}>
+  <section class="s-band">
+    <div class="wrap">
+      <article class="s-prose">
+        <p class="s-eyebrow">Tus datos</p>
+        <h1>Aviso de privacidad</h1>
+        <p>
+          Este aviso cubre los datos que entregas en el formulario de solicitud de demo de
+          {PLATFORM.name}. Los datos que cada taller registra de sus propios clientes son
+          responsabilidad de ese taller y se rigen por su propio aviso.
+        </p>
+
+        <h2>Qué datos usamos</h2>
+        <p>
+          Tu nombre, el nombre de tu taller, correo, teléfono, ciudad o comuna, la cantidad de
+          mecánicos si la indicas, tu mensaje, la fecha y hora en que aceptaste este aviso y un
+          identificador cifrado de tu IP para prevenir abusos.
+        </p>
+
+        <h2>Para qué</h2>
+        <p>
+          Para contactarte, coordinar la demo y contarte los planes de {PLATFORM.name}. No los
+          usamos para otros fines ni los vendemos.
+        </p>
+
+        <h2>Base legal</h2>
+        <p>
+          Tu consentimiento, que entregas al marcar la casilla del formulario, conforme a la Ley
+          19.628 y la Ley 21.719. Puedes retirarlo cuando quieras.
+        </p>
+
+        <h2>Con quién se comparten</h2>
+        <ul>
+          <li>Replit — alojamiento y base de datos.</li>
+          <li>Resend — envío de correos.</li>
+          <li>Cloudflare Turnstile — verificación anti-abuso.</li>
+        </ul>
+
+        <h2>Cuánto tiempo</h2>
+        <p>Hasta 24 meses desde tu solicitud, o hasta que pidas su eliminación.</p>
+
+        <h2>Tus derechos</h2>
+        <p>
+          Puedes pedir acceso, rectificación, supresión, oposición y portabilidad respondiendo el
+          correo de confirmación que te enviamos al recibir tu solicitud.
+        </p>
+
+        <p class="s-muted">Última actualización: 21 de noviembre de 2026.</p>
+      </article>
+    </div>
+  </section>
+</PlatformSiteLayout>

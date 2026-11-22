@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const html = readFileSync("dist/client/index.html", "utf8");
+const html = readFileSync("dist/test-pages/legacy-home.html", "utf8");
 
 describe("isla de reserva construida", () => {
   it("monta BookingIsland como isla de Astro", () => {

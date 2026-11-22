@@ -1,0 +1,139 @@
+---
+import { PLATFORM } from "../../lib/platform.ts";
+import { PLATFORM_SITE } from "../../lib/platform-site.ts";
+
+/** Landing de Llave 15 en `llave15.cl/`: el producto, sin datos de ningún taller. */
+const site = PLATFORM_SITE;
+const flow = [
+  { status: "recibida", label: "Recibida" },
+  { status: "en_reparacion", label: "En reparación" },
+  { status: "esperando_aprobacion", label: "Esperando aprobación" },
+  { status: "lista_para_retirar", label: "Lista para retirar" },
+];
+---
+
+  <section class="s-band" aria-labelledby="portada">
+    <div class="wrap s-hero">
+      <div class="s-hero-copy">
+        <p class="s-eyebrow">{PLATFORM.descriptor}</p>
+        <h1 id="portada">{site.tagline}</h1>
+        <p class="s-lead">{site.lead}</p>
+        <div class="s-cta">
+          <a class="btn" href="/demo">Solicitar demo</a>
+          <a class="btn ghost" href="/admin/login">Ingresar</a>
+        </div>
+      </div>
+      <figure class="s-sample" aria-label="Ejemplo de una orden de trabajo">
+        <div class="s-sample-top">
+          <div>
+            <p class="s-sample-num">OT-00128</p>
+            <p class="s-muted">Mantención general · Ruta</p>
+          </div>
+          <span class="status status--lista_para_retirar">Lista para retirar</span>
+        </div>
+        <dl>
+          <dt>Cliente</dt>
+          <dd>Javiera M.</dd>
+          <dt>Ingreso</dt>
+          <dd>Lunes 10:00 · Recepción en tablet</dd>
+          <dt>Adicional</dt>
+          <dd>Cadena nueva · Aprobado por enlace</dd>
+          <dt>Total</dt>
+          <dd>$64.900</dd>
+        </dl>
+        <ol class="s-sample-flow" aria-label="Recorrido de la orden">
+          {flow.map((step) => <li><span class={`status status--${step.status}`}>{step.label}</span></li>)}
+        </ol>
+        <figcaption class="s-sample-note">Datos de ejemplo.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="funciones" class="s-band s-band--surface" aria-labelledby="funciones-titulo">
+    <div class="wrap">
+      <div class="s-head-block">
+        <p class="s-eyebrow">Funciones</p>
+        <h2 id="funciones-titulo">Todo el taller en un solo lugar</h2>
+        <p class="s-muted">Desde que el cliente reserva hasta que retira su bicicleta.</p>
+      </div>
+      <ul class="s-grid">
+        {
+          site.features.map((feature) => (
+            <li class="s-card">
+              <h3>{feature.title}</h3>
+              <p>{feature.body}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section id="como-funciona" class="s-band" aria-labelledby="pasos-titulo">
+    <div class="wrap">
+      <div class="s-head-block">
+        <p class="s-eyebrow">Cómo funciona</p>
+        <h2 id="pasos-titulo">Tu taller funcionando en tres pasos</h2>
+      </div>
+      <ol class="s-grid">
+        {
+          site.steps.map((step, index) => (
+            <li class="s-card">
+              <span class="s-step-num" aria-hidden="true">{index + 1}</span>
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <section class="s-band s-band--surface" aria-labelledby="quien-titulo">
+    <div class="wrap">
+      <div class="s-head-block">
+        <p class="s-eyebrow">Para quién</p>
+        <h2 id="quien-titulo">Cada persona ve lo que necesita</h2>
+      </div>
+      <ul class="s-grid">
+        {
+          site.audiences.map((audience) => (
+            <li class="s-card">
+              <h3>{audience.title}</h3>
+              <p>{audience.body}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section id="preguntas" class="s-band" aria-labelledby="preguntas-titulo">
+    <div class="wrap">
+      <div class="s-head-block">
+        <p class="s-eyebrow">Preguntas</p>
+        <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+      </div>
+      <div class="s-faq">
+        {
+          site.faq.map((item) => (
+            <details>
+              <summary>{item.q}</summary>
+              <p>{item.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="s-band s-band--ink on-dark" aria-labelledby="final-titulo">
+    <div class="wrap s-final">
+      <div class="s-head-block">
+        <p class="s-eyebrow">Demo</p>
+        <h2 id="final-titulo">Conoce Llave 15 con tu propio taller en mente</h2>
+        <p>Te mostramos el sistema y te contamos los planes.</p>
+      </div>
+      <a class="btn" href="/demo">Solicitar demo</a>
+    </div>
+  </section>

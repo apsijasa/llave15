@@ -109,7 +109,7 @@ Cada tarea se ejecuta cuando se cumple su precondición. El detalle está en `bl
 
 - **`BG-DC1` — Retirar el sitio heredado del sistema.**
   - Precondición: C7 hecho y 7 días con `node web/vector-bikes/scripts/check-redirects.ts https://vectorbikes.cl` en 0.
-  - Resultado: `/` de `llave15.cl` es la portada mínima de Llave 15, con `Ingresar`, y `src/` deja de importar `web/vector-bikes`.
+  - Resultado: `/` muestra solo la landing de Llave 15 (desde el 21-11-2026 ya la muestra en `llave15.cl` por dominio, BG-D52), se borra `isPlatformHost` y `src/` deja de importar `web/vector-bikes`.
 - **`BG-DC2` — Retirar el secreto heredado del seguimiento.**
   - Precondición: ninguna orden no terminada conserva un token derivado de `CANCEL_TOKEN_SECRET`, y pasaron 30 días desde la última.
   - Resultado: el seguimiento se firma solo con `TRACKING_TOKEN_SECRET`.

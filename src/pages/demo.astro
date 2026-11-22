@@ -1,0 +1,187 @@
+---
+import PlatformSiteLayout from "../layouts/PlatformSiteLayout.astro";
+import { getAppEnv } from "../lib/env.ts";
+import { PLATFORM_SITE } from "../lib/platform-site.ts";
+import { clientIp } from "../server/api/client-ip.ts";
+import { isAllowedOrigin } from "../server/api/handlers.ts";
+import { forbiddenResponse } from "../server/auth/permissions.ts";
+import { getDb } from "../server/db/client.ts";
+import { DEMO_MECHANICS, DEMO_MECHANICS_LABELS } from "../server/shops/demo-requests.ts";
+import { DEMO_TURNSTILE_CDATA, submitDemoRequest } from "../server/shops/demo-submit.ts";
+
+export const prerender = false;
+Astro.response.headers.set("cache-control", "no-store");
+
+const ERRORS = {
+  validation_error: "Revisa los campos marcados.",
+  turnstile_failed: "No pudimos verificar que eres una persona. Vuelve a intentar.",
+  rate_limited: "Recibimos varias solicitudes desde tu conexión. Intenta de nuevo en una hora.",
+} as const;
+const FIELD_ERRORS: Record<string, string> = {
+  nombre: "Escribe tu nombre.",
+  taller: "Escribe el nombre de tu taller.",
+  correo: "Escribe un correo válido.",
+  telefono: "Escribe un teléfono válido, por ejemplo +56 9 1234 5678.",
+  ciudad: "Escribe la ciudad o comuna.",
+  mecanicos: "Elige una opción de la lista.",
+  mensaje: "El mensaje puede tener hasta 1.000 caracteres.",
+  consentimiento: "Debes aceptar el aviso de privacidad para enviar la solicitud.",
+};
+
+let submitted: Record<string, string> = {};
+let fieldErrors: string[] = [];
+let error = "";
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  const form = await Astro.request.formData();
+  submitted = Object.fromEntries([...form].map(([key, value]) => [key, String(value)]));
+  let fallbackIp: string | null = null;
+  try {
+    fallbackIp = Astro.clientAddress;
+  } catch {
+    fallbackIp = null;
+  }
+  const result = await submitDemoRequest(getDb(), submitted, {
+    ip: clientIp(Astro.request, fallbackIp),
+    now: new Date(),
+    notify: { appUrl: getAppEnv().APP_URL },
+  });
+  if (result.ok) {
+    return new Response(null, {
+      status: 303,
+      headers: { location: "/demo?enviado=1", "cache-control": "no-store" },
+    });
+  }
+  error = ERRORS[result.code];
+  if (result.code === "validation_error") fieldErrors = result.fields;
+  Astro.response.status =
+    result.code === "validation_error" ? 422 : result.code === "rate_limited" ? 429 : 403;
+}
+
+const sent = Astro.url.searchParams.get("enviado") === "1" && Astro.request.method !== "POST";
+const siteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
+const value = (name: string) => submitted[name] ?? "";
+const invalid = (name: string) => fieldErrors.includes(name);
+const describedBy = (name: string) => (invalid(name) ? `${name}-error` : undefined);
+const fields = [
+  { name: "nombre", label: "Tu nombre", type: "text", autocomplete: "name", max: 80 },
+  {
+    name: "taller",
+    label: "Nombre del taller",
+    type: "text",
+    autocomplete: "organization",
+    max: 80,
+  },
+  { name: "correo", label: "Correo", type: "email", autocomplete: "email", max: 120 },
+  { name: "telefono", label: "Teléfono o WhatsApp", type: "tel", autocomplete: "tel", max: 20 },
+  {
+    name: "ciudad",
+    label: "Ciudad o comuna",
+    type: "text",
+    autocomplete: "address-level2",
+    max: 60,
+  },
+] as const;
+---
+
+<PlatformSiteLayout
+  title={PLATFORM_SITE.demo.title}
+  description={PLATFORM_SITE.demo.description}
+  showDemoButton={false}
+>
+  <section class="s-band">
+    <div class="wrap s-form-wrap">
+      <div class="s-head-block">
+        <p class="s-eyebrow">Demo</p>
+        <h1>{PLATFORM_SITE.demo.heading}</h1>
+        <p class="s-lead">{PLATFORM_SITE.demo.lead}</p>
+      </div>
+      {
+        sent ? (
+          <p class="s-notice" role="status">
+            {PLATFORM_SITE.demo.sent}
+          </p>
+        ) : (
+          <form class="s-form" method="post" action="/demo" novalidate>
+            {error && (
+              <p id="form-error" role="alert">
+                {error}
+              </p>
+            )}
+            <div class="fields">
+              {fields.map((field) => (
+                <div class="field">
+                  <label for={`f-${field.name}`}>{field.label}</label>
+                  <input
+                    id={`f-${field.name}`}
+                    name={field.name}
+                    type={field.type}
+                    autocomplete={field.autocomplete}
+                    maxlength={field.max}
+                    required
+                    value={value(field.name)}
+                    aria-invalid={invalid(field.name)}
+                    aria-describedby={describedBy(field.name)}
+                  />
+                  {invalid(field.name) && <p id={`${field.name}-error`}>{FIELD_ERRORS[field.name]}</p>}
+                </div>
+              ))}
+              <div class="field">
+                <label for="f-mecanicos">Mecánicos en el taller (opcional)</label>
+                <select
+                  id="f-mecanicos"
+                  name="mecanicos"
+                  aria-invalid={invalid("mecanicos")}
+                  aria-describedby={describedBy("mecanicos")}
+                >
+                  <option value="">Prefiero no decir</option>
+                  {DEMO_MECHANICS.map((option) => (
+                    <option value={option} selected={value("mecanicos") === option}>
+                      {DEMO_MECHANICS_LABELS[option]}
+                    </option>
+                  ))}
+                </select>
+                {invalid("mecanicos") && <p id="mecanicos-error">{FIELD_ERRORS.mecanicos}</p>}
+              </div>
+              <div class="field full">
+                <label for="f-mensaje">¿Algo que quieras contarnos? (opcional)</label>
+                <textarea
+                  id="f-mensaje"
+                  name="mensaje"
+                  rows="4"
+                  maxlength="1000"
+                  aria-invalid={invalid("mensaje")}
+                  aria-describedby={describedBy("mensaje")}
+                >{value("mensaje")}</textarea>
+                {invalid("mensaje") && <p id="mensaje-error">{FIELD_ERRORS.mensaje}</p>}
+              </div>
+            </div>
+            <div>
+              <label class="s-check" for="f-consentimiento">
+                <input
+                  id="f-consentimiento"
+                  name="consentimiento"
+                  type="checkbox"
+                  required
+                  checked={value("consentimiento") === "on"}
+                  aria-invalid={invalid("consentimiento")}
+                  aria-describedby={describedBy("consentimiento")}
+                />
+                <span>
+                  Acepto que Llave 15 use estos datos para contactarme sobre la demo, según el{" "}
+                  <a href="/aviso-de-privacidad">aviso de privacidad</a>.
+                </span>
+              </label>
+              {invalid("consentimiento") && <p id="consentimiento-error">{FIELD_ERRORS.consentimiento}</p>}
+            </div>
+            {siteKey && <div class="cf-turnstile" data-sitekey={siteKey} data-cdata={DEMO_TURNSTILE_CDATA} data-language="es"></div>}
+            <div>
+              <button class="btn" type="submit">Enviar solicitud</button>
+            </div>
+          </form>
+        )
+      }
+    </div>
+  </section>
+  {siteKey && !sent && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+</PlatformSiteLayout>

@@ -36,6 +36,7 @@ const notice = Astro.url.searchParams.get("hecho") === "crear" ? "Taller creado.
 >
   <div class="stack">
     <PageHeader title="Plataforma" subtitle="Talleres y su uso de los últimos 30 días.">
+      <a slot="actions" class="btn ghost" href="/plataforma/solicitudes">Solicitudes de demo</a>
       <a slot="actions" class="btn" href="/plataforma/talleres/nuevo">Crear taller</a>
     </PageHeader>
     {notice && <p role="status">{notice}</p>}

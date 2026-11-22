@@ -1,0 +1,157 @@
+---
+import Card from "../../components/taller/Card.astro";
+import PageHeader from "../../components/taller/PageHeader.astro";
+import TallerLayout from "../../layouts/TallerLayout.astro";
+import { PLATFORM } from "../../lib/platform.ts";
+import { TIMEZONE } from "../../lib/time.ts";
+import { isAllowedOrigin } from "../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
+import { forbiddenResponse } from "../../server/auth/permissions.ts";
+import { getDb } from "../../server/db/client.ts";
+import {
+  DEMO_MECHANICS_LABELS,
+  DEMO_STATUSES,
+  DEMO_STATUS_LABELS,
+  type DemoStatus,
+  listDemoRequests,
+  setDemoRequestStatus,
+} from "../../server/shops/demo-requests.ts";
+
+export const prerender = false;
+
+const db = getDb();
+const now = new Date();
+const PATH = "/plataforma/solicitudes";
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user) {
+  const response = Astro.redirect(loginRedirect(Astro.url.pathname + Astro.url.search), 303);
+  response.headers.set("cache-control", "no-store");
+  return response;
+}
+// La marca de plataforma no es un rol: se decide aquí, en el servidor (regla 11).
+if (user.isPlatformAdmin !== true) return forbiddenResponse();
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  const form = await Astro.request.formData();
+  const result = await setDemoRequestStatus(
+    db,
+    user,
+    String(form.get("id") ?? ""),
+    String(form.get("status") ?? ""),
+    now,
+  );
+  if (result.ok) {
+    return new Response(null, {
+      status: 303,
+      headers: { location: `${PATH}?hecho=estado`, "cache-control": "no-store" },
+    });
+  }
+  if (result.code === "forbidden") return forbiddenResponse();
+  Astro.response.status = result.code === "not_found" ? 404 : 422;
+}
+const requests = (await listDemoRequests(db, user)) ?? [];
+Astro.response.headers.set("cache-control", "no-store");
+
+const STATUS_CLASS: Record<DemoStatus, string> = {
+  nueva: "status--submitted",
+  contactada: "status--approved",
+  descartada: "status--withdrawn",
+};
+const dateFormat = new Intl.DateTimeFormat("es-CL", {
+  timeZone: TIMEZONE,
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+const notice = Astro.url.searchParams.get("hecho") === "estado" ? "Estado actualizado." : null;
+const failed = (Astro.response.status ?? 200) >= 400 ? "No se pudo cambiar el estado." : null;
+---
+
+<TallerLayout
+  title={`Solicitudes de demo — ${PLATFORM.name}`}
+  description="Solicitudes de demo recibidas desde la landing."
+  path="/plataforma"
+  user={user}
+>
+  <div class="stack">
+    <PageHeader title="Solicitudes de demo" subtitle="Las enviadas desde el formulario de llave15.cl.">
+      <a slot="actions" class="btn ghost" href="/plataforma">Volver a Plataforma</a>
+    </PageHeader>
+    {notice && <p role="status">{notice}</p>}
+    {failed && <p role="alert">{failed}</p>}
+    <Card title="Solicitudes">
+      {
+        requests.length === 0 ? (
+          <p class="muted">Todavía no hay solicitudes.</p>
+        ) : (
+          <div class="scroll-x">
+            <table class="dense">
+              <caption>Las 200 más recientes, de la más nueva a la más antigua.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Fecha</th>
+                  <th scope="col">Taller</th>
+                  <th scope="col">Contacto</th>
+                  <th scope="col">Mensaje</th>
+                  <th scope="col">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((request) => (
+                  <tr>
+                    <td class="num">{dateFormat.format(request.createdAt)}</td>
+                    <th scope="row">
+                      {request.shopName}
+                      <br />
+                      <span class="muted">
+                        {request.city}
+                        {request.mechanics &&
+                          ` · ${DEMO_MECHANICS_LABELS[request.mechanics as keyof typeof DEMO_MECHANICS_LABELS] ?? request.mechanics}`}
+                      </span>
+                    </th>
+                    <td>
+                      {request.name}
+                      <br />
+                      <a href={`mailto:${request.email}`}>{request.email}</a>
+                      <br />
+                      <a href={`tel:${request.phone.replace(/[^+0-9]/g, "")}`}>{request.phone}</a>
+                    </td>
+                    <td>{request.message ?? "—"}</td>
+                    <td>
+                      <span class={`status ${STATUS_CLASS[request.status as DemoStatus] ?? ""}`}>
+                        {DEMO_STATUS_LABELS[request.status as DemoStatus] ?? request.status}
+                      </span>
+                      <form method="post" class="demo-status">
+                        <input type="hidden" name="id" value={request.id} />
+                        <label for={`estado-${request.id}`}>Cambiar estado</label>
+                        <select id={`estado-${request.id}`} name="status">
+                          {DEMO_STATUSES.map((status) => (
+                            <option value={status} selected={status === request.status}>
+                              {DEMO_STATUS_LABELS[status]}
+                            </option>
+                          ))}
+                        </select>
+                        <button class="btn ghost" type="submit">Guardar</button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+    </Card>
+  </div>
+</TallerLayout>
+
+<style is:global>
+  .taller .demo-status {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .taller .demo-status label {
+    font-size: 0.875rem;
+    color: var(--steel);
+  }
+</style>

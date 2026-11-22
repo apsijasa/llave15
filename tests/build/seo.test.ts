@@ -9,7 +9,8 @@ function read(path: string): string {
   return readFileSync(`dist/client/${path}`, "utf8");
 }
 
-const index = read("index.html");
+// `/` es SSR (BG-D52): el setup del build deja su HTML aquí.
+const index = readFileSync("dist/test-pages/legacy-home.html", "utf8");
 
 function jsonLdBlocks(html: string): string[] {
   const pattern = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g;

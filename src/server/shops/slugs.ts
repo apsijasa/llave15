@@ -27,6 +27,8 @@ export const RESERVED_SLUGS = [
   "mail",
   "logo",
   "ingresar",
+  "demo",
+  "aviso-de-privacidad",
 ] as const;
 
 const reservedSlugs: ReadonlySet<string> = new Set(RESERVED_SLUGS);

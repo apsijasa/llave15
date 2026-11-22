@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 const PAGES = ["index.html", "privacidad/index.html", "404.html"] as const;
 
 function read(path: string): string {
+  // `/` es SSR (BG-D52): el setup del build deja su HTML en dist/test-pages/.
+  if (path === "index.html") return readFileSync("dist/test-pages/legacy-home.html", "utf8");
   return readFileSync(`dist/client/${path}`, "utf8");
 }
 

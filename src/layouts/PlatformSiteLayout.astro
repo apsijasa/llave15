@@ -1,0 +1,55 @@
+---
+import { PLATFORM } from "../lib/platform.ts";
+import { PLATFORM_SITE } from "../lib/platform-site.ts";
+import "../styles/llave15-site.css";
+import AppLayout from "./AppLayout.astro";
+
+/** Sitio comercial de Llave 15 (landing, `/demo`, aviso): cabecera con Ingresar y Solicitar demo. */
+interface Props {
+  title: string;
+  description: string;
+  noindex?: boolean;
+  /** En `/demo` el botón de la cabecera no repite la acción de la página. */
+  showDemoButton?: boolean;
+}
+
+const { title, description, noindex = false, showDemoButton = true } = Astro.props;
+const year = new Date().getFullYear();
+---
+
+<AppLayout title={title} description={description} noindex={noindex}>
+  <div class="l15-site">
+    <a class="skip" href="#contenido">Saltar al contenido</a>
+    <header class="s-head">
+      <div class="wrap s-head-row">
+        <a href="/" class="s-brand">
+          <img src="/brand/llave15-firma.svg" alt={PLATFORM.name} width="154" height="35" />
+        </a>
+        <nav class="s-nav" aria-label="Principal">
+          {PLATFORM_SITE.nav.map((item) => <a href={item.href}>{item.label}</a>)}
+        </nav>
+        <div class="s-actions">
+          <a class="btn ghost" href="/admin/login">Ingresar</a>
+          {showDemoButton && <a class="btn" href="/demo">Solicitar demo</a>}
+        </div>
+      </div>
+    </header>
+    <main id="contenido"><slot /></main>
+    <footer class="s-foot on-dark">
+      <div class="wrap s-foot-row">
+        <div>
+          <img src="/brand/llave15-firma-invertida.svg" alt={PLATFORM.name} width="154" height="35" />
+          <p>{PLATFORM.descriptor}.</p>
+        </div>
+        <nav class="s-foot-links" aria-label="Pie">
+          <a href="/admin/login">Ingresar</a>
+          <a href="/demo">Solicitar demo</a>
+          <a href="/aviso-de-privacidad">Aviso de privacidad</a>
+        </nav>
+      </div>
+      <div class="wrap">
+        <p class="s-copy">© {year} {PLATFORM.name}</p>
+      </div>
+    </footer>
+  </div>
+</AppLayout>

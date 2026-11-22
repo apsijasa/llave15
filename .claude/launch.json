@@ -12,6 +12,21 @@
         "4323"
       ],
       "port": 4323
+    },
+    {
+      "name": "landing",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "HOST=127.0.0.1",
+        "PORT=4400",
+        "APP_URL=http://127.0.0.1:4400",
+        "PUBLIC_SITE_URL=https://vectorbikes.cl",
+        "EMAIL_TRANSPORT=console",
+        "node",
+        "--env-file-if-exists=.env",
+        "dist/server/entry.mjs"
+      ],
+      "port": 4400
     }
   ]
 }

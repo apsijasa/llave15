@@ -233,3 +233,16 @@ export function getAiEnv(source: EnvSource = process.env): AiEnv {
     AI_MODEL: source.AI_MODEL,
   });
 }
+
+/** Dominios para decidir la portada de `/` (convivencia hasta BG-DC1); vacíos si faltan. */
+export function getHostEnv(source: EnvSource = process.env): {
+  APP_URL: string | undefined;
+  PUBLIC_SITE_URL: string;
+} {
+  const app = appSchema.safeParse(source);
+  const site = siteSchema.safeParse(source);
+  return {
+    APP_URL: app.success ? app.data.APP_URL : undefined,
+    PUBLIC_SITE_URL: site.success ? site.data.PUBLIC_SITE_URL : "",
+  };
+}

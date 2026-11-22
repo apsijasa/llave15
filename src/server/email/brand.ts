@@ -34,3 +34,8 @@ function senderAddress(emailFrom: string): string {
 export function senderFor(profile: ShopProfile, emailFrom: string): string {
   return `${profile.name} · ${PLATFORM.name} <${senderAddress(emailFrom)}>`;
 }
+
+/** `Llave 15 <dirección>`: correos de la plataforma, que no son de un taller (solicitud de demo). */
+export function platformSender(emailFrom: string): string {
+  return `${PLATFORM.name} <${senderAddress(emailFrom)}>`;
+}
