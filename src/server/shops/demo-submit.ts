@@ -1,7 +1,7 @@
 import { getTurnstileEnv } from "../../lib/env.ts";
 import { log } from "../../lib/log.ts";
 import { hashIp } from "../api/handlers.ts";
-import { verifyTurnstile } from "../api/turnstile.ts";
+import { passesTurnstile, verifyTurnstile } from "../api/turnstile.ts";
 import type { AppDb } from "../db/client.ts";
 import { type DemoNotifyDeps, notifyDemoRequest } from "../email/platform/demo-request.ts";
 import { createDemoRequest, demoRequestSchema } from "./demo-requests.ts";
@@ -40,7 +40,7 @@ export async function submitDemoRequest(
       secret: getTurnstileEnv().TURNSTILE_SECRET_KEY,
       fetchFn: ctx.fetchFn,
     }));
-  if (!human || !human.success || (human.cdata !== null && human.cdata !== DEMO_TURNSTILE_CDATA)) {
+  if (!passesTurnstile(human, DEMO_TURNSTILE_CDATA)) {
     return { ok: false, code: "turnstile_failed" };
   }
   const created = await createDemoRequest(db, parsed.data, hashIp(ctx.ip), ctx.now);

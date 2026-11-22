@@ -19,7 +19,8 @@ vi.mock("../../src/server/db/client.ts", async (importOriginal) => ({
     return holder.db;
   },
 }));
-vi.mock("../../src/server/api/turnstile.ts", () => ({
+vi.mock("../../src/server/api/turnstile.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/server/api/turnstile.ts")>()),
   verifyTurnstile: async () => holder.turnstile,
 }));
 const { default: DemoPage } = await import("../../src/pages/demo.astro");

@@ -14,7 +14,7 @@ import type { Booking } from "../db/schema.ts";
 import { bookingRequests } from "../db/schema.ts";
 import type { BookingScope } from "../shops/scope.ts";
 import { scopeBySlug, ShopScopeError, singleShopScope } from "../shops/scope.ts";
-import { verifyTurnstile } from "./turnstile.ts";
+import { passesTurnstile, verifyTurnstile } from "./turnstile.ts";
 
 export type HandlerContext = {
   db: AppDb;
@@ -343,7 +343,7 @@ export async function handleCreateBooking(
         secret: getTurnstileEnv().TURNSTILE_SECRET_KEY,
         fetchFn: ctx.fetchFn,
       }));
-    if (!human || !human.success || (human.cdata !== null && human.cdata !== scope.slug)) {
+    if (!passesTurnstile(human, scope.slug)) {
       return errorResponse(403, "turnstile_failed", MESSAGES.turnstile);
     }
     return await createValidatedBooking(data, phone, ctx, scope);
