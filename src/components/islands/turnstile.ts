@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "preact/hooks";
 
 export type TurnstileOptions = {
   sitekey: string;
-  cdata?: string;
+  /** En `render()` se llama `cData`; `data-cdata` es solo el atributo HTML. */
+  cData?: string;
   language: string;
   callback: (token: string) => void;
   "expired-callback": () => void;
@@ -88,6 +89,22 @@ export function needsRender(
   return widgetId === null || container.childElementCount === 0;
 }
 
+/** Opciones de `render()`: el slug viaja en `cData` y vuelve en el `cdata` de siteverify. */
+export function widgetOptions(
+  siteKey: string,
+  onToken: (token: string | null) => void,
+  cdata?: string,
+): TurnstileOptions {
+  return {
+    sitekey: siteKey,
+    ...(cdata === undefined ? {} : { cData: cdata }),
+    language: "es",
+    callback: (token) => onToken(token),
+    "expired-callback": () => onToken(null),
+    "error-callback": () => onToken(null),
+  };
+}
+
 /** Carga el script una sola vez; con `render=explicit` se dibuja en el callback `onload`. */
 function loadScript(onReady: () => void): () => void {
   if (window.turnstile) {
@@ -145,14 +162,11 @@ export function useTurnstile(
     }
     attempts.current += 1;
     safeRemove(window.turnstile, widgetId.current);
-    widgetId.current = safeRender(window.turnstile, container, {
-      sitekey: siteKey,
-      cdata,
-      language: "es",
-      callback: (token) => onToken(token),
-      "expired-callback": () => onToken(null),
-      "error-callback": () => onToken(null),
-    });
+    widgetId.current = safeRender(
+      window.turnstile,
+      container,
+      widgetOptions(siteKey, onToken, cdata),
+    );
   });
 
   return {

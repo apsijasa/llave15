@@ -8,6 +8,7 @@ import {
   safeRemove,
   safeRender,
   safeReset,
+  widgetOptions,
 } from "../../src/components/islands/turnstile.ts";
 
 class TurnstileError extends Error {
@@ -92,5 +93,26 @@ describe("envío sin token de Turnstile", () => {
     );
     expect(ticket).toContain('"role":"alert"');
     expect(ticket).toContain(MESSAGE);
+  });
+});
+
+describe("widgetOptions", () => {
+  it("pasa el slug en cData, el nombre que lee Turnstile en render()", () => {
+    const options = widgetOptions("site-key", () => {}, "vector-bikes");
+    expect(options).toMatchObject({ sitekey: "site-key", cData: "vector-bikes", language: "es" });
+    expect(options).not.toHaveProperty("cdata");
+  });
+
+  it("sin slug no manda cData", () => {
+    expect(widgetOptions("site-key", () => {})).not.toHaveProperty("cData");
+  });
+
+  it("entrega el token y lo borra al vencer o fallar", () => {
+    const onToken = vi.fn();
+    const options = widgetOptions("site-key", onToken, "vector-bikes");
+    options.callback("t1");
+    options["expired-callback"]();
+    options["error-callback"]();
+    expect(onToken.mock.calls).toEqual([["t1"], [null], [null]]);
   });
 });
