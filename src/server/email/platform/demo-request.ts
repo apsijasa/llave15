@@ -102,7 +102,7 @@ export async function notifyDemoRequest(
     deps.transport ?? createTransport({ ...env, EMAIL_FROM: from, EMAIL_REPLY_TO: request.email });
   const ackTransport =
     deps.transport ??
-    createTransport({ ...env, EMAIL_FROM: from, EMAIL_REPLY_TO: admins[0] ?? env.EMAIL_REPLY_TO });
+    createTransport({ ...env, EMAIL_FROM: from, EMAIL_REPLY_TO: PLATFORM.contactEmail });
   const jobs = [
     ...admins.map(
       (to) => () => adminTransport.send({ to, ...demoRequestAdminEmail(request, deps.appUrl) }),

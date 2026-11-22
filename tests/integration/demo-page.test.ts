@@ -101,6 +101,7 @@ describe("/demo", () => {
     expect(notice?.text).toContain("Queremos dejar las planillas.");
     const ack = consoleOutbox.find((mail) => mail.to === "paula@ejemplo.cl");
     expect(ack?.subject).toBe("Recibimos tu solicitud · Llave 15");
+    expect(ack?.replyTo).toBe("info@llave15.cl");
     expect(ack?.text).not.toContain("+56912345678");
   });
 

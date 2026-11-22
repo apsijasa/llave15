@@ -18,6 +18,12 @@ export const prerender = true;
           responsabilidad de ese taller y se rigen por su propio aviso.
         </p>
 
+        <h2>Responsable</h2>
+        <p>
+          {PLATFORM.legalName}, a cargo de {PLATFORM.name}. Contacto:
+          <a href={`mailto:${PLATFORM.contactEmail}`}>{PLATFORM.contactEmail}</a>.
+        </p>
+
         <h2>Qué datos usamos</h2>
         <p>
           Tu nombre, el nombre de tu taller, correo, teléfono, ciudad o comuna, la cantidad de
@@ -49,11 +55,12 @@ export const prerender = true;
 
         <h2>Tus derechos</h2>
         <p>
-          Puedes pedir acceso, rectificación, supresión, oposición y portabilidad respondiendo el
-          correo de confirmación que te enviamos al recibir tu solicitud.
+          Puedes pedir acceso, rectificación, supresión, oposición y portabilidad, o retirar tu
+          consentimiento, escribiendo a
+          <a href={`mailto:${PLATFORM.contactEmail}`}>{PLATFORM.contactEmail}</a>.
         </p>
 
-        <p class="s-muted">Última actualización: 21 de noviembre de 2026.</p>
+        <p class="s-muted">Última actualización: 22 de noviembre de 2026.</p>
       </article>
     </div>
   </section>

@@ -80,3 +80,14 @@ describe("estilos del sitio de Llave 15", () => {
     }
   });
 });
+
+describe("/aviso-de-privacidad", () => {
+  it("nombra al responsable y el correo de contacto de Llave 15", async () => {
+    const { default: PrivacyPage } = await import("../../src/pages/aviso-de-privacidad.astro");
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(PrivacyPage);
+    expect(html).toContain("Sociedad Tamarugal");
+    expect(html).toContain('href="mailto:info@llave15.cl"');
+    expect(html.match(/<h1/g)).toHaveLength(1);
+  });
+});
