@@ -45,6 +45,43 @@ const islandShop: BookingShop = {
   email: identity.email,
 };
 
+export type BikeTypeKey = "mtb" | "ruta" | "gravel" | "urbana" | "ebike";
+
+export type ServicePrice = {
+  name: string;
+  /** Precio en pesos chilenos por tipo de bicicleta; sin valor, la página muestra "Consultar". */
+  prices: Partial<Record<BikeTypeKey, number>>;
+};
+
+export const BIKE_TYPES: readonly { key: BikeTypeKey; label: string }[] = [
+  { key: "mtb", label: "MTB" },
+  { key: "ruta", label: "Ruta" },
+  { key: "gravel", label: "Gravel" },
+  { key: "urbana", label: "Urbana" },
+  { key: "ebike", label: "E-bike" },
+];
+
+// Copia del catálogo de /taller/catalogo (22-11-2026). Si cambia un precio allá, se cambia aquí.
+export const SERVICE_PRICES: readonly ServicePrice[] = [
+  { name: "Mantención básica de shock", prices: {} },
+  { name: "Mantención full de shock", prices: {} },
+  { name: "Mantención full de horquilla", prices: {} },
+  {
+    name: "Relleno de líquido tubeless",
+    prices: { mtb: 15000, ruta: 10000, gravel: 10000, urbana: 10000, ebike: 15000 },
+  },
+  { name: "Servicio básico de horquilla", prices: { mtb: 35000 } },
+  {
+    name: "Servicio básico medio",
+    prices: { mtb: 54900, ruta: 54900, gravel: 54900, urbana: 54900 },
+  },
+  { name: "Servicio full", prices: { mtb: 77500, ruta: 77500, gravel: 77500 } },
+  {
+    name: "Servicio de mantención básica",
+    prices: { mtb: 33283, ruta: 33283, gravel: 33283, urbana: 33283 },
+  },
+];
+
 export const VECTOR_BIKES_SITE = {
   ...identity,
   heroLabel: "Taller de bicicletas · Vitacura",
@@ -100,6 +137,11 @@ export const VECTOR_BIKES_SITE = {
     title: "Taller de bicicletas en Vitacura | Mecánica Vector Bikes",
     description:
       "Taller de mecánica de bicicletas de precisión en Av. Kennedy 7666, Vitacura. Reserva tu hora en línea: la dejas en el taller o te la vamos a buscar.",
+  },
+  services: {
+    title: "Servicios y precios | Taller de bicicletas Vector Bikes, Vitacura",
+    description:
+      "Precios de mantención y servicios para bicicletas MTB, ruta, gravel, urbanas y e-bike en Vector Bikes, Av. Kennedy 7666, Vitacura.",
   },
   privacy: {
     title: "Aviso de privacidad — Vector Bikes",

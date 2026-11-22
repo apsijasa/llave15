@@ -1,10 +1,9 @@
 ---
 import { BOOKING_URL, VECTOR_BIKES_SITE } from "../content/site.ts";
+import { formatClp } from "../lib/format.ts";
 
 /** Portada de Vector Bikes (BG-37): la de `Landing.astro` sin la isla; reservar lleva a Llave 15. */
 const shop = VECTOR_BIKES_SITE.islandShop;
-const formatClp = (amount: number) =>
-  `$${String(Math.round(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 const { weekdays, saturday: saturdayHours } = VECTOR_BIKES_SITE.receptionHours;
 
 /** Misma geometría que `drawScale` del prototipo: eje 10:00–20:00, tick cada 30 min. */
@@ -126,6 +125,9 @@ const numbers = [10, 12, 14, 16, 18, 20].map((hour) => ({
     </div>
     <p>
       <a href={BOOKING_URL} class="btn">Reservar</a>
+    </p>
+    <p style="margin-top:16px">
+      <a href="/servicios">Ver servicios y precios →</a>
     </p>
   </div>
 </section>

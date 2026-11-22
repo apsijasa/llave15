@@ -16,6 +16,7 @@ const REDIRECTS = [
 const PAGES = [
   ["/", 200],
   ["/privacidad", 200],
+  ["/servicios", 200],
   ["/no-existe", 404],
 ] as const;
 

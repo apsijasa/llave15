@@ -1,0 +1,151 @@
+---
+import SiteLayout from "../layouts/SiteLayout.astro";
+import { BIKE_TYPES, BOOKING_URL, SERVICE_PRICES, VECTOR_BIKES_SITE } from "../content/site.ts";
+import { formatClp } from "../lib/format.ts";
+
+export const prerender = true;
+---
+
+<SiteLayout
+  title={VECTOR_BIKES_SITE.services.title}
+  description={VECTOR_BIKES_SITE.services.description}
+  path="/servicios"
+>
+  <section class="section">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Servicios</span>
+        <div>
+          <h1>Servicios y precios.</h1>
+          <p>
+            Valores por tipo de bicicleta. Si tu servicio dice “Consultar”, escríbenos o cuéntanos
+            qué necesita tu bici al reservar.
+          </p>
+        </div>
+      </div>
+
+      <table class="price-table">
+        <caption class="label">Precios en pesos chilenos por tipo de bicicleta</caption>
+        <thead>
+          <tr>
+            <th scope="col">Servicio</th>
+            {BIKE_TYPES.map((type) => <th scope="col">{type.label}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {
+            SERVICE_PRICES.map((service) => (
+              <tr>
+                <th scope="row">{service.name}</th>
+                {BIKE_TYPES.map((type) => {
+                  const price = service.prices[type.key];
+                  return price === undefined ? (
+                    <td data-label={type.label} class="ask">
+                      Consultar
+                    </td>
+                  ) : (
+                    <td data-label={type.label}>{formatClp(price)}</td>
+                  );
+                })}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+
+      <p class="price-note">
+        Valores en pesos chilenos. Si tu bicicleta necesita algo más, te llamamos antes de hacerlo.
+      </p>
+      <p class="price-cta">
+        <a href={BOOKING_URL} class="btn">Reservar hora</a>
+      </p>
+    </div>
+  </section>
+</SiteLayout>
+
+<style>
+  h1 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(1.4rem, 2.6vw, 2rem);
+    line-height: 1.2;
+  }
+  .price-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-top: 1px solid var(--ink);
+  }
+  .price-table caption {
+    caption-side: top;
+    text-align: left;
+    padding-bottom: 12px;
+  }
+  .price-table th,
+  .price-table td {
+    text-align: left;
+    padding: 14px 12px 14px 0;
+    border-bottom: 1px solid var(--rule);
+    font-weight: 400;
+    vertical-align: top;
+  }
+  .price-table thead th {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--steel);
+  }
+  .price-table tbody th {
+    font-weight: 600;
+  }
+  .price-table td {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .price-table td.ask {
+    color: var(--steel);
+  }
+  .price-note {
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: var(--ink-2);
+    max-width: 58ch;
+  }
+  .price-cta {
+    margin-top: 24px;
+  }
+
+  @media (max-width: 720px) {
+    .price-table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    .price-table tr {
+      display: block;
+      padding-block: 16px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .price-table th,
+    .price-table td {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 4px 0;
+      border-bottom: 0;
+    }
+    .price-table tbody th {
+      padding-bottom: 8px;
+    }
+    .price-table td::before {
+      content: attr(data-label);
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--steel);
+    }
+  }
+</style>

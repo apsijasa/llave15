@@ -36,6 +36,7 @@ describe("legacyRedirect", () => {
     for (const path of [
       "/",
       "/privacidad",
+      "/servicios",
       "/talleres",
       "/reservas",
       "/administracion",
@@ -74,7 +75,7 @@ describe("check-redirects", () => {
   it("acepta un sitio que redirige bien y marca uno que no", async () => {
     const good: typeof fetch = async (input) => {
       const url = new URL(String(input));
-      if (url.pathname === "/" || url.pathname === "/privacidad")
+      if (["/", "/privacidad", "/servicios"].includes(url.pathname))
         return new Response("", { status: 200 });
       return call("GET", `${url.pathname}${url.search}`);
     };

@@ -27,6 +27,12 @@
         "dist/server/entry.mjs"
       ],
       "port": 4400
+    },
+    {
+      "name": "vector-bikes-web",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": ["HOST=127.0.0.1", "PORT=4401", "node", "web/vector-bikes/dist/server/entry.mjs"],
+      "port": 4401
     }
   ]
 }

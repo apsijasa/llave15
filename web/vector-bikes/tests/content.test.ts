@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { BOOKING_URL, VECTOR_BIKES_SITE } from "../src/content/site.ts";
+import { BIKE_TYPES, BOOKING_URL, SERVICE_PRICES, VECTOR_BIKES_SITE } from "../src/content/site.ts";
+import { formatClp } from "../src/lib/format.ts";
 
 const root = new URL("..", import.meta.url).pathname;
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -42,5 +43,36 @@ describe("portada de Vector Bikes", () => {
     for (const path of sourceFiles("src")) {
       expect(read(path), path).not.toMatch(/from "(\.\.\/)+(\.\.\/)src\//);
     }
+  });
+});
+
+describe("servicios y precios", () => {
+  it("lista los ocho servicios del catálogo con precios enteros y positivos", () => {
+    expect(SERVICE_PRICES).toHaveLength(8);
+    const keys = new Set(BIKE_TYPES.map((type) => type.key));
+    expect(keys).toEqual(new Set(["mtb", "ruta", "gravel", "urbana", "ebike"]));
+    for (const service of SERVICE_PRICES) {
+      for (const [key, price] of Object.entries(service.prices)) {
+        expect(keys.has(key as never), `${service.name} ${key}`).toBe(true);
+        expect(Number.isInteger(price) && price > 0, `${service.name} ${key}`).toBe(true);
+      }
+    }
+    expect(new Set(SERVICE_PRICES.map((service) => service.name)).size).toBe(8);
+  });
+
+  it("muestra los montos en pesos chilenos y Consultar donde no hay precio", () => {
+    expect(formatClp(54900)).toBe("$54.900");
+    expect(formatClp(15000)).toBe("$15.000");
+    expect(formatClp(500)).toBe("$500");
+    const page = read("src/pages/servicios.astro");
+    expect(page).toContain("export const prerender = true;");
+    expect(page).toContain("Consultar");
+    expect(page).toContain("href={BOOKING_URL}");
+  });
+
+  it("enlaza la página desde el menú, el pie y la portada", () => {
+    const layout = read("src/layouts/SiteLayout.astro");
+    expect(layout.match(/href="\/servicios"/g)).toHaveLength(2);
+    expect(read("src/components/Home.astro")).toContain('href="/servicios"');
   });
 });
