@@ -7,13 +7,15 @@ interface Props {
   title: string;
   description?: string;
   noindex?: boolean;
+  /** URL absoluta; `AppLayout` la omite si la página lleva `noindex`. */
+  canonical?: string;
   profile: { name: string; logoPath: string | null; addressShort: string; email: string };
 }
 
-const { title, description, noindex = true, profile } = Astro.props;
+const { title, description, noindex = true, canonical, profile } = Astro.props;
 ---
 
-<AppLayout title={title} description={description} noindex={noindex}>
+<AppLayout title={title} description={description} noindex={noindex} canonical={canonical}>
   <header class="public-head">
     <div class="wrap">
       {

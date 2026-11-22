@@ -172,4 +172,21 @@ describe("páginas públicas de reserva y privacidad por taller", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.text()).not.toContain('name="robots"');
   });
+
+  it("declara su canonical en el dominio de Llave 15, sin barra ni parámetros", async () => {
+    vi.stubEnv("APP_URL", "https://llave15.cl");
+    try {
+      const html = await (await render("reservar", "taller-demo")).text();
+      expect(html).toContain(
+        '<link rel="canonical" href="https://llave15.cl/taller-demo/reservar">',
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("la privacidad del taller lleva noindex y ningún canonical", async () => {
+    const html = await (await render("privacidad", "taller-demo")).text();
+    expect(html).not.toContain('rel="canonical"');
+  });
 });

@@ -2,6 +2,7 @@
 import BookingIsland from "../../components/islands/BookingIsland.tsx";
 import type { IslandShop } from "../../components/islands/booking-state.ts";
 import PublicLayout from "../../layouts/PublicLayout.astro";
+import { getAppEnv } from "../../lib/env.ts";
 import { getDb } from "../../server/db/client.ts";
 import { profileBySlug } from "../../server/shops/profile.ts";
 import { scopeBySlug } from "../../server/shops/scope.ts";
@@ -29,6 +30,8 @@ const shop: IslandShop = {
   codePrefix: scope.config.codePrefix,
   privacyHref: `/${scope.slug}/privacidad`,
 };
+// Indexable (BG-31): la barra final y los parámetros de campaña apuntan a esta URL.
+const canonical = new URL(`/${scope.slug}/reservar`, getAppEnv().APP_URL).href;
 ---
 
 <PublicLayout
@@ -36,6 +39,7 @@ const shop: IslandShop = {
   title={`Reservar — ${profile.name}`}
   description={`Reserva tu hora para la bicicleta en ${profile.name}.`}
   noindex={false}
+  canonical={canonical}
 >
   <section class="section">
     <div class="wrap">
