@@ -67,14 +67,14 @@ const jsonLd = JSON.stringify({
     <link rel="preload" as="font" type="font/woff2" crossorigin href={michromaLatin} />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {!noindex && <link rel="canonical" href={canonical} />}
     {noindex && <meta name="robots" content="noindex" />}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={VECTOR_BIKES_SITE.name} />
     <meta property="og:locale" content="es_CL" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content={canonical} />
+    {!noindex && <meta property="og:url" content={canonical} />}
     <meta property="og:image" content={ogImage} />
     <meta name="twitter:card" content="summary" />
     {path === "/" && <script is:inline type="application/ld+json" set:html={jsonLd} />}

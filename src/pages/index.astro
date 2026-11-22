@@ -21,7 +21,7 @@ Astro.response.headers.set("cache-control", "no-cache");
 
 {
   platform ? (
-    <PlatformSiteLayout title={PLATFORM_SITE.title} description={PLATFORM_SITE.description}>
+    <PlatformSiteLayout title={PLATFORM_SITE.title} description={PLATFORM_SITE.description} path="/">
       <PlatformLanding />
     </PlatformSiteLayout>
   ) : (

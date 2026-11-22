@@ -70,7 +70,9 @@ describe("slugs reservados", () => {
       const entries = readdirSync(new URL(`../../${directory}`, import.meta.url));
       for (const entry of entries) {
         if (directory === "src/pages/" && entry.startsWith("[")) continue;
-        const slug = entry.slice(0, entry.length - extname(entry).length);
+        // `robots.txt.ts` sirve `/robots.txt`: cuenta el nombre antes del primer punto.
+        const base = entry.slice(0, entry.length - extname(entry).length);
+        const slug = base.split(".")[0] ?? base;
         expect(RESERVED_SLUGS, `${directory}${entry}`).toContain(slug);
       }
     },

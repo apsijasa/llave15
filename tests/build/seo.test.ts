@@ -5,7 +5,11 @@ import { describe, expect, it } from "vitest";
 const site = process.env.PUBLIC_SITE_URL || "https://vectorbikes.cl";
 const home = new URL("/", site).href;
 
+// `robots.txt` y el sitemap son SSR por dominio: el setup del build los deja en dist/test-pages/.
+const SSR_FILES = new Set(["robots.txt", "sitemap-0.xml"]);
+
 function read(path: string): string {
+  if (SSR_FILES.has(path)) return readFileSync(`dist/test-pages/legacy-${path}`, "utf8");
   return readFileSync(`dist/client/${path}`, "utf8");
 }
 

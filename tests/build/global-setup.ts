@@ -24,12 +24,15 @@ async function waitForServer(child: ChildProcess): Promise<void> {
   throw new Error("El servidor construido no respondió a tiempo");
 }
 
-async function page(host: string): Promise<string> {
+async function page(host: string, path = "/"): Promise<string> {
   // `fetch` no deja cambiar `Host`: el proxy de Replit manda el dominio en `x-forwarded-host`.
-  const response = await fetch(`${BASE}/`, { headers: { "x-forwarded-host": host } });
-  if (response.status !== 200) throw new Error(`/ respondió ${response.status} para ${host}`);
+  const response = await fetch(`${BASE}${path}`, { headers: { "x-forwarded-host": host } });
+  if (response.status !== 200) throw new Error(`${path} respondió ${response.status} para ${host}`);
   return response.text();
 }
+
+/** `robots.txt` y el sitemap son SSR por dominio: se guardan con el prefijo del dominio. */
+const SEO_FILES = ["robots.txt", "sitemap-index.xml", "sitemap-0.xml"];
 
 export default async function setup(): Promise<() => void> {
   const child = spawn("node", ["--env-file-if-exists=.env", "dist/server/entry.mjs"], {
@@ -47,6 +50,14 @@ export default async function setup(): Promise<() => void> {
     mkdirSync(PAGES_DIR, { recursive: true });
     writeFileSync(`${PAGES_DIR}/legacy-home.html`, await page("vectorbikes.cl"));
     writeFileSync(`${PAGES_DIR}/platform-home.html`, await page("llave15.cl"));
+    for (const [prefix, host] of [
+      ["legacy", "vectorbikes.cl"],
+      ["platform", "llave15.cl"],
+    ] as const) {
+      for (const file of SEO_FILES) {
+        writeFileSync(`${PAGES_DIR}/${prefix}-${file}`, await page(host, `/${file}`));
+      }
+    }
   } catch (error) {
     child.kill();
     throw error;
