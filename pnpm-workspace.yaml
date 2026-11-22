@@ -27,3 +27,8 @@ supportedArchitectures:
   libc:
     - current
     - glibc
+
+# vite 8.3.0–8.3.2 tiene una vulnerabilidad conocida y el firewall de paquetes de Replit la
+# bloquea en los Replit nuevos (2026-11-22): se fija la versión parchada de la misma serie.
+overrides:
+  vite: 8.3.8
