@@ -5,7 +5,9 @@ import { login, SEED } from "./fixtures.ts";
  * La cámara la simula Chromium con los flags de `playwright.config.ts`: entrega un video de prueba
  * y acepta el permiso sin diálogo.
  */
-test("saca tres fotos seguidas sin salir de la página y las sube juntas", async ({ page }) => {
+test("saca tres fotos seguidas sin salir de la página y al apretar Listo se suben solas", async ({
+  page,
+}) => {
   test.setTimeout(180_000);
   // Guarda las pistas que entrega la cámara para poder comprobar después que se detuvieron.
   await page.addInitScript(() => {
@@ -31,6 +33,13 @@ test("saca tres fotos seguidas sin salir de la página y las sube juntas", async
   for (let i = 0; i < 3; i += 1) await sacar.tap();
   await expect(page.getByText("3 de 20", { exact: false }).first()).toBeVisible();
 
+  // "Listo" cierra la cámara y sube las tres: en el iPhone no hay aviso si se pierden.
+  const subidas: number[] = [];
+  page.on("response", (response) => {
+    if (response.request().method() === "POST" && response.url().endsWith("/fotos")) {
+      subidas.push(response.status());
+    }
+  });
   await page.getByRole("button", { name: "Listo", exact: true }).tap();
   await expect(sacar).toBeHidden();
 
@@ -43,6 +52,6 @@ test("saca tres fotos seguidas sin salir de la página y las sube juntas", async
   expect(estados?.length).toBeGreaterThan(0);
   expect(estados?.every((estado) => estado === "ended")).toBe(true);
 
-  const subir = page.getByRole("button", { name: /^Subir 3 fotos$/ });
-  await expect(subir).toBeVisible();
+  await expect.poll(() => subidas, { timeout: 60_000 }).toEqual([201, 201, 201]);
+  await expect(page.getByRole("button", { name: /^Subir \d+ fotos?$/ })).toHaveCount(0);
 });

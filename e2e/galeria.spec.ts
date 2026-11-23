@@ -15,11 +15,8 @@ test("El mecánico sube una foto de trabajo terminado desde la galería", async 
   const uploaded = page.waitForResponse(
     (response) => response.request().method() === "POST" && response.url().endsWith("/fotos"),
   );
+  // Al elegirla se sube sola, sin apretar "Subir".
   await input.setInputFiles({ name: "terminado.jpg", mimeType: "image/jpeg", buffer });
-  await page
-    .getByRole("region", { name: "Trabajo terminado", exact: true })
-    .getByRole("button", { name: /^Subir \d+ fotos?$/ })
-    .tap();
   expect((await uploaded).status()).toBe(201);
   const thumbnail = page
     .getByRole("region", { name: "Trabajo terminado", exact: true })

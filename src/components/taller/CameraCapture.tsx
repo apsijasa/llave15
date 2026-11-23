@@ -3,6 +3,8 @@ import type { JSX } from "preact";
 
 interface Props {
   onCapture: (files: File[]) => void;
+  /** Al apretar "Listo" o cerrar la cámara: quien la usa sube lo que quedó en la cola. */
+  onDone?: () => void;
   queued: number;
   max: number;
   disabled?: boolean;
@@ -192,6 +194,7 @@ function useSnapshots(props: Props, camera: Camera, video: Current<HTMLVideoElem
 
 interface LayerProps extends Props {
   camera: Camera;
+  finish: () => void;
 }
 
 function CameraButtons({
@@ -218,7 +221,7 @@ function CameraButtons({
       <p role="status">
         {props.queued} de {props.max}
       </p>
-      <button type="button" class="btn ghost" style={touchStyle} onClick={props.camera.close}>
+      <button type="button" class="btn ghost" style={touchStyle} onClick={props.finish}>
         Listo
       </button>
     </div>
@@ -255,12 +258,7 @@ function CameraLayer(props: LayerProps) {
     };
   }, []);
   return (
-    <dialog
-      ref={dialog}
-      aria-label="Cámara de fotos"
-      onCancel={props.camera.close}
-      style={layerStyle}
-    >
+    <dialog ref={dialog} aria-label="Cámara de fotos" onCancel={props.finish} style={layerStyle}>
       <video
         ref={playback.video}
         autoPlay
@@ -279,6 +277,10 @@ function CameraLayer(props: LayerProps) {
 
 export default function CameraCapture(props: Props) {
   const camera = useCamera();
+  const finish = () => {
+    camera.close();
+    props.onDone?.();
+  };
   return (
     <>
       <p>Al abrir la cámara, el navegador te pedirá permiso para usarla.</p>
@@ -292,7 +294,7 @@ export default function CameraCapture(props: Props) {
         {camera.opening ? "Abriendo cámara…" : "Abrir cámara"}
       </button>
       {!camera.stream && <p role="status">{camera.message}</p>}
-      {camera.stream && <CameraLayer {...props} camera={camera} />}
+      {camera.stream && <CameraLayer {...props} camera={camera} finish={finish} />}
     </>
   );
 }

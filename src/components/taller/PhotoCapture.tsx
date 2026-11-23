@@ -189,19 +189,23 @@ function usePhotoUpload(props: Props, photos: PhotoQueue) {
 
 type PhotoUpload = ReturnType<typeof usePhotoUpload>;
 
+/** Lo elegido en la galería o con "Tomar foto" se sube de inmediato: no hay paso que olvidar. */
 function selectFiles(event: Event, photos: PhotoQueue, upload: PhotoUpload) {
   const input = event.currentTarget as HTMLInputElement;
   const files = Array.from(input.files ?? []);
   input.value = "";
-  queueFiles(files, photos, upload);
+  if (queueFiles(files, photos, upload)) void upload.uploadAll();
 }
 
-function queueFiles(files: File[], photos: PhotoQueue, upload: PhotoUpload) {
-  if (upload.busy.current || files.length === 0) return;
+/** Agrega a la cola; devuelve si entró al menos una foto. */
+function queueFiles(files: File[], photos: PhotoQueue, upload: PhotoUpload): boolean {
+  if (upload.busy.current || files.length === 0) return false;
+  const before = photos.current.current.length;
   const result = addToQueue(photos.current.current, files);
   photos.replaceQueue(result.queue);
   upload.setProgress(0);
   upload.setMessage(result.rejected.join(". "));
+  return result.queue.length > before;
 }
 
 interface PickerProps {
@@ -320,7 +324,11 @@ function PhotoControls({ photos, upload, label }: QueueViewProps & { label?: str
   return (
     <>
       <CameraCapture
-        onCapture={(files) => queueFiles(files, photos, upload)}
+        onCapture={(files) => {
+          queueFiles(files, photos, upload);
+        }}
+        // "Listo" sube todo lo sacado: en el iPhone, Safari no avisa si la página se va sin subir.
+        onDone={() => void upload.uploadAll()}
         queued={photos.queue.length}
         max={MAX_QUEUED_PHOTOS}
         disabled={disabled}
