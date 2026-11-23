@@ -1,7 +1,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { BIKE_TYPES, BOOKING_URL, SERVICE_PRICES, VECTOR_BIKES_SITE } from "../src/content/site.ts";
+import {
+  BIKE_TYPES,
+  BOOKING_URL,
+  BRANCHES,
+  SERVICE_PRICES,
+  VECTOR_BIKES_SITE,
+} from "../src/content/site.ts";
 import { formatClp } from "../src/lib/format.ts";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -74,5 +80,30 @@ describe("servicios y precios", () => {
     const layout = read("src/layouts/SiteLayout.astro");
     expect(layout.match(/href="\/servicios"/g)).toHaveLength(2);
     expect(read("src/components/Home.astro")).toContain('href="/servicios"');
+  });
+});
+
+describe("sucursales", () => {
+  it("muestra Vitacura y Santiago con dirección, teléfono y mapa", () => {
+    expect(BRANCHES.map((branch) => branch.name)).toEqual(["Vitacura", "Santiago"]);
+    const santiago = BRANCHES[1]!;
+    expect(santiago).toMatchObject({
+      streetAddress: "Chiloé 1927",
+      comuna: "Santiago",
+      phone: "+56976234264",
+    });
+    for (const branch of BRANCHES) {
+      expect(branch.phone, branch.name).toMatch(/^\+569\d{8}$/);
+      expect(branch.mapsUrl, branch.name).toMatch(/^https:\/\/www\.google\.com\/maps\//);
+    }
+    const page = read("src/pages/sucursales.astro");
+    expect(page).toContain("export const prerender = true;");
+    expect(page).toContain("href={BOOKING_URL}");
+  });
+
+  it("enlaza la página desde el menú, el pie y la portada", () => {
+    const layout = read("src/layouts/SiteLayout.astro");
+    expect(layout.match(/href="\/sucursales"/g)).toHaveLength(2);
+    expect(read("src/components/Home.astro")).toContain('href="/sucursales"');
   });
 });

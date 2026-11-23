@@ -82,6 +82,35 @@ export const SERVICE_PRICES: readonly ServicePrice[] = [
   },
 ];
 
+export type ShopBranch = {
+  name: string;
+  streetAddress: string;
+  comuna: string;
+  phone: string;
+  phoneDisplay: string;
+  mapsUrl: string;
+};
+
+// La reserva en línea es una sola (Llave 15 es de una sucursal): Santiago se indica al reservar.
+export const BRANCHES: readonly ShopBranch[] = [
+  {
+    name: "Vitacura",
+    streetAddress: identity.streetAddress,
+    comuna: identity.locality,
+    phone: identity.phone,
+    phoneDisplay: identity.phoneDisplay,
+    mapsUrl: identity.mapsUrl,
+  },
+  {
+    name: "Santiago",
+    streetAddress: "Chiloé 1927",
+    comuna: "Santiago",
+    phone: "+56976234264",
+    phoneDisplay: "+56 9 7623 4264",
+    mapsUrl: "https://www.google.com/maps/search/?api=1&query=Chilo%C3%A9+1927+Santiago",
+  },
+];
+
 export const VECTOR_BIKES_SITE = {
   ...identity,
   heroLabel: "Taller de bicicletas · Vitacura",
@@ -142,6 +171,11 @@ export const VECTOR_BIKES_SITE = {
     title: "Servicios y precios | Taller de bicicletas Vector Bikes, Vitacura",
     description:
       "Precios de mantención y servicios para bicicletas MTB, ruta, gravel, urbanas y e-bike en Vector Bikes, Av. Kennedy 7666, Vitacura.",
+  },
+  branches: {
+    title: "Sucursales | Taller de bicicletas Vector Bikes en Vitacura y Santiago",
+    description:
+      "Vector Bikes en Av. Kennedy 7666, Vitacura, y en Chiloé 1927, Santiago. Dirección, horario y teléfono de cada sucursal.",
   },
   privacy: {
     title: "Aviso de privacidad — Vector Bikes",

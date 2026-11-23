@@ -17,6 +17,7 @@ const PAGES = [
   ["/", 200],
   ["/privacidad", 200],
   ["/servicios", 200],
+  ["/sucursales", 200],
   ["/no-existe", 404],
 ] as const;
 
