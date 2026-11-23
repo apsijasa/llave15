@@ -1,7 +1,7 @@
 ---
 import SiteLayout from "../layouts/SiteLayout.astro";
 import { BIKE_TYPES, BOOKING_URL, SERVICE_PRICES, VECTOR_BIKES_SITE } from "../content/site.ts";
-import { formatClp } from "../lib/format.ts";
+import { formatClp, grossOfNet } from "../lib/format.ts";
 
 export const prerender = true;
 ---
@@ -18,14 +18,14 @@ export const prerender = true;
         <div>
           <h1>Servicios y precios.</h1>
           <p>
-            Valores por tipo de bicicleta. Si tu servicio dice “Consultar”, escríbenos o cuéntanos
+            Valores por tipo de bicicleta, IVA incluido. Si tu servicio dice “Consultar”, escríbenos o cuéntanos
             qué necesita tu bici al reservar.
           </p>
         </div>
       </div>
 
       <table class="price-table">
-        <caption class="label">Precios en pesos chilenos por tipo de bicicleta</caption>
+        <caption class="label">Precios con IVA incluido, en pesos chilenos, por tipo de bicicleta</caption>
         <thead>
           <tr>
             <th scope="col">Servicio</th>
@@ -44,7 +44,7 @@ export const prerender = true;
                       Consultar
                     </td>
                   ) : (
-                    <td data-label={type.label}>{formatClp(price)}</td>
+                    <td data-label={type.label}>{formatClp(grossOfNet(price))}</td>
                   );
                 })}
               </tr>
@@ -54,7 +54,7 @@ export const prerender = true;
       </table>
 
       <p class="price-note">
-        Valores en pesos chilenos. Si tu bicicleta necesita algo más, te llamamos antes de hacerlo.
+        Valores en pesos chilenos, IVA incluido. Si tu bicicleta necesita algo más, te llamamos antes de hacerlo.
       </p>
       <p class="price-cta">
         <a href={BOOKING_URL} class="btn">Reservar hora</a>

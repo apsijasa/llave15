@@ -8,7 +8,7 @@ import {
   SERVICE_PRICES,
   VECTOR_BIKES_SITE,
 } from "../src/content/site.ts";
-import { formatClp } from "../src/lib/format.ts";
+import { formatClp, grossOfNet } from "../src/lib/format.ts";
 
 const root = new URL("..", import.meta.url).pathname;
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -74,6 +74,16 @@ describe("servicios y precios", () => {
     expect(page).toContain("export const prerender = true;");
     expect(page).toContain("Consultar");
     expect(page).toContain("href={BOOKING_URL}");
+  });
+
+  it("suma el IVA a cada valor neto y lo dice en la página", () => {
+    expect(grossOfNet(54900)).toBe(65331);
+    expect(grossOfNet(33283)).toBe(39607);
+    expect(grossOfNet(15000)).toBe(17850);
+    expect(grossOfNet(77500)).toBe(92225);
+    const page = read("src/pages/servicios.astro");
+    expect(page).toContain("formatClp(grossOfNet(price))");
+    expect(page.match(/IVA incluido/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
   it("enlaza la página desde el menú, el pie y la portada", () => {

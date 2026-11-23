@@ -49,7 +49,7 @@ export type BikeTypeKey = "mtb" | "ruta" | "gravel" | "urbana" | "ebike";
 
 export type ServicePrice = {
   name: string;
-  /** Precio en pesos chilenos por tipo de bicicleta; sin valor, la página muestra "Consultar". */
+  /** Precio neto (sin IVA) del catálogo, en pesos, por tipo de bicicleta; la página suma el IVA. Sin valor: "Consultar". */
   prices: Partial<Record<BikeTypeKey, number>>;
 };
 
