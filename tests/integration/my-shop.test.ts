@@ -146,6 +146,23 @@ describe("updateMyShop", () => {
     expect(await myShop(db, seeded.demo.owner)).toEqual(before);
   });
 
+  it("guarda el sitio web, lo vacía con un campo en blanco y rechaza lo que no es http(s)", async () => {
+    const owner = seeded.demo.owner;
+    const save = (websiteUrl: string) =>
+      updateMyShop(db, owner, shopSettingsFromForm(form({ websiteUrl })), NOW);
+    expect(await save("https://tallerdemo.cl")).toEqual({ ok: true });
+    expect((await myShop(db, owner))?.websiteUrl).toBe("https://tallerdemo.cl");
+    for (const bad of ["javascript:alert(1)", "ftp://tallerdemo.cl", "tallerdemo"]) {
+      const result = await save(bad);
+      expect(result, bad).toMatchObject({ ok: false, code: "validation_error" });
+      if (result.ok || result.code !== "validation_error") throw new Error("se esperaba un error");
+      expect(result.fields.websiteUrl, bad).toBeTruthy();
+    }
+    expect((await myShop(db, owner))?.websiteUrl).toBe("https://tallerdemo.cl");
+    expect(await save("")).toEqual({ ok: true });
+    expect((await myShop(db, owner))?.websiteUrl).toBeNull();
+  });
+
   it("solo toca el taller del dueño", async () => {
     const vectorBefore = await myShop(db, seeded.vector.owner);
     await updateMyShop(db, seeded.demo.owner, shopSettingsFromForm(form()), NOW);

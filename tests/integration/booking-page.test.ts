@@ -133,6 +133,19 @@ describe("páginas públicas de reserva y privacidad por taller", () => {
     expect(html).not.toContain("Taller Demo");
   });
 
+  it("enlaza el logo al sitio del taller solo cuando lo tiene", async () => {
+    const header = (html: string) => html.match(/<header\b[\s\S]*?<\/header>/)?.[0] ?? "";
+    expect(header(await (await render("reservar", "taller-demo")).text())).not.toContain("<a ");
+    await test.db
+      .update(shops)
+      .set({ websiteUrl: "https://tallerdemo.cl" })
+      .where(eq(shops.id, seeded.demo.shop.id));
+    const linked = header(await (await render("reservar", "taller-demo")).text());
+    expect(linked).toMatch(/<a\b[^>]*href="https:\/\/tallerdemo\.cl"[^>]*>[\s\S]*Taller Demo/);
+    const other = header(await (await render("reservar", "vector-bikes")).text());
+    expect(other).not.toContain("tallerdemo.cl");
+  });
+
   it("limita los días solicitados al horizonte de un taller menor a 14", async () => {
     await test.db.update(shops).set({ horizonDays: 7 }).where(eq(shops.id, seeded.demo.shop.id));
     const html = await (await render("reservar", "taller-demo")).text();

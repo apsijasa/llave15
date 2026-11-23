@@ -9,18 +9,36 @@ interface Props {
   noindex?: boolean;
   /** URL absoluta; `AppLayout` la omite si la página lleva `noindex`. */
   canonical?: string;
-  profile: { name: string; logoPath: string | null; addressShort: string; email: string };
+  profile: {
+    name: string;
+    logoPath: string | null;
+    addressShort: string;
+    email: string;
+    /** Sitio propio del taller: si lo tiene, el logo (o el nombre) enlaza ahí. */
+    websiteUrl?: string | null;
+  };
 }
 
 const { title, description, noindex = true, canonical, profile } = Astro.props;
+const brand = profile.logoPath
+  ? { kind: "logo" as const, src: profile.logoPath }
+  : { kind: "name" as const };
 ---
 
 <AppLayout title={title} description={description} noindex={noindex} canonical={canonical}>
   <header class="public-head">
     <div class="wrap">
       {
-        profile.logoPath ? (
-          <img class="public-logo" src={profile.logoPath} alt={profile.name} />
+        profile.websiteUrl ? (
+          <a class="public-home" href={profile.websiteUrl} aria-label={`${profile.name}, ir al sitio web`}>
+            {brand.kind === "logo" ? (
+              <img class="public-logo" src={brand.src} alt={profile.name} />
+            ) : (
+              <span class="public-name">{profile.name}</span>
+            )}
+          </a>
+        ) : brand.kind === "logo" ? (
+          <img class="public-logo" src={brand.src} alt={profile.name} />
         ) : (
           <p class="public-name">{profile.name}</p>
         )
@@ -68,6 +86,12 @@ const { title, description, noindex = true, canonical, profile } = Astro.props;
   .public-name {
     font-family: var(--display);
     color: var(--ink);
+  }
+  .public-home {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    text-decoration: none;
   }
   .public-logo {
     display: block;

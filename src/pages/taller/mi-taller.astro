@@ -84,6 +84,7 @@ const stored: Record<string, string> = {
   region: shop.region,
   mapsUrl: shop.mapsUrl ?? "",
   instagramUrl: shop.instagramUrl ?? "",
+  websiteUrl: shop.websiteUrl ?? "",
   dailyCapacity: String(shop.dailyCapacity),
   blockMinutes: String(shop.blockMinutes),
   minNoticeMinutes: String(shop.minNoticeMinutes),
@@ -119,6 +120,7 @@ const PROFILE = [
   ["rut", "RUT (opcional)", "text"],
   ["mapsUrl", "Enlace a Google Maps (opcional)", "url"],
   ["instagramUrl", "Instagram (opcional)", "url"],
+  ["websiteUrl", "Sitio web (opcional; el logo de tu página de reservas enlaza ahí)", "url"],
 ] as const;
 const BOOKING = [
   ["dailyCapacity", "Bicis por día"],

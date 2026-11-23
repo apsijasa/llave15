@@ -26,6 +26,8 @@ export type ShopProfile = {
   mapsUrl: string | null;
   instagramUrl: string | null;
   instagramHandle: string | null;
+  /** Sitio propio del taller; el logo de sus páginas públicas enlaza ahí. */
+  websiteUrl: string | null;
   logoKey: string | null;
   logoPath: string | null;
   certifications: string[];
@@ -64,6 +66,7 @@ export function profileFromShop(row: ShopRow): ShopProfile {
     mapsUrl: row.mapsUrl,
     instagramUrl: row.instagramUrl,
     instagramHandle: instagramHandleOf(row.instagramUrl),
+    websiteUrl: row.websiteUrl,
     logoKey: row.logoKey,
     logoPath: row.logoKey ? `/${row.slug}/logo` : null,
     certifications: [...row.certifications],

@@ -40,6 +40,7 @@ export const shops = pgTable(
     region: text("region").notNull(),
     mapsUrl: text("maps_url"),
     instagramUrl: text("instagram_url"),
+    websiteUrl: text("website_url"),
     logoKey: text("logo_key"),
     certifications: text("certifications").array().notNull().default(sql`'{}'::text[]`),
     timezone: text("timezone").notNull().default("America/Santiago"),

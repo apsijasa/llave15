@@ -10,6 +10,11 @@ import { seedShop, VECTOR_BIKES_PROFILE } from "./shops.ts";
 
 /** Última migración antes del contract de V-BG3: `shop_id` y `branch_id` todavía nulables. */
 const LEGACY_LAST_MIGRATION = "0038_peaceful_living_tribunal";
+/**
+ * Migraciones posteriores, solo aditivas, que agregan columnas a `shops`: Drizzle inserta todas
+ * las columnas del esquema al sembrar el taller, así que la base heredada también las necesita.
+ */
+const LATER_SHOP_COLUMNS = ["0044_dizzy_tusk"] as const;
 
 /**
  * Filas heredadas sin taller o sin sucursal. Solo caben en la base de `createLegacyTestDb()`:
@@ -46,6 +51,9 @@ export async function createLegacyTestDb(): Promise<TestDb> {
     await migrate(drizzle({ client }), { migrationsFolder: folder });
   } finally {
     await rm(folder, { recursive: true, force: true });
+  }
+  for (const tag of LATER_SHOP_COLUMNS) {
+    await client.exec(await readFile(join("drizzle", `${tag}.sql`), "utf8"));
   }
   const db = drizzle({ client }) as unknown as AppDb;
   await seedShop(db, VECTOR_BIKES_PROFILE);

@@ -15,6 +15,16 @@ const text = (max: number) => z.string().trim().min(1, "Completa este campo.").m
 const optionalText = (max: number) =>
   z.preprocess((value) => (value === "" ? null : value), z.string().trim().max(max).nullable());
 const optionalUrl = z.preprocess((value) => (value === "" ? null : value), z.url().nullable());
+/**
+ * Sitio propio del taller: el logo de sus páginas públicas enlaza ahí, así que solo http(s).
+ * Vacío o ausente (llamadas anteriores al campo) es `null`.
+ */
+const optionalWebUrl = z.preprocess(
+  (value) => (value === "" || value === undefined ? null : value),
+  z
+    .url({ protocol: /^https?$/, error: "Ingresa una dirección que empiece con https://." })
+    .nullable(),
+);
 const email = z.email("Ingresa un correo válido.").trim().toLowerCase();
 const int = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
 
@@ -37,6 +47,7 @@ export const shopSettingsSchema = z
     region: text(60),
     mapsUrl: optionalUrl,
     instagramUrl: optionalUrl,
+    websiteUrl: optionalWebUrl,
     receptionHours: weekHoursSchema,
     pickupHours: weekHoursSchema,
     dailyCapacity: int(1, 20),
@@ -109,6 +120,7 @@ export function shopSettingsFromForm(form: FormData): Record<string, unknown> {
         "region",
         "mapsUrl",
         "instagramUrl",
+        "websiteUrl",
         "dailyCapacity",
         "blockMinutes",
         "minNoticeMinutes",
