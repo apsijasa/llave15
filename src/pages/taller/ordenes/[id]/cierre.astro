@@ -172,9 +172,10 @@ const receptionDate = receivedAt
       <div class="grid-photos">
         {photos.map((photo, index) => <img src={photo.thumbUrl} alt={`Foto de recepción ${index + 1}`} />)}
       </div>
-      <PhotoCapture client:load uploadUrl={`/taller/ordenes/${order.id}/fotos`} stage="recepcion" />
+      {order.status === "reservada" && <p>Saca las fotos, pide la firma y aprieta Guardar: las fotos y la firma se guardan juntas.</p>}
+      <PhotoCapture client:load uploadUrl={`/taller/ordenes/${order.id}/fotos`} stage="recepcion" saveWith={order.status === "reservada" ? "reception-close" : undefined} />
     </Card>
-    {order.status === "reservada" ? <Card title="Firma del cliente"><form method="post" action={Astro.url.pathname}>
+    {order.status === "reservada" ? <Card title="Firma del cliente"><form id="reception-close" method="post" action={Astro.url.pathname}>
       <div class="fields">
         <div class="full"><SignaturePad client:load name="firma" label="Firma del cliente" /></div>
         <div class="field">
@@ -183,7 +184,7 @@ const receptionDate = receivedAt
           {nameError && <p id="signer-name-error">{nameError}</p>}
         </div>
       </div>
-      <button type="submit" class="btn">Finalizar recepción</button>
+      <button type="submit" class="btn">Guardar</button>
     </form></Card> : <Card title="Firma del cliente">
       <p>Recepción finalizada{receptionDate && ` el ${receptionDate}`}{signature && ` · firmó ${signature.signedByName}`}</p>
     </Card>}

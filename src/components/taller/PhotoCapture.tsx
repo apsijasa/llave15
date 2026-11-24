@@ -7,11 +7,14 @@ import {
 } from "../../lib/photo-queue.ts";
 import type { QueuedPhoto, UploadOutcome } from "../../lib/photo-queue.ts";
 import CameraCapture from "./CameraCapture.tsx";
+import { queueLabel, useSaveWithForm } from "./save-with-form.ts";
 
 interface Props {
   uploadUrl: string;
   stage: "recepcion" | "reparacion" | "terminado";
   label?: string;
+  /** Id del formulario cuyo "Guardar" sube antes las fotos (Fotos y firma). Sin él, se suben solas. */
+  saveWith?: string;
 }
 
 const UPLOAD_ERROR = "No se pudo subir la foto. Intenta de nuevo.";
@@ -159,15 +162,16 @@ function usePhotoUpload(props: Props, photos: PhotoQueue) {
     };
   }, []);
 
-  async function uploadAll() {
+  async function uploadAll(reload = true): Promise<boolean> {
     const batch = photos.current.current;
-    if (busy.current || batch.length === 0) return;
+    if (busy.current) return false;
+    if (batch.length === 0) return true;
     busy.current = true;
     setUploading(true);
     setProgress(0);
     const outcomes: UploadOutcome[] = [];
     for (const [index, photo] of batch.entries()) {
-      if (!mounted.current) return;
+      if (!mounted.current) return false;
       setMessage(`Subiendo ${index + 1} de ${batch.length}`);
       const outcome = await uploadQueuedPhoto(photo, props, (value) => {
         if (mounted.current) setProgress((index * 100 + value) / batch.length);
@@ -175,13 +179,18 @@ function usePhotoUpload(props: Props, photos: PhotoQueue) {
       outcomes.push(outcome);
       if (mounted.current) setProgress(((index + 1) / batch.length) * 100);
     }
-    if (!mounted.current) return;
+    if (!mounted.current) return false;
     const remaining = afterUpload(batch, outcomes);
     photos.replaceQueue(remaining);
     busy.current = false;
     setUploading(false);
-    if (remaining.length === 0) window.location.reload();
-    else setMessage(`Quedan ${remaining.length} fotos sin subir. Revisa los errores y reintenta.`);
+    if (remaining.length > 0) {
+      setMessage(`Quedan ${remaining.length} fotos sin subir. Revisa los errores y reintenta.`);
+      return false;
+    }
+    if (reload) window.location.reload();
+    else setMessage("Fotos subidas. Guardando…");
+    return true;
   }
 
   return { ready, uploading, busy, progress, message, setMessage, setProgress, uploadAll };
@@ -189,12 +198,15 @@ function usePhotoUpload(props: Props, photos: PhotoQueue) {
 
 type PhotoUpload = ReturnType<typeof usePhotoUpload>;
 
-/** Lo elegido en la galería o con "Tomar foto" se sube de inmediato: no hay paso que olvidar. */
-function selectFiles(event: Event, photos: PhotoQueue, upload: PhotoUpload) {
+/**
+ * Lo elegido en la galería o con "Tomar foto" se sube de inmediato (`auto`): no hay paso que
+ * olvidar. En Fotos y firma espera al "Guardar" del formulario.
+ */
+function selectFiles(event: Event, photos: PhotoQueue, upload: PhotoUpload, auto: boolean) {
   const input = event.currentTarget as HTMLInputElement;
   const files = Array.from(input.files ?? []);
   input.value = "";
-  if (queueFiles(files, photos, upload)) void upload.uploadAll();
+  if (queueFiles(files, photos, upload) && auto) void upload.uploadAll();
 }
 
 /** Agrega a la cola; devuelve si entró al menos una foto. */
@@ -318,9 +330,14 @@ function PhotoList({ photos, upload }: QueueViewProps) {
   );
 }
 
-function PhotoControls({ photos, upload, label }: QueueViewProps & { label?: string }) {
+function PhotoControls({
+  photos,
+  upload,
+  label,
+  auto,
+}: QueueViewProps & { label?: string; auto: boolean }) {
   const disabled = !upload.ready || upload.uploading || photos.queue.length >= MAX_QUEUED_PHOTOS;
-  const onChange = (event: Event) => selectFiles(event, photos, upload);
+  const onChange = (event: Event) => selectFiles(event, photos, upload, auto);
   return (
     <>
       <CameraCapture
@@ -328,7 +345,7 @@ function PhotoControls({ photos, upload, label }: QueueViewProps & { label?: str
           queueFiles(files, photos, upload);
         }}
         // "Listo" sube todo lo sacado: en el iPhone, Safari no avisa si la página se va sin subir.
-        onDone={() => void upload.uploadAll()}
+        onDone={auto ? () => void upload.uploadAll() : undefined}
         queued={photos.queue.length}
         max={MAX_QUEUED_PHOTOS}
         disabled={disabled}
@@ -347,7 +364,7 @@ function UploadButton({ photos, upload }: QueueViewProps) {
       class="btn tap"
       style={touchStyle}
       disabled={!upload.ready || upload.uploading || photos.queue.length === 0}
-      onClick={upload.uploadAll}
+      onClick={() => void upload.uploadAll()}
     >
       {retry ? "Reintentar" : `Subir ${photos.queue.length} fotos`}
     </button>
@@ -357,18 +374,18 @@ function UploadButton({ photos, upload }: QueueViewProps) {
 export default function PhotoCapture(props: Props) {
   const photos = usePhotoQueue();
   const upload = usePhotoUpload(props, photos);
+  const saving = Boolean(props.saveWith);
+  useSaveWithForm(props.saveWith, () => photos.current.current.length, upload);
   const full = photos.queue.length >= MAX_QUEUED_PHOTOS;
   const message = `${upload.message}${full ? ` Máximo ${MAX_QUEUED_PHOTOS} fotos por vez` : ""}`;
   return (
     <div style={{ display: "grid", gap: "8px" }}>
-      <PhotoControls photos={photos} upload={upload} label={props.label} />
+      <PhotoControls photos={photos} upload={upload} label={props.label} auto={!saving} />
       {photos.queue.length > 0 ? (
         <>
-          <p>
-            {photos.queue.length} de {MAX_QUEUED_PHOTOS}
-          </p>
+          <p>{queueLabel(photos.queue.length, saving)}</p>
           <PhotoList photos={photos} upload={upload} />
-          <UploadButton photos={photos} upload={upload} />
+          {!saving && <UploadButton photos={photos} upload={upload} />}
           <progress max={100} value={upload.progress} aria-label="Progreso de la foto" />
         </>
       ) : null}

@@ -73,7 +73,7 @@ async function completeChecklist(page: Page): Promise<void> {
   await expect(page.getByRole("status").filter({ hasText: /^Checklist completo$/ })).toBeVisible();
 }
 
-async function uploadOnePhoto(page: Page): Promise<void> {
+async function chooseOnePhoto(page: Page): Promise<void> {
   const buffer = await sharp({
     create: { width: 640, height: 480, channels: 3, background: { r: 80, g: 110, b: 150 } },
   })
@@ -81,12 +81,9 @@ async function uploadOnePhoto(page: Page): Promise<void> {
     .toBuffer();
   const input = page.getByLabel("Tomar foto", { exact: true });
   await expect(input).toBeEnabled();
-  // Al elegirla se sube sola.
+  // Queda lista en la página: se sube con el mismo "Guardar" que envía la firma.
   await input.setInputFiles([{ name: "recepcion-1.jpg", mimeType: "image/jpeg", buffer }]);
-  await expect(page.getByRole("img", { name: "Foto de recepción 1", exact: true })).toHaveAttribute(
-    "src",
-    /^\/taller\/media\//,
-  );
+  await expect(page.getByText("1 foto lista para guardar", { exact: true })).toBeVisible();
 }
 
 function signatureInput(page: Page): Locator {
@@ -100,7 +97,7 @@ test("La firma sobrevive a girar la tablet y la recepción se finaliza", async (
   await expect(page.getByRole("status").filter({ hasText: /^Fecha confirmada:/ })).toBeVisible();
   await page.getByRole("link", { name: "Continuar a fotos y firma", exact: true }).tap();
   await expect(page).toHaveURL(/\/cierre$/);
-  await uploadOnePhoto(page);
+  await chooseOnePhoto(page);
   await page.getByLabel("Nombre de quien firma", { exact: true }).fill("Rotación Firma");
   await drawSignature(page);
   const portraitValue = await signatureInput(page).inputValue();
@@ -118,7 +115,7 @@ test("La firma sobrevive a girar la tablet y la recepción se finaliza", async (
   await expect.poll(() => canvasWidth(page)).toBe(portraitWidth);
   await expect(signatureInput(page)).toHaveValue(/^data:image\/png;base64,/);
 
-  await page.getByRole("button", { name: "Finalizar recepción", exact: true }).tap();
+  await page.getByRole("button", { name: "Guardar", exact: true }).tap();
   await expect(page).toHaveURL(/\/recepcion\?hecho=recibida$/);
   await expect(page.getByText("Recibida", { exact: true })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);

@@ -52,7 +52,7 @@ async function prepareReception(page: Page) {
   await expect(page).toHaveURL(/\/taller\/ordenes\/[0-9a-f-]{36}\/cierre$/);
 }
 
-async function uploadReceptionPhotos(page: Page) {
+async function chooseReceptionPhotos(page: Page) {
   const photos = [];
   for (let index = 0; index < 4; index++) {
     photos.push({
@@ -72,8 +72,13 @@ async function uploadReceptionPhotos(page: Page) {
   }
   const input = page.getByLabel("Tomar foto", { exact: true });
   await expect(input).toBeEnabled();
-  // Al elegirlas se suben solas: no hay un paso "Subir" que se pueda olvidar.
+  // En Fotos y firma las fotos esperan al único botón "Guardar": no hay un "Subir" aparte.
   await input.setInputFiles(photos);
+  await expect(page.getByText("4 fotos listas para guardar", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Subir \d+ fotos?$/ })).toHaveCount(0);
+}
+
+async function expectSavedPhotos(page: Page) {
   const thumbnails = page.getByRole("img", { name: /^Foto de recepción \d$/ });
   await expect(thumbnails).toHaveCount(4);
   for (let index = 0; index < 4; index++) {
@@ -108,23 +113,26 @@ test("El dueño completa la recepción de Pedro Reserva con cuatro fotos y firma
   await prepareReception(page);
   await expect(page.getByText("Checklist: Completo", { exact: true })).toBeVisible();
   await expect(page.getByText(/^Fecha de entrega: Confirmada:/)).toBeVisible();
-  await uploadReceptionPhotos(page);
+  await chooseReceptionPhotos(page);
   await page.getByLabel("Nombre de quien firma", { exact: true }).fill("Pedro Reserva");
   const incompleteResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname.endsWith("/cierre"),
   );
-  await page.getByRole("button", { name: "Finalizar recepción", exact: true }).tap();
+  // "Guardar" sube primero las fotos y después envía firma y nombre.
+  await page.getByRole("button", { name: "Guardar", exact: true }).tap();
   expect((await incompleteResponse).status()).toBe(422);
   await expect(page.getByRole("alert")).toHaveText("Falta la firma del cliente");
+  // Las fotos quedaron guardadas aunque faltara la firma: no hay que sacarlas de nuevo.
+  await expectSavedPhotos(page);
   await expect(page.getByText("Reservada", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/\/cierre$/);
   await drawSignature(page);
   await page.getByRole("button", { name: "Borrar", exact: true }).tap();
   await expect(page.getByLabel("Firma registrada", { exact: true })).toHaveValue("");
   await drawSignature(page);
-  await page.getByRole("button", { name: "Finalizar recepción", exact: true }).tap();
+  await page.getByRole("button", { name: "Guardar", exact: true }).tap();
   await expect(page).toHaveURL(/\/recepcion\?hecho=recibida$/);
   await expect(page.getByText("Recibida", { exact: true })).toBeVisible();
   await expect(
