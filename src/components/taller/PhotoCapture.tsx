@@ -7,6 +7,7 @@ import {
 } from "../../lib/photo-queue.ts";
 import type { QueuedPhoto, UploadOutcome } from "../../lib/photo-queue.ts";
 import CameraCapture from "./CameraCapture.tsx";
+import PhotoPicker from "./PhotoPicker.tsx";
 import { queueLabel, useSaveWithForm } from "./save-with-form.ts";
 
 interface Props {
@@ -220,35 +221,6 @@ function queueFiles(files: File[], photos: PhotoQueue, upload: PhotoUpload): boo
   return result.queue.length > before;
 }
 
-interface PickerProps {
-  label: string;
-  camera?: boolean;
-  disabled: boolean;
-  onChange: (event: Event) => void;
-}
-
-function PhotoPicker({ label, camera, disabled, onChange }: PickerProps) {
-  return (
-    <label
-      class="btn ghost"
-      style={{ ...touchStyle, position: "relative" }}
-      aria-disabled={disabled}
-    >
-      {label}
-      <input
-        type="file"
-        aria-label={label}
-        accept="image/*"
-        capture={camera ? "environment" : undefined}
-        multiple
-        disabled={disabled}
-        onChange={onChange}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0 }}
-      />
-    </label>
-  );
-}
-
 interface QueueViewProps {
   photos: PhotoQueue;
   upload: PhotoUpload;
@@ -259,12 +231,13 @@ interface ThumbnailProps extends QueueViewProps {
   index: number;
 }
 
+/** "Foto 1", "Foto 2"…: el nombre del archivo (`foto-<uuid>.jpg`) no le dice nada a quien recibe. */
 function PhotoPreview({ photo, index, photos }: Omit<ThumbnailProps, "upload">) {
   return (
     <>
       <img
         src={photos.previews.get(photo.id)}
-        alt={`Foto ${index + 1}: ${photo.file.name}`}
+        alt={`Foto ${index + 1}`}
         width={120}
         height={120}
         style={{
@@ -274,9 +247,7 @@ function PhotoPreview({ photo, index, photos }: Omit<ThumbnailProps, "upload">) 
           border: "1px solid var(--rule)",
         }}
       />
-      <span style={{ overflowWrap: "anywhere" }}>
-        {index + 1}. {photo.file.name}
-      </span>
+      <span>Foto {index + 1}</span>
     </>
   );
 }
@@ -288,9 +259,9 @@ function PhotoThumbnail({ photo, index, photos, upload }: ThumbnailProps) {
       {photo.error && <p>Error: {photo.error}</p>}
       <button
         type="button"
-        class="btn tap"
+        class="btn ghost"
         style={touchStyle}
-        aria-label={`Quitar foto ${index + 1}: ${photo.file.name}`}
+        aria-label={`Quitar foto ${index + 1}`}
         disabled={upload.uploading}
         onClick={() => {
           if (upload.busy.current) return;
@@ -349,8 +320,13 @@ function PhotoControls({
         queued={photos.queue.length}
         max={MAX_QUEUED_PHOTOS}
         disabled={disabled}
+        // En Fotos y firma hay dos botones: la cámara y la galería (que en el iPhone también saca).
+        openLabel={auto ? undefined : "Sacar fotos"}
+        fallbackHint={auto ? undefined : "Usa Elegir de la galería."}
       />
-      <PhotoPicker label={label ?? "Tomar foto"} camera disabled={disabled} onChange={onChange} />
+      {auto && (
+        <PhotoPicker label={label ?? "Tomar foto"} camera disabled={disabled} onChange={onChange} />
+      )}
       <PhotoPicker label="Elegir de la galería" disabled={disabled} onChange={onChange} />
     </>
   );

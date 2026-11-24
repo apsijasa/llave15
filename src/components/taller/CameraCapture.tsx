@@ -8,7 +8,13 @@ interface Props {
   queued: number;
   max: number;
   disabled?: boolean;
+  /** Texto del botón que abre la cámara. */
+  openLabel?: string;
+  /** Qué usar si la cámara en vivo no abre: depende de qué otros botones muestra la página. */
+  fallbackHint?: string;
 }
+
+const DEFAULT_HINT = "Puedes usar Tomar foto o Elegir de la galería.";
 
 const touchStyle = { minHeight: "48px", minWidth: "48px" };
 const layerStyle: JSX.CSSProperties = {
@@ -37,17 +43,17 @@ function stopStream(stream: MediaStream | null) {
   });
 }
 
-function cameraError(error: unknown): string {
+function cameraError(error: unknown, hint: string): string {
   if (error instanceof Error && error.name === "NotAllowedError") {
-    return "No se autorizó la cámara. Puedes usar Tomar foto o Elegir de la galería.";
+    return `No se autorizó la cámara. ${hint}`;
   }
   if (error instanceof Error && error.name === "NotFoundError") {
-    return "No se encontró una cámara. Puedes usar Tomar foto o Elegir de la galería.";
+    return `No se encontró una cámara. ${hint}`;
   }
-  return "No se pudo abrir la cámara. Puedes usar Tomar foto o Elegir de la galería.";
+  return `No se pudo abrir la cámara. ${hint}`;
 }
 
-function useCamera() {
+function useCamera(hint: string) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [opening, setOpening] = useState(false);
   const [message, setMessage] = useState("");
@@ -70,13 +76,11 @@ function useCamera() {
     setOpening(false);
     setStream(null);
   }
-  const state = { stream, current, opening, message, setMessage, close };
+  const state = { stream, current, opening, message, setMessage, close, hint };
   async function open() {
     if (pending.current || current.current) return;
     if (!navigator.mediaDevices?.getUserMedia) {
-      setMessage(
-        "Este navegador no permite abrir la cámara en vivo. Usa Tomar foto o Elegir de la galería.",
-      );
+      setMessage(`Este navegador no permite abrir la cámara en vivo. ${hint}`);
       return;
     }
     pending.current = true;
@@ -95,7 +99,11 @@ async function requestCamera(
   id: number,
   request: Current<number>,
   pending: Current<boolean>,
-  camera: { current: Current<MediaStream | null>; setMessage: (message: string) => void },
+  camera: {
+    current: Current<MediaStream | null>;
+    setMessage: (message: string) => void;
+    hint: string;
+  },
   setStream: (stream: MediaStream) => void,
   setOpening: (opening: boolean) => void,
 ) {
@@ -112,7 +120,7 @@ async function requestCamera(
     camera.current.current = stream;
     setStream(stream);
   } catch (error) {
-    if (request.current === id) camera.setMessage(cameraError(error));
+    if (request.current === id) camera.setMessage(cameraError(error, camera.hint));
   } finally {
     if (request.current === id) {
       pending.current = false;
@@ -132,7 +140,7 @@ function useCameraVideo(camera: Camera) {
     void element.play().catch(() => {
       if (camera.current.current !== stream) return;
       camera.close();
-      camera.setMessage("No se pudo mostrar la cámara. Usa Tomar foto o Elegir de la galería.");
+      camera.setMessage(`No se pudo mostrar la cámara. ${camera.hint}`);
     });
     return () => {
       element.srcObject = null;
@@ -276,7 +284,7 @@ function CameraLayer(props: LayerProps) {
 }
 
 export default function CameraCapture(props: Props) {
-  const camera = useCamera();
+  const camera = useCamera(props.fallbackHint ?? DEFAULT_HINT);
   const finish = () => {
     camera.close();
     props.onDone?.();
@@ -291,7 +299,7 @@ export default function CameraCapture(props: Props) {
         disabled={props.disabled || camera.opening || props.queued >= props.max}
         onClick={camera.open}
       >
-        {camera.opening ? "Abriendo cámara…" : "Abrir cámara"}
+        {camera.opening ? "Abriendo cámara…" : (props.openLabel ?? "Abrir cámara")}
       </button>
       {!camera.stream && <p role="status">{camera.message}</p>}
       {camera.stream && <CameraLayer {...props} camera={camera} finish={finish} />}

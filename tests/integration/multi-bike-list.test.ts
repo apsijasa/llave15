@@ -177,3 +177,17 @@ it("una reserva de una bici se ve como siempre", async () => {
   expect(html).toContain("Recibir");
   expect(html).not.toContain("Recibir (");
 });
+
+it("«Recibir» va en la primera columna y es el botón principal de la fila", async () => {
+  const booking = await reserva(1);
+
+  const html = await render();
+
+  const headers = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((m) => m[1]);
+  expect(headers[0]).toBe("Recepción");
+  expect(html).toMatch(
+    new RegExp(
+      `<a class="btn" href="/taller/recepcion/nueva\\?reserva=${booking.id}"[^>]*>\\s*Recibir`,
+    ),
+  );
+});

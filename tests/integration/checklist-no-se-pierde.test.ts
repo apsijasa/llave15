@@ -207,3 +207,12 @@ it("una fecha estimada ya pasada no bloquea el resto del formulario", async () =
   expect(guardado.status).toBe(303);
   expect(await guardados()).toEqual(["frenos"]);
 });
+
+it("Fotos y firma ofrece dos formas de sacar fotos: la cámara y la galería", async () => {
+  const html = await renderCierre();
+
+  expect(html).toContain("Sacar fotos");
+  expect(html).toContain("Elegir de la galería");
+  expect(html).not.toContain("Tomar foto");
+  expect(html).not.toContain("Abrir cámara");
+});

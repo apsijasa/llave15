@@ -18,8 +18,6 @@ async function completeChecklist(page: Page) {
       .getByRole("radio", { name: "OK", exact: true })
       .tap();
   }
-  await page.getByRole("button", { name: "Guardar checklist", exact: true }).tap();
-  await expect(page.getByRole("status").filter({ hasText: /^Checklist completo$/ })).toBeVisible();
 }
 
 async function prepareReception(page: Page) {
@@ -43,13 +41,18 @@ async function prepareReception(page: Page) {
   await page
     .getByLabel("Servicio del catálogo", { exact: true })
     .selectOption(SEED.serviceFrenosId);
-  await page.getByRole("button", { name: "Agregar servicio", exact: true }).tap();
-  await expect(page.getByRole("status").filter({ hasText: /^Servicio agregado\.$/ })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "Ajuste de frenos", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Confirmar fecha", exact: true }).tap();
-  await expect(page.getByRole("status").filter({ hasText: /^Fecha confirmada:/ })).toBeVisible();
-  await page.getByRole("link", { name: "Continuar a fotos y firma", exact: true }).tap();
+  await page.getByLabel("Accesorio", { exact: true }).fill("Luz trasera");
+  // Un solo botón guarda checklist, servicio, accesorio y fecha, y lleva a Fotos y firma.
+  await expect(page.getByRole("button", { name: "Guardar checklist" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Confirmar fecha" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Continuar a fotos y firma", exact: true }).tap();
   await expect(page).toHaveURL(/\/taller\/ordenes\/[0-9a-f-]{36}\/cierre$/);
+}
+
+async function expectSavedReception(page: Page) {
+  await page.getByRole("link", { name: "Recepción", exact: true }).tap();
+  await expect(page.getByRole("cell", { name: "Ajuste de frenos", exact: true })).toBeVisible();
+  await expect(page.getByText("Luz trasera", { exact: true })).toBeVisible();
 }
 
 async function chooseReceptionPhotos(page: Page) {
@@ -70,7 +73,10 @@ async function chooseReceptionPhotos(page: Page) {
         .toBuffer(),
     });
   }
-  const input = page.getByLabel("Tomar foto", { exact: true });
+  // Fotos y firma ofrece dos botones: la cámara en la página y la galería.
+  await expect(page.getByRole("button", { name: "Sacar fotos", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Tomar foto", { exact: true })).toHaveCount(0);
+  const input = page.getByLabel("Elegir de la galería", { exact: true });
   await expect(input).toBeEnabled();
   // En Fotos y firma las fotos esperan al único botón "Guardar": no hay un "Subir" aparte.
   await input.setInputFiles(photos);
@@ -138,4 +144,5 @@ test("El dueño completa la recepción de Pedro Reserva con cuatro fotos y firma
   await expect(
     page.getByRole("status").filter({ hasText: /^Recepción finalizada$/ }),
   ).toBeVisible();
+  await expectSavedReception(page);
 });

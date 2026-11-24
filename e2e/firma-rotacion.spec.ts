@@ -69,8 +69,6 @@ async function completeChecklist(page: Page): Promise<void> {
       .getByRole("radio", { name: "OK", exact: true })
       .tap();
   }
-  await page.getByRole("button", { name: "Guardar checklist", exact: true }).tap();
-  await expect(page.getByRole("status").filter({ hasText: /^Checklist completo$/ })).toBeVisible();
 }
 
 async function chooseOnePhoto(page: Page): Promise<void> {
@@ -79,7 +77,7 @@ async function chooseOnePhoto(page: Page): Promise<void> {
   })
     .jpeg()
     .toBuffer();
-  const input = page.getByLabel("Tomar foto", { exact: true });
+  const input = page.getByLabel("Elegir de la galería", { exact: true });
   await expect(input).toBeEnabled();
   // Queda lista en la página: se sube con el mismo "Guardar" que envía la firma.
   await input.setInputFiles([{ name: "recepcion-1.jpg", mimeType: "image/jpeg", buffer }]);
@@ -93,9 +91,7 @@ function signatureInput(page: Page): Locator {
 test("La firma sobrevive a girar la tablet y la recepción se finaliza", async ({ page }) => {
   await createOrder(page, "Rotación Firma", "9 4444 1111");
   await completeChecklist(page);
-  await page.getByRole("button", { name: "Confirmar fecha", exact: true }).tap();
-  await expect(page.getByRole("status").filter({ hasText: /^Fecha confirmada:/ })).toBeVisible();
-  await page.getByRole("link", { name: "Continuar a fotos y firma", exact: true }).tap();
+  await page.getByRole("button", { name: "Continuar a fotos y firma", exact: true }).tap();
   await expect(page).toHaveURL(/\/cierre$/);
   await chooseOnePhoto(page);
   await page.getByLabel("Nombre de quien firma", { exact: true }).fill("Rotación Firma");

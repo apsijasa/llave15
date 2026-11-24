@@ -36,6 +36,11 @@ import { formatOrderNumber, getOrderHeader } from "../../../../server/taller/ord
 import { nextBookingReception } from "../../../../server/taller/booking-reception.ts";
 import { receptionSignature } from "../../../../server/taller/reception.ts";
 import {
+  continueFormSchema,
+  continueReception,
+  receptionErrorMessage,
+} from "../../../../server/taller/reception-continue.ts";
+import {
   BIKE_TYPE_LABELS,
   INTAKE_CHECK_KEYS,
   INTAKE_CHECK_LABELS,
@@ -88,6 +93,7 @@ const actionSchema = z.discriminatedUnion("accion", [
     quantity: catalogItemSchema.shape.quantity,
   }),
   z.object({ accion: z.literal("fecha"), date: deliveryDateSchema }),
+  continueFormSchema,
 ]);
 let submitted: Record<string, string> = {};
 const fieldErrors: Record<string, string> = {};
@@ -131,35 +137,45 @@ if (Astro.request.method === "POST") {
   } else {
     const input = parsed.data;
     const checklistResult =
-      checklist?.success && (Object.keys(checks).length > 0 || input.accion === "checklist")
+      input.accion !== "continuar" &&
+      checklist?.success &&
+      (Object.keys(checks).length > 0 || input.accion === "checklist")
         ? await saveChecklist(db, user, order.id, checklist.data, now)
         : ({ ok: true } as const);
+    // "Continuar a fotos y firma" guarda todo lo de la página y recién entonces avanza.
     const result =
-      !checklistResult.ok || input.accion === "checklist"
-        ? checklistResult
-        : input.accion === "accesorio"
-          ? await addAccessory(db, user, order.id, input, now)
-          : input.accion === "servicio"
-            ? await addCatalogItem(
-                db,
-                user,
-                order.id,
-                {
-                  serviceId: input.serviceId,
-                  quantity: input.quantity,
-                },
-                now,
-              )
-            : input.accion === "fecha"
-              ? await changeDeliveryDate(db, user, order.id, input.date, now)
-              : accessories.some((row) => row.id === input.accessoryId)
-                ? await voidAccessory(db, user, input.accessoryId, now)
-                : ({ ok: false, code: "not_found" } as const);
+      input.accion === "continuar"
+        ? await continueReception(db, user, order.id, { ...input, checklist: checklist?.data }, now)
+        : !checklistResult.ok || input.accion === "checklist"
+          ? checklistResult
+          : input.accion === "accesorio"
+            ? await addAccessory(db, user, order.id, input, now)
+            : input.accion === "servicio"
+              ? await addCatalogItem(
+                  db,
+                  user,
+                  order.id,
+                  {
+                    serviceId: input.serviceId,
+                    quantity: input.quantity,
+                  },
+                  now,
+                )
+              : input.accion === "fecha"
+                ? await changeDeliveryDate(db, user, order.id, input.date, now)
+                : accessories.some((row) => row.id === input.accessoryId)
+                  ? await voidAccessory(db, user, input.accessoryId, now)
+                  : ({ ok: false, code: "not_found" } as const);
     if (result.ok)
       return new Response(null, {
         status: 303,
         headers: {
-          location: `${Astro.url.pathname}?hecho=${input.accion}${"notified" in result && result.notified ? "&avisado=1" : ""}`,
+          location:
+            "complete" in result
+              ? result.complete
+                ? `/taller/ordenes/${order.id}/cierre`
+                : `${Astro.url.pathname}?hecho=continuar#checklist`
+              : `${Astro.url.pathname}?hecho=${input.accion}${"notified" in result && result.notified ? "&avisado=1" : ""}`,
           "cache-control": "no-store",
         },
       });
@@ -170,18 +186,7 @@ if (Astro.request.method === "POST") {
         : ["invalid_state", "invalid_status"].includes(result.code)
           ? 409
           : 422;
-    error =
-      result.code === "invalid_status"
-        ? "La orden ya está cerrada."
-        : result.code === "invalid_state"
-          ? "El checklist solo se puede guardar en una orden reservada o recibida."
-          : result.code === "not_found"
-            ? "No se encontró la orden o el accesorio."
-            : result.code === "no_price"
-              ? "El servicio no tiene precio para este tipo de bicicleta."
-              : result.code === "invalid_date"
-                ? "La fecha de entrega debe ser hoy o posterior."
-                : "Revisa los datos de la recepción.";
+    error = receptionErrorMessage(result.code);
   }
 }
 const checks = await listIntakeChecks(db, user, order.id);
@@ -211,6 +216,7 @@ const values: Record<string, string> = {
   ),
   ...submitted,
 };
+const reserved = order.status === "reservada";
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 const receptionFinished = Astro.url.searchParams.get("hecho") === "recibida";
 const [signature, nextReception] = receptionFinished
@@ -257,9 +263,12 @@ const [signature, nextReception] = receptionFinished
     {Astro.url.searchParams.get("hecho") === "accesorio" && <p role="status">Accesorio agregado.</p>}
     {Astro.url.searchParams.get("hecho") === "quitar" && <p role="status">Accesorio quitado.</p>}
     {Astro.url.searchParams.get("hecho") === "servicio" && <p role="status">Servicio agregado.</p>}
+    {Astro.url.searchParams.get("hecho") === "continuar" && <p role="status">Guardamos la recepción.{missing > 0 && ` Para seguir a fotos y firma, marca: ${missingLabels}.`}</p>}
     <form id="checklist" class="stack" method="post" action={Astro.url.pathname}>
+    {/* Enter en un campo envía el primer botón del formulario: que sea "Continuar", nunca un "Quitar". */}
+    {reserved && <button type="submit" name="accion" value="continuar" hidden tabindex="-1">Continuar</button>}
     <Card id="checklist-heading" title="Checklist">
-      <p role="status">{missing === 0 ? "Checklist completo" : `Faltan ${missing} puntos`}</p>
+      <p role="status">{missing === 0 ? "Checklist completo" : missing === 1 ? "Falta 1 punto" : `Faltan ${missing} puntos`}</p>
         <div class="fields">
           {INTAKE_CHECK_KEYS.map((key) => (
             <fieldset aria-labelledby={`${key}-legend`}>
@@ -288,7 +297,7 @@ const [signature, nextReception] = receptionFinished
             {fieldErrors.observaciones && <p id="observations-error">{fieldErrors.observaciones}</p>}
           </div>
         </div>
-        <button type="submit" name="accion" value="checklist" class="btn">Guardar checklist</button>
+        {!reserved && <button type="submit" name="accion" value="checklist" class="btn">Guardar checklist</button>}
     </Card>
     <Card id="accessories-heading" title="Accesorios">
       {accessories.length === 0 ? <p class="muted">No hay accesorios registrados.</p> : (
@@ -306,7 +315,7 @@ const [signature, nextReception] = receptionFinished
           <input id="accessory" name="description" type="text" maxlength="200" value={submitted.description ?? ""} aria-invalid={Boolean(fieldErrors.description)} aria-describedby={fieldErrors.description ? "accessory-error" : undefined} />
           {fieldErrors.description && <p id="accessory-error">{fieldErrors.description}</p>}
         </div>
-        <button type="submit" name="accion" value="accesorio" class="btn">Agregar accesorio</button>
+        <button type="submit" name="accion" value="accesorio" class={reserved ? "btn ghost" : "btn"}>Agregar accesorio</button>
     </Card>
     <Card id="services-heading" title="Servicios">
         <div class="field">
@@ -321,7 +330,7 @@ const [signature, nextReception] = receptionFinished
           </select>
           {fieldErrors.serviceId && <p id="service-error">{fieldErrors.serviceId}</p>}
         </div>
-        <button type="submit" name="accion" value="servicio" class="btn">Agregar servicio</button>
+        <button type="submit" name="accion" value="servicio" class={reserved ? "btn ghost" : "btn"}>Agregar servicio</button>
       {items.length === 0 ? <p class="muted">No hay servicios registrados.</p> : (
         <div class="scroll-x"><table class="dense">
           <thead><tr><th scope="col">Servicio</th><th scope="col">Cantidad</th><th scope="col">Precio unitario</th><th scope="col">Subtotal</th></tr></thead>
@@ -345,7 +354,7 @@ const [signature, nextReception] = receptionFinished
           <input id="delivery-date" name="date" type="date" value={submitted.date ?? order.estimatedDeliveryDate ?? suggestedDate} aria-invalid={Boolean(fieldErrors.date)} aria-describedby={fieldErrors.date ? "delivery-date-error" : undefined} />
           {fieldErrors.date && <p id="delivery-date-error">{fieldErrors.date}</p>}
         </div>
-        <button type="submit" name="accion" value="fecha" class="btn">Confirmar fecha</button>
+        {!reserved && <button type="submit" name="accion" value="fecha" class="btn">Confirmar fecha</button>}
     </Card>
     </form>
     <section id="reception-sections" aria-label="Recepción" class="card stack">
@@ -354,8 +363,8 @@ const [signature, nextReception] = receptionFinished
       <p>Checklist: {missing === 0 ? "Completo" : `${INTAKE_CHECK_KEYS.length - missing} de ${INTAKE_CHECK_KEYS.length}`}</p>
       <p>Fecha de entrega: {order.deliveryDateConfirmedAt ? "Confirmada" : "Sin confirmar"}</p>
       <p>Servicios: {items.length} {items.length === 1 ? "agregado" : "agregados"}</p>
-      {missing > 0 && <p>Marca los 7 puntos y pulsa «Guardar checklist» antes de continuar.</p>}
-      <a class="btn" href={`/taller/ordenes/${order.id}/cierre`}>Continuar a fotos y firma</a>
+      {missing > 0 && <p>{reserved ? "Marca los 7 puntos antes de continuar." : "Marca los 7 puntos y pulsa «Guardar checklist» antes de continuar."}</p>}
+      {reserved ? <button type="submit" form="checklist" name="accion" value="continuar" class="btn">Continuar a fotos y firma</button> : <a class="btn" href={`/taller/ordenes/${order.id}/cierre`}>Continuar a fotos y firma</a>}
     </section>
   </div>
 </TallerLayout>

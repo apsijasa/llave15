@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { login } from "./fixtures.ts";
 
-test("El mecánico inicia una recepción y completa los siete puntos del checklist", async ({
+test("El mecánico inicia una recepción, ve qué falta del checklist y continúa a fotos y firma", async ({
   page,
 }) => {
   await login(page, "mechanic");
@@ -21,14 +21,28 @@ test("El mecánico inicia una recepción y completa los siete puntos del checkli
     "Ruedas",
     "Neumáticos",
     "Estado general",
-    "Problemas visibles",
   ]) {
     await page
       .getByRole("group", { name: label, exact: true })
       .getByRole("radio", { name: "OK", exact: true })
       .tap();
   }
-  await page.getByRole("button", { name: "Guardar checklist", exact: true }).tap();
-  await expect(page).toHaveURL(/\/recepcion\?hecho=checklist$/);
-  await expect(page.getByRole("status").filter({ hasText: /^Checklist completo$/ })).toBeVisible();
+  const continuar = page.getByRole("button", { name: "Continuar a fotos y firma", exact: true });
+  // Con un punto sin marcar, guarda lo marcado y se queda diciendo qué falta.
+  await continuar.tap();
+  await expect(page).toHaveURL(/\/recepcion\?hecho=continuar#checklist$/);
+  await expect(
+    page.getByRole("status").filter({
+      hasText: "Guardamos la recepción. Para seguir a fotos y firma, marca: Problemas visibles.",
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Falta 1 punto$/ })).toBeVisible();
+  await page
+    .getByRole("group", { name: "Problemas visibles", exact: true })
+    .getByRole("radio", { name: "OK", exact: true })
+    .tap();
+  await continuar.tap();
+  await expect(page).toHaveURL(/\/cierre$/);
+  await expect(page.getByText("Checklist: Completo", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Fecha de entrega: Confirmada:/)).toBeVisible();
 });

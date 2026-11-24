@@ -172,7 +172,7 @@ const receptionDate = receivedAt
       <div class="grid-photos">
         {photos.map((photo, index) => <img src={photo.thumbUrl} alt={`Foto de recepción ${index + 1}`} />)}
       </div>
-      {order.status === "reservada" && <p>Saca las fotos, pide la firma y aprieta Guardar: las fotos y la firma se guardan juntas.</p>}
+      {order.status === "reservada" && <ol><li>Saca las fotos de la bici con «Sacar fotos».</li><li>El cliente firma y escribe su nombre.</li><li>Aprieta «Guardar»: las fotos y la firma se guardan juntas.</li></ol>}
       <PhotoCapture client:load uploadUrl={`/taller/ordenes/${order.id}/fotos`} stage="recepcion" saveWith={order.status === "reservada" ? "reception-close" : undefined} />
     </Card>
     {order.status === "reservada" ? <Card title="Firma del cliente"><form id="reception-close" method="post" action={Astro.url.pathname}>

@@ -58,21 +58,17 @@ const sourceLabels: Record<string, string> = {
     <Card><div class="scroll-x">
       <table class="dense">
         <caption>Reservas próximas · 14 días</caption>
-        <thead><tr><th scope="col">Día</th><th scope="col">Hora</th><th scope="col">Nombre</th><th scope="col">Teléfono</th><th scope="col">Bicicleta</th><th scope="col">Origen</th><th scope="col">Recepción</th></tr></thead>
+        <thead><tr><th scope="col">Recepción</th><th scope="col">Día</th><th scope="col">Hora</th><th scope="col">Nombre</th><th scope="col">Teléfono</th><th scope="col">Bicicleta</th><th scope="col">Origen</th></tr></thead>
         <tbody>
           {upcoming.map((booking) => (
             <tr>
-              <td>{DateTime.fromISO(booking.serviceDate).toFormat("dd/MM/yyyy")}</td>
-              <td>{DateTime.fromJSDate(booking.startsAt).setZone(TIMEZONE).toFormat("HH:mm")}</td>
-              <th scope="row">{booking.customerName}</th>
-              <td>{booking.phoneE164}</td><td>{booking.bike}{booking.bikeCount > 1 && <span class="label"> · {booking.bikeCount} bicis</span>}</td><td>{sourceLabels[booking.source]}</td>
               <td>
                 <div class="booking-actions">
                   {booking.orders.map((order) => (
                     <a class="btn ghost" href={`/taller/ordenes/${order.id}/recepcion`}>{formatOrderNumber(order.number)}</a>
                   ))}
                   {booking.orders.length < booking.bikeCount && (
-                    <a class="btn ghost" href={`/taller/recepcion/nueva?reserva=${booking.id}`}>
+                    <a class="btn" href={`/taller/recepcion/nueva?reserva=${booking.id}`}>
                       {booking.bikeCount === 1
                         ? "Recibir"
                         : `Recibir (${booking.orders.length + 1} de ${booking.bikeCount})`}
@@ -83,6 +79,10 @@ const sourceLabels: Record<string, string> = {
                   )}
                 </div>
               </td>
+              <td>{DateTime.fromISO(booking.serviceDate).toFormat("dd/MM/yyyy")}</td>
+              <td>{DateTime.fromJSDate(booking.startsAt).setZone(TIMEZONE).toFormat("HH:mm")}</td>
+              <th scope="row">{booking.customerName}</th>
+              <td>{booking.phoneE164}</td><td>{booking.bike}{booking.bikeCount > 1 && <span class="label"> · {booking.bikeCount} bicis</span>}</td><td>{sourceLabels[booking.source]}</td>
             </tr>
           ))}
           {upcoming.length === 0 && <tr><td colspan="7" class="muted">No hay reservas próximas.</td></tr>}
