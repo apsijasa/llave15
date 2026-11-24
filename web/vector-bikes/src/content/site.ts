@@ -61,7 +61,8 @@ export const BIKE_TYPES: readonly { key: BikeTypeKey; label: string }[] = [
   { key: "ebike", label: "E-bike" },
 ];
 
-// Copia del catálogo de /taller/catalogo (22-11-2026). Si cambia un precio allá, se cambia aquí.
+// Copia del catálogo de /taller/catalogo (22-11-2026), con nombres para el cliente (24-11-2026).
+// Si cambia un precio allá, se cambia aquí.
 export const SERVICE_PRICES: readonly ServicePrice[] = [
   { name: "Mantención básica de shock", prices: {} },
   { name: "Mantención full de shock", prices: {} },
@@ -72,14 +73,10 @@ export const SERVICE_PRICES: readonly ServicePrice[] = [
   },
   { name: "Servicio básico de horquilla", prices: { mtb: 35000 } },
   {
-    name: "Servicio básico medio",
+    name: "Servicio de mantención básico",
     prices: { mtb: 54900, ruta: 54900, gravel: 54900, urbana: 54900 },
   },
-  { name: "Servicio full", prices: { mtb: 77500, ruta: 77500, gravel: 77500 } },
-  {
-    name: "Servicio de mantención básica",
-    prices: { mtb: 33283, ruta: 33283, gravel: 33283, urbana: 33283 },
-  },
+  { name: "Servicio de mantención full", prices: { mtb: 77500, ruta: 77500, gravel: 77500 } },
 ];
 
 export type ShopBranch = {

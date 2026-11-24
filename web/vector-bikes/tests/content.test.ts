@@ -53,8 +53,8 @@ describe("portada de Vector Bikes", () => {
 });
 
 describe("servicios y precios", () => {
-  it("lista los ocho servicios del catálogo con precios enteros y positivos", () => {
-    expect(SERVICE_PRICES).toHaveLength(8);
+  it("lista los siete servicios con precios enteros y positivos", () => {
+    expect(SERVICE_PRICES).toHaveLength(7);
     const keys = new Set(BIKE_TYPES.map((type) => type.key));
     expect(keys).toEqual(new Set(["mtb", "ruta", "gravel", "urbana", "ebike"]));
     for (const service of SERVICE_PRICES) {
@@ -63,7 +63,11 @@ describe("servicios y precios", () => {
         expect(Number.isInteger(price) && price > 0, `${service.name} ${key}`).toBe(true);
       }
     }
-    expect(new Set(SERVICE_PRICES.map((service) => service.name)).size).toBe(8);
+    expect(new Set(SERVICE_PRICES.map((service) => service.name)).size).toBe(7);
+    const names = SERVICE_PRICES.map((service) => service.name);
+    expect(names).toContain("Servicio de mantención básico");
+    expect(names).toContain("Servicio de mantención full");
+    expect(names).not.toContain("Servicio de mantención básica");
   });
 
   it("muestra los montos en pesos chilenos y Consultar donde no hay precio", () => {
