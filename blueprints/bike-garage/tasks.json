@@ -27,7 +27,7 @@
       "scripts/bg-expect-parity.ts",
       "tests/unit/bg-expect-parity.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T2",
@@ -56,7 +56,7 @@
       "src/server/booking/slots.ts",
       "tests/unit/time.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T3",
@@ -89,7 +89,7 @@
       "scripts/db-check.ts",
       "tests/integration/shops-schema.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T4",
@@ -135,7 +135,7 @@
       "tests/integration/reports.test.ts",
       "tests/integration/history.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T5",
@@ -169,7 +169,7 @@
       "tests/integration/bg-backfill.test.ts",
       "docs/ventanas/bg-v1.md"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T6",
@@ -198,7 +198,7 @@
       "src/server/booking/rules.ts",
       "tests/integration/shop-config.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T7",
@@ -227,7 +227,7 @@
       "tests/helpers/two-shops.ts",
       "tests/integration/booking-isolation.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T8",
@@ -258,7 +258,7 @@
       "tests/integration/api-shop-config.test.ts",
       "docs/ventanas/bg-v2.md"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T9",
@@ -303,7 +303,7 @@
       "tests/integration/dashboard.test.ts",
       "tests/integration/work-orders.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T10",
@@ -334,7 +334,7 @@
       "src/server/taller/customers.ts",
       "tests/integration/customers.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T11",
@@ -365,7 +365,7 @@
       "tests/integration/shops-checks.test.ts",
       "docs/ventanas/bg-v3.md"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T12",
@@ -393,7 +393,7 @@
       "src/pages/taller/reservas/index.astro",
       "tests/integration/manual-booking-isolation.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T13",
@@ -421,7 +421,7 @@
       "src/pages/admin/reservas/[id].astro",
       "tests/integration/admin-agenda-isolation.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T14",
@@ -449,7 +449,7 @@
       "src/pages/admin/bloqueos.astro",
       "tests/integration/admin-month-isolation.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T15",
@@ -480,7 +480,7 @@
       "src/server/taller/orders.ts",
       "tests/integration/taller-bookings-isolation.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E1-T16",
@@ -507,7 +507,7 @@
       "src/server/whatsapp/order-notices.ts",
       "tests/integration/reminders-isolation.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T1",
@@ -537,7 +537,7 @@
       "src/pages/[slug]/logo.ts",
       "tests/integration/shop-profile.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T2",
@@ -572,7 +572,7 @@
       "tests/unit/email-brand.test.ts",
       "tests/integration/email.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T3",
@@ -608,7 +608,7 @@
       "tests/unit/pricing-emails.test.ts",
       "tests/unit/email-brand.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T4",
@@ -639,7 +639,7 @@
       "tests/unit/pricing-emails.test.ts",
       "tests/unit/email-brand.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T5",
@@ -669,7 +669,7 @@
       "tests/unit/delivery-date-email.test.ts",
       "tests/unit/maintenance-email.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T6",
@@ -699,7 +699,7 @@
       "src/layouts/PublicLayout.astro",
       "tests/integration/layouts.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T7",
@@ -727,7 +727,7 @@
       "src/pages/reservas/cancelar.astro",
       "tests/integration/token-pages-isolation.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T8",
@@ -758,7 +758,7 @@
       "tests/integration/report-brand-isolation.test.ts",
       "tests/integration/report-view-brand.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T9",
@@ -788,7 +788,7 @@
       "tests/unit/island-shop.test.ts",
       "tests/unit/booking-state.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T10",
@@ -819,7 +819,7 @@
       "src/components/islands/BookingSchedule.tsx",
       "src/components/islands/BookingTicket.tsx"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T11",
@@ -912,7 +912,7 @@
       "tests/build/landing.test.ts",
       "tests/unit/vector-bikes-profile.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T12",
@@ -976,7 +976,7 @@
       "src/pages/taller/recepcion/nueva.astro",
       "src/pages/taller/ordenes/[id]/cierre.astro"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T13",
@@ -1007,7 +1007,7 @@
       "public/brand/llave15-firma-mono.svg",
       "tests/unit/llave15-brand.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T14",
@@ -1045,7 +1045,7 @@
       "package.json",
       "pnpm-lock.yaml"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T15",
@@ -1079,7 +1079,7 @@
       "src/pages/admin/login.astro",
       "tests/integration/llave15-components.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E2-T16",
@@ -1112,7 +1112,7 @@
       "src/server/email/templates.ts",
       "tests/integration/llave15-layouts.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E3-T1",
@@ -1138,7 +1138,7 @@
       "tests/unit/reserved-slugs.test.ts",
       "tests/integration/scope-by-slug.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E3-T2",
@@ -1168,7 +1168,7 @@
       "src/components/islands/turnstile.ts",
       "tests/integration/api-by-shop.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E3-T3",
@@ -1195,7 +1195,7 @@
       "src/pages/[slug]/privacidad.astro",
       "tests/integration/booking-page.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E3-T4",
@@ -1221,7 +1221,7 @@
       "src/pages/taller/index.astro",
       "tests/integration/booking-links.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E3-T5",
@@ -1247,7 +1247,7 @@
       "e2e/global-setup.ts",
       "e2e/fixtures.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T1",
@@ -1290,7 +1290,7 @@
       "src/server/taller/maintenance-plan.ts",
       "src/server/taller/delivery-notice.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T2",
@@ -1318,7 +1318,7 @@
       ".env.example",
       "tests/integration/tracking-secret.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T3",
@@ -1345,7 +1345,7 @@
       "src/server/whatsapp/cron.ts",
       "tests/integration/tasks-isolation.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T4",
@@ -1381,7 +1381,7 @@
       "web/vector-bikes/public/brand/apple-touch-icon.png",
       "web/vector-bikes/public/favicon.svg"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T5",
@@ -1412,7 +1412,7 @@
       "web/vector-bikes/tests/redirects.test.ts",
       "web/vector-bikes/public/robots.txt"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T6",
@@ -1446,7 +1446,7 @@
       "scripts/bg-check.ts",
       "tests/integration/bg-health.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E4-T7",
@@ -1467,7 +1467,7 @@
     ],
     "checkpoint": "bg-40",
     "files": ["docs/corte-bike-garage.md"],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E5-T1",
@@ -1496,7 +1496,7 @@
       "src/layouts/TallerLayout.astro",
       "tests/integration/platform-isolation.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E5-T2",
@@ -1524,7 +1524,7 @@
       "src/pages/plataforma/talleres/nuevo.astro",
       "tests/integration/create-shop.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E5-T3",
@@ -1552,7 +1552,7 @@
       "src/server/auth/admin-auth.ts",
       "tests/integration/suspend-shop.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E5-T4",
@@ -1582,7 +1582,7 @@
       "tests/integration/my-shop.test.ts",
       "tests/unit/permissions.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "E5-T5",
@@ -1614,6 +1614,6 @@
       "README.md",
       "tests/integration/platform-admin-script.test.ts"
     ],
-    "status": "pending"
+    "status": "done"
   }
 ]
