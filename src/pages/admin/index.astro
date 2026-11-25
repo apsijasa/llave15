@@ -17,6 +17,8 @@ import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/a
 import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
 import { getDb } from "../../server/db/client.ts";
 import { scopeForBranch } from "../../server/shops/scope.ts";
+import { listBookingOrders } from "../../server/taller/manual-booking.ts";
+import { formatOrderNumber } from "../../server/taller/orders.ts";
 
 export const prerender = false;
 
@@ -36,6 +38,17 @@ const [agenda, overview] = await Promise.all([
   monthOverview(getDb(), month, now, scope),
 ]);
 const warning = holidayWarning(now, scope.config.horizonDays);
+const orders = await listBookingOrders(
+  getDb(),
+  agenda.map((booking) => booking.id),
+  scope.branchId,
+);
+const canReceive = can(admin.role, "reception.perform");
+const receiveLabel = (bookingId: string, bikeCount: number) => {
+  const received = orders.get(bookingId)?.length ?? 0;
+  if (received >= bikeCount) return null;
+  return bikeCount === 1 ? "Recibir" : `Recibir (${received + 1} de ${bikeCount})`;
+};
 ---
 
 <TallerLayout title={`Agenda — ${PLATFORM.name}`} description="Agenda del taller." path="/admin" user={admin}>
@@ -88,7 +101,15 @@ const warning = holidayWarning(now, scope.config.horizonDays);
                     <td>{booking.comuna ? `${booking.comuna} / ${booking.address ?? ""}` : "—"}</td>
                     <td>{STATUS_LABELS[booking.status] ?? booking.status}</td>
                     <td>
-                      <a href={`/admin/reservas/${booking.id}`}>Detalle</a>
+                      <div class="booking-actions">
+                        {(orders.get(booking.id) ?? []).map((order) => (
+                          <a class="btn ghost" href={`/taller/ordenes/${order.id}/recepcion`}>{formatOrderNumber(order.number)}</a>
+                        ))}
+                        {canReceive && booking.status === "confirmed" && receiveLabel(booking.id, booking.bikeCount) && (
+                          <a class="btn" href={`/taller/recepcion/nueva?reserva=${booking.id}`}>{receiveLabel(booking.id, booking.bikeCount)}</a>
+                        )}
+                        <a class="btn ghost" href={`/admin/reservas/${booking.id}`}>Detalle</a>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -108,6 +129,15 @@ const warning = holidayWarning(now, scope.config.horizonDays);
   .taller .month-nav .btn {
     min-height: 48px;
     min-width: 48px;
+  }
+  .taller .agenda .booking-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .taller .agenda .booking-actions .btn {
+    min-height: 48px;
+    white-space: nowrap;
   }
   .taller .agenda th,
   .taller .agenda td {

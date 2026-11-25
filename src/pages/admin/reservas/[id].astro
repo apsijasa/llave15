@@ -15,6 +15,7 @@ import {
   timeRange,
 } from "../../../server/admin/agenda.ts";
 import { listBookingBikes } from "../../../server/booking/booking-bikes.ts";
+import { listBookingOrders } from "../../../server/taller/manual-booking.ts";
 import { isAllowedOrigin } from "../../../server/api/handlers.ts";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/auth/admin-auth.ts";
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
@@ -117,6 +118,9 @@ if (Astro.request.method === "POST") {
 
 const booking = await bookingDetail(getDb(), id, admin.branchId);
 const extraBikes = booking ? await listBookingBikes(getDb(), booking.id) : [];
+const orders = booking
+  ? ((await listBookingOrders(getDb(), [booking.id], admin.branchId)).get(booking.id) ?? [])
+  : [];
 if (!booking) {
   Astro.response.status = 404;
 }
@@ -333,7 +337,7 @@ const noticeStatusLabel: Record<string, string> = {
             <span class="label">Recargo</span>
             <strong>{formatClp(booking.pickupFeeClp)}</strong>
           </div>
-          <BookingActions id={booking.id} status={booking.status} canRetryReminder={canRetryReminder} canRetryReady={canRetryReady} />
+          <BookingActions id={booking.id} status={booking.status} bikeCount={booking.bikeCount} orders={orders} canReceive={can(admin.role, "reception.perform")} canRetryReminder={canRetryReminder} canRetryReady={canRetryReady} />
         </Card>
       ) : (
         <p>

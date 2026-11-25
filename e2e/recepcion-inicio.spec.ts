@@ -1,14 +1,17 @@
 import { expect, test } from "@playwright/test";
-import { login } from "./fixtures.ts";
+import { login, SEED } from "./fixtures.ts";
 
-test("El dueño inicia la recepción desde una reserva y el mecánico no accede a reservas", async ({
+test("El dueño inicia la recepción desde el detalle de la reserva en la agenda", async ({
   page,
   browser,
 }) => {
   await login(page, "owner");
-  await page.goto("/taller/reservas");
-  const bookingRow = page.getByRole("row", { name: /Carla Reserva/ });
-  await bookingRow.getByRole("link", { name: "Recibir", exact: true }).tap();
+  // El detalle de la agenda lleva directo a Nueva recepción; "Marcar lista para retirar" queda
+  // entre las acciones secundarias de la reserva.
+  await page.goto(`/admin/reservas/${SEED.bookingInicioId}`);
+  await expect(page.getByRole("button", { name: "Marcar lista para retirar" })).toBeHidden();
+  await page.getByRole("link", { name: "Recibir", exact: true }).tap();
+  await expect(page).toHaveURL(/\/taller\/recepcion\/nueva\?reserva=/);
   await expect(page.getByLabel("Nombre", { exact: true })).toHaveValue("Carla Reserva");
   await expect(page.getByLabel("Teléfono", { exact: true })).not.toHaveValue("");
   await expect(page.getByLabel("Correo", { exact: true })).not.toHaveValue("");
@@ -21,6 +24,7 @@ test("El dueño inicia la recepción desde una reserva y el mecánico no accede 
   const orderNumber = await orderHeading.innerText();
   const receptionUrl = page.url();
   await page.goto("/taller/reservas");
+  const bookingRow = page.getByRole("row", { name: /Carla Reserva/ });
   const orderLink = bookingRow.getByRole("link", { name: orderNumber, exact: true });
   await expect(orderLink).toHaveAttribute("href", new URL(receptionUrl).pathname);
   await expect(bookingRow.getByRole("link", { name: "Recibir", exact: true })).toHaveCount(0);

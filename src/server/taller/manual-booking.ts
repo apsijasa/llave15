@@ -258,6 +258,27 @@ export async function listUpcomingBookings(db: AppDb, today: string, days = 14, 
     )
     .orderBy(asc(bookings.serviceDate), asc(bookings.startsAt), asc(bookings.id));
   if (rows.length === 0) return [];
+  const orders = await listBookingOrders(
+    db,
+    rows.map((row) => row.id),
+    branchId,
+  );
+  return rows.map((row) => ({ ...row, orders: orders.get(row.id) ?? [] }));
+}
+
+export type BookingOrderLink = { id: string; number: number; position: number };
+
+/**
+ * Órdenes ya creadas desde cada reserva, por posición: con ellas la agenda sabe si queda una
+ * bici por recibir ("Recibir (2 de 3)") o si ya está todo en el taller.
+ */
+export async function listBookingOrders(
+  db: AppDb,
+  bookingIds: string[],
+  branchId?: string,
+): Promise<Map<string, BookingOrderLink[]>> {
+  const links = new Map<string, BookingOrderLink[]>();
+  if (bookingIds.length === 0) return links;
   const orders = await db
     .select({
       id: workOrders.id,
@@ -267,18 +288,17 @@ export async function listUpcomingBookings(db: AppDb, today: string, days = 14, 
     })
     .from(workOrders)
     .where(
-      inArray(
-        workOrders.bookingId,
-        rows.map((row) => row.id),
+      and(
+        inArray(workOrders.bookingId, bookingIds),
+        branchId === undefined ? undefined : eq(workOrders.branchId, branchId),
       ),
     )
     .orderBy(asc(workOrders.bookingPosition));
-  return rows.map((row) => ({
-    ...row,
-    orders: orders
-      .filter((order) => order.bookingId === row.id)
-      .map(({ id, number, position }) => ({ id, number, position })),
-  }));
+  for (const { id, number, bookingId, position } of orders) {
+    if (!bookingId) continue;
+    links.set(bookingId, [...(links.get(bookingId) ?? []), { id, number, position }]);
+  }
+  return links;
 }
 
 /**

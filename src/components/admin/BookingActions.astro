@@ -1,76 +1,113 @@
 ---
+import { formatOrderNumber } from "../../server/taller/orders.ts";
+
 interface Props {
   id: string;
   status: string;
+  bikeCount: number;
+  /** Órdenes ya creadas desde esta reserva, por posición. */
+  orders: Array<{ id: string; number: number; position: number }>;
+  /** El usuario puede recibir bicicletas (`reception.perform`). */
+  canReceive: boolean;
   canRetryReminder: boolean;
   canRetryReady: boolean;
 }
 
-const { id, status, canRetryReminder, canRetryReady } = Astro.props;
+const { id, status, bikeCount, orders, canReceive, canRetryReminder, canRetryReady } = Astro.props;
+const open = status === "confirmed" || status === "ready_for_pickup";
+const pending = canReceive && orders.length < bikeCount;
+const receiveLabel = bikeCount === 1 ? "Recibir" : `Recibir (${orders.length + 1} de ${bikeCount})`;
 ---
 
 {
-  status === "confirmed" && (
-    <div class="ticket-foot" style="display:grid;gap:10px">
-      <form method="post">
-        <input type="hidden" name="accion" value="lista_para_retirar" />
-        <button type="submit" class="btn">
-          Marcar lista para retirar
-        </button>
-      </form>
-      {canRetryReminder && (
-        <form method="post">
-          <input type="hidden" name="accion" value="reintentar_recordatorio_whatsapp" />
-          <button type="submit" class="btn ghost">
-            Reintentar recordatorio WhatsApp
-          </button>
-        </form>
+  open && (
+    <div class="ticket-foot booking-foot">
+      {orders.map((order) => (
+        <a class="btn ghost" href={`/taller/ordenes/${order.id}/recepcion`}>
+          Orden {formatOrderNumber(order.number)}
+        </a>
+      ))}
+      {pending && (
+        <a class="btn" href={`/taller/recepcion/nueva?reserva=${id}`}>
+          {receiveLabel}
+        </a>
       )}
-      <form method="post">
-        <input type="hidden" name="accion" value="completar" />
-        <button type="submit" class="btn">
-          Marcar completada
-        </button>
-      </form>
-      <form method="post">
-        <input type="hidden" name="accion" value="no_show" />
-        <button type="submit" class="btn ghost">
-          Marcar no-show
-        </button>
-      </form>
-      <a href={`/taller/reservas/${id}/reprogramar`} class="btn ghost">Reprogramar</a>
-      <form method="post">
-        <input type="hidden" name="accion" value="cancelar" />
-        <button type="submit" class="btn ghost">
-          Cancelar reserva
-        </button>
-      </form>
+      {status === "confirmed" && (
+        <a href={`/taller/reservas/${id}/reprogramar`} class="btn ghost">
+          Reprogramar
+        </a>
+      )}
+      <details class="booking-more">
+        <summary>Más acciones de la reserva</summary>
+        <div class="booking-more-actions">
+          {status === "confirmed" && (
+            <form method="post">
+              <input type="hidden" name="accion" value="lista_para_retirar" />
+              <button type="submit" class="btn ghost">
+                Marcar lista para retirar
+              </button>
+            </form>
+          )}
+          {canRetryReminder && (
+            <form method="post">
+              <input type="hidden" name="accion" value="reintentar_recordatorio_whatsapp" />
+              <button type="submit" class="btn ghost">
+                Reintentar recordatorio WhatsApp
+              </button>
+            </form>
+          )}
+          {canRetryReady && (
+            <form method="post">
+              <input type="hidden" name="accion" value="reintentar_whatsapp" />
+              <button type="submit" class="btn ghost">
+                Reintentar notificación por WhatsApp
+              </button>
+            </form>
+          )}
+          <form method="post">
+            <input type="hidden" name="accion" value="completar" />
+            <button type="submit" class="btn ghost">
+              Marcar completada
+            </button>
+          </form>
+          {status === "confirmed" && (
+            <form method="post">
+              <input type="hidden" name="accion" value="no_show" />
+              <button type="submit" class="btn ghost">
+                Marcar no-show
+              </button>
+            </form>
+          )}
+          <form method="post">
+            <input type="hidden" name="accion" value="cancelar" />
+            <button type="submit" class="btn ghost">
+              Cancelar reserva
+            </button>
+          </form>
+        </div>
+      </details>
     </div>
   )
 }
-{
-  status === "ready_for_pickup" && (
-    <div class="ticket-foot" style="display:grid;gap:10px">
-      <form method="post">
-        <input type="hidden" name="accion" value="completar" />
-        <button type="submit" class="btn">
-          Marcar completada
-        </button>
-      </form>
-      {canRetryReady && (
-        <form method="post">
-          <input type="hidden" name="accion" value="reintentar_whatsapp" />
-          <button type="submit" class="btn ghost">
-            Reintentar notificación por WhatsApp
-          </button>
-        </form>
-      )}
-      <form method="post">
-        <input type="hidden" name="accion" value="cancelar" />
-        <button type="submit" class="btn ghost">
-          Cancelar reserva
-        </button>
-      </form>
-    </div>
-  )
-}
+
+<style is:global>
+  .taller .booking-foot {
+    display: grid;
+    gap: 12px;
+  }
+  .taller .booking-foot .btn {
+    min-height: 48px;
+  }
+  .taller .booking-more summary {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: var(--ink-2);
+  }
+  .taller .booking-more-actions {
+    display: grid;
+    gap: 12px;
+    padding-top: 12px;
+  }
+</style>
