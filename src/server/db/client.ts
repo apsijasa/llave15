@@ -8,10 +8,16 @@ export type AppDb = PgDatabase<PgQueryResultHKT>;
 
 let cached: AppDb | undefined;
 
+/**
+ * Las conexiones ociosas se conservan 10 minutos. Con 20 segundos, cada clic después de llenar
+ * un formulario pagaba abrir una conexión nueva (TLS + autenticación): más de un segundo.
+ */
+const IDLE_TIMEOUT_SECONDS = 600;
+
 export function getDb(): AppDb {
   if (!cached) {
     const { DATABASE_URL } = getDbEnv();
-    const client = postgres(DATABASE_URL, { max: 5, idle_timeout: 20 });
+    const client = postgres(DATABASE_URL, { max: 5, idle_timeout: IDLE_TIMEOUT_SECONDS });
     cached = drizzle({ client }) as unknown as AppDb;
   }
   return cached;

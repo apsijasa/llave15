@@ -229,16 +229,19 @@ const isTerminal = (TERMINAL_STATUSES as readonly OrderStatus[]).includes(
   order.status as OrderStatus,
 );
 const canQuote = can(user.role, "approvals.create") && !isTerminal;
-const quote = canQuote ? await lastQuote(db, user, order.id) : null;
-const mechanics = await listMechanics(db, user);
+// Lecturas independientes: van en paralelo para no sumar un viaje a la base por cada una.
+const [quote, mechanics, profile, tracking] = await Promise.all([
+  canQuote ? lastQuote(db, user, order.id) : null,
+  listMechanics(db, user),
+  profileForBranch(db, user.branchId),
+  ensureTrackingLink(db, user, order.id, getAppEnv().APP_URL, now),
+]);
 const canTake =
   user.role === "mechanic" &&
   order.assignedMechanicId === null &&
   (order.status === "recibida" || order.status === "diagnostico");
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
-const profile = await profileForBranch(db, user.branchId);
 if (!profile) throw new Error("No se encontró el perfil del taller.");
-const tracking = await ensureTrackingLink(db, user, order.id, getAppEnv().APP_URL, now);
 const trackingText = tracking.ok
   ? `Hola ${customer.name.trim().split(/\s+/)[0] ?? ""}, puedes ver el estado de tu bicicleta en ${profile.name} aquí: ${tracking.url}`
   : "";

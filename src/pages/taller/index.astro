@@ -25,9 +25,12 @@ if (!can(user.role, "orders.edit")) return forbiddenResponse();
 
 Astro.response.headers.set("cache-control", "no-store");
 const { name, role } = user;
-const lowStock = await branchLowStock(db, user);
-const admin = can(role, "dashboard.admin") ? await adminDashboard(db, user, now) : null;
-const mechanic = can(role, "dashboard.mechanic") ? await mechanicDashboard(db, user, now) : null;
+// Lecturas independientes: van en paralelo para no sumar un viaje a la base por cada una.
+const [lowStock, admin, mechanic] = await Promise.all([
+  branchLowStock(db, user),
+  can(role, "dashboard.admin") ? adminDashboard(db, user, now) : null,
+  can(role, "dashboard.mechanic") ? mechanicDashboard(db, user, now) : null,
+]);
 type AdminDashboard = NonNullable<Awaited<ReturnType<typeof adminDashboard>>>;
 type OrderCard = DashboardOrder & { balance?: number };
 type OrderSection = { id: string; title: string; orders: OrderCard[] };

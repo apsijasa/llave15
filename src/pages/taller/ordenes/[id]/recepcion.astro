@@ -189,16 +189,21 @@ if (Astro.request.method === "POST") {
     error = receptionErrorMessage(result.code);
   }
 }
-const checks = await listIntakeChecks(db, user, order.id);
-const items = await listItems(db, user, order.id);
-const catalog = (await listCatalog(db, user)).filter((service) => service.isActive);
 const today = localToday(now);
-const shopScope = await scopeForBranch(db, user.branchId);
+// Lecturas independientes: van en paralelo para no sumar un viaje a la base por cada una.
+const [checks, items, allServices, shopScope, load] = await Promise.all([
+  listIntakeChecks(db, user, order.id),
+  listItems(db, user, order.id),
+  listCatalog(db, user),
+  scopeForBranch(db, user.branchId),
+  loadByDate(db, user.branchId, addDays(today, 1), addDays(today, 60), order.id),
+]);
+const catalog = allServices.filter((service) => service.isActive);
 const suggestedDate = suggestDeliveryDate({
   now,
   config: shopScope?.config,
   orderMinutes: order.estimatedMinutes,
-  loadByDate: await loadByDate(db, user.branchId, addDays(today, 1), addDays(today, 60), order.id),
+  loadByDate: load,
 });
 const missingKeys = INTAKE_CHECK_KEYS.filter((key) => !checks.some((row) => row.itemKey === key));
 const missing = missingKeys.length;

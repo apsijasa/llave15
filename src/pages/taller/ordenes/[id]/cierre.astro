@@ -129,13 +129,14 @@ if (Astro.request.method === "POST") {
           ];
   }
 }
-const missing = await receptionReadiness(db, order.id);
-const photos = (await listOrderPhotos(db, user, order.id)).filter(
-  (photo) => photo.stage === "recepcion",
-);
+// Lecturas independientes: van en paralelo para no sumar un viaje a la base por cada una.
+const [missing, allPhotos, signature] = await Promise.all([
+  receptionReadiness(db, order.id),
+  listOrderPhotos(db, user, order.id),
+  order.status !== "reservada" ? receptionSignature(db, user, order.id) : null,
+]);
+const photos = allPhotos.filter((photo) => photo.stage === "recepcion");
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
-const signature =
-  order.status !== "reservada" ? await receptionSignature(db, user, order.id) : null;
 const receivedAt = signature?.signedAt ?? order.receivedAt;
 /** `null` cuando la orden no registra fecha: el texto se arma sin ella. */
 const receptionDate = receivedAt
