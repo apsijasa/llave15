@@ -2,9 +2,9 @@
 
 Agrega la tabla `purchase_imports` (cambio aditivo, sin traspaso de datos) y las pantallas `/taller/compras/factura`. Usa el mismo proveedor de IA y las mismas variables que la biblioteca: no hay Secrets nuevos.
 
-**Orden con FX-04.** FX-04 (`feat/estados-orden`) también trae una migración. Esta rama se cortó de `main` antes de que FX-04 entrara: si FX-04 llega primero a `main`, antes de publicar FX-05 hay que rebasar esta rama sobre `main`, borrar su SQL generado y su snapshot, y volver a correr `pnpm db:generate` para que la migración quede numerada después de la de FX-04. Nunca editar `drizzle/` a mano.
+**Orden con FX-04.** Esta rama va encima de `feat/estados-orden` (FX-04): su migración es `drizzle/0046_silent_black_crow.sql`, después de la `0045` de FX-04. FX-04 entra a `main` y se publica primero, o las dos juntas; FX-05 sola sobre `main` no aplica. Si `main` recibe otra migración antes, se rebasa, se borran el SQL y el snapshot de esta rama y se vuelve a correr `pnpm db:generate`. Nunca editar `drizzle/` a mano.
 
-1. En la sesión coordinadora, con la rama al día sobre `main`: `pnpm db:migrate && pnpm db:check` contra la base de desarrollo, y `pnpm gate`.
+1. En la sesión coordinadora, con la rama al día: `pnpm db:migrate && pnpm db:check` contra la base de desarrollo, y `pnpm gate`. Hecho el 26-11-2026 sobre FX-04: compuerta completa en verde y revisión en el build local con una lectura sintética (carga, revisión, confirmación con "Recibir ahora", stock, costo promedio y documento).
 2. Revisar en el build local, a 1280×800, la carga (`/taller/compras/factura`) y la revisión de una factura real, con `AI_PROVIDER=anthropic` en el `.env` local. El archivo de prueba no se commitea.
 3. En Replit, confirmar en *Secrets* que siguen `AI_PROVIDER=anthropic`, `ANTHROPIC_API_KEY` y `AI_MODEL`. Con `AI_PROVIDER=none` la pantalla aparece deshabilitada y nada más cambia.
 4. Publicar en Replit. La publicación crea la tabla en producción.
