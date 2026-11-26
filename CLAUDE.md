@@ -70,7 +70,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | Conexión | `src/server/db/client.ts` (`getDb()`, tipo `AppDb`); los módulos reciben `db` como argumento |
 | Entorno | `src/lib/env.ts` (accesores por funcionalidad, `getAppEnv`, `getTrackingEnv`); nunca `process.env` en otro lado |
 | Perfil y configuración del taller | la fila de `shops`; `src/server/shops/profile.ts` (`ShopProfile`), `src/server/booking/config.ts` (`BookingConfig`), alcance en `src/server/shops/scope.ts` |
-| Marca de la plataforma | `PLATFORM` (`src/lib/platform.ts`, Llave 15; desde BG-17; `descriptor` desde BG-47). `SITE` deja de existir en BG-27. Logo provisional en `public/brand/llave15-*.svg` (BG-46, 47) |
+| Marca de la plataforma | `PLATFORM` (`src/lib/platform.ts`, Llave 15; desde BG-17; `descriptor` desde BG-47). `SITE` deja de existir en BG-27. Logo definitivo en `public/brand/llave15-*` (BG-D53; maestros en `docs/marca/logo/`) |
 | Tiempo y zona | `src/lib/time.ts` (`TIMEZONE`, `localToday`, `addDays`, `localToInstant`) |
 | Reglas genéricas de reserva | `src/server/booking/rules.ts` (`blocksFor`, `MAX_BIKES_PER_BOOKING`); los valores del taller, en `shops` |
 | Reglas del taller (estados, transiciones, checklists, capacidad, etiqueta, categorías, medios de pago, IVA) | `src/server/taller/rules.ts` (`VAT_RATE_PERCENT`, `vatOfNet`, `netOfGross`) |

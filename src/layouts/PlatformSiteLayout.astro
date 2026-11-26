@@ -18,10 +18,17 @@ interface Props {
 
 const { title, description, path, noindex = false, showDemoButton = true } = Astro.props;
 const canonical = new URL(path, getAppEnv().APP_URL).href;
+const ogImage = new URL("/brand/llave15-og.png", getAppEnv().APP_URL).href;
 const year = new Date().getFullYear();
 ---
 
-<AppLayout title={title} description={description} noindex={noindex} canonical={canonical}>
+<AppLayout
+  title={title}
+  description={description}
+  noindex={noindex}
+  canonical={canonical}
+  ogImage={ogImage}
+>
   <div class="l15-site">
     <a class="skip" href="#contenido">Saltar al contenido</a>
     <header class="s-head">

@@ -50,6 +50,16 @@ describe("SEO de llave15.cl en el build", () => {
     );
   });
 
+  it("la landing de Llave 15 se comparte con su imagen y su firma", () => {
+    const html = read("platform-home.html");
+    expect(html).toContain(
+      '<meta property="og:image" content="https://llave15.cl/brand/llave15-og.png"',
+    );
+    expect(html).toContain('<meta property="og:url" content="https://llave15.cl/"');
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image"');
+    expect(html).toContain('href="/brand/llave15-apple-touch-icon.png"');
+  });
+
   it("no quedan robots.txt ni sitemaps estáticos que tapen las rutas por dominio", () => {
     for (const file of ["robots.txt", "sitemap-index.xml", "sitemap-0.xml"]) {
       expect(existsSync(`dist/client/${file}`), file).toBe(false);
