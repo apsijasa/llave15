@@ -18,7 +18,7 @@ export class StorageError extends Error {
 }
 
 export function isStorageKey(key: string): boolean {
-  const match = /^[a-z0-9][a-z0-9/_-]*\.(?:jpg|png)$/.exec(key);
+  const match = /^[a-z0-9][a-z0-9/_-]*\.(?:jpg|png|pdf)$/.exec(key);
   return match?.[0] === key && !key.includes("..");
 }
 

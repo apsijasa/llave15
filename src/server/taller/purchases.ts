@@ -43,9 +43,10 @@ type FailureCode =
   | "not_found"
   | "invalid_status"
   | "out_of_stock";
+export type PurchaseFailureCode = FailureCode;
 type PurchaseResult = { ok: true; purchaseId: string } | { ok: false; code: FailureCode };
 
-class PurchaseFailure extends Error {
+export class PurchaseFailure extends Error {
   code: FailureCode;
   constructor(code: FailureCode) {
     super(code);
@@ -86,7 +87,7 @@ async function auditPurchase(
     now,
   );
 }
-async function allocatePurchaseNumber(db: AppDb, branchId: string) {
+export async function allocatePurchaseNumber(db: AppDb, branchId: string) {
   const result = (await db.execute(sql`
     update branches set next_purchase_number = next_purchase_number + 1
     where id = ${branchId} returning next_purchase_number - 1 as number
@@ -218,7 +219,7 @@ export async function sendPurchase(db: AppDb, actor: SessionUser, id: string, no
   );
 }
 
-async function receiveItems(tx: AppDb, actor: SessionUser, id: string, now: Date) {
+export async function receiveItems(tx: AppDb, actor: SessionUser, id: string, now: Date) {
   const items = await tx
     .select()
     .from(purchaseOrderItems)

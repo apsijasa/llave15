@@ -83,7 +83,10 @@ const showCosts = can(user.role, "costs.view");
 
 <TallerLayout title={`Compras — ${PLATFORM.name}`} description="Compras a proveedores del taller." path={PATH} user={user}>
   <div class="stack purchase-list">
-    <PageHeader title="Compras" />
+    <PageHeader title="Compras">
+      {can(user.role, "purchases.manage") && showCosts && <a slot="actions" class="btn" href="/taller/compras/factura">Cargar por factura</a>}
+    </PageHeader>
+    {Astro.url.searchParams.get("hecho") === "descartada" && <p role="status">Lectura descartada.</p>}
     {error && <p role="alert">{error}</p>}
     <Card>
       <div class="scroll-x">

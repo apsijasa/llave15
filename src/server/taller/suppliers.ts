@@ -27,7 +27,7 @@ export const supplierFormSchema = z.object({
   notes: optionalText(500),
   isActive: z.boolean().default(true),
 });
-type SupplierInput = z.infer<typeof supplierFormSchema>;
+export type SupplierInput = z.infer<typeof supplierFormSchema>;
 type SupplierResult =
   | { ok: true; supplierId: string }
   | { ok: false; code: "forbidden" | "validation_error" | "not_found" | "rut_exists" };
@@ -36,8 +36,8 @@ function supplierScope(actor: SessionUser, id: string) {
   return and(eq(suppliers.branchId, actor.branchId), eq(suppliers.id, id));
 }
 
-function supplierError(error: unknown): SupplierResult {
-  if (!isUniqueViolation(error)) throw error;
+export function isRutConflict(error: unknown): boolean {
+  if (!isUniqueViolation(error)) return false;
   const seen = new Set<unknown>();
   let current = error;
   while (current && typeof current === "object" && !seen.has(current)) {
@@ -47,10 +47,44 @@ function supplierError(error: unknown): SupplierResult {
       detail.constraint === "uq_suppliers_branch_rut" ||
       detail.constraint_name === "uq_suppliers_branch_rut"
     )
-      return { ok: false, code: "rut_exists" };
+      return true;
     current = detail.cause;
   }
+  return false;
+}
+function supplierError(error: unknown): SupplierResult {
+  if (isRutConflict(error)) return { ok: false, code: "rut_exists" };
   throw error;
+}
+export async function insertSupplierRow(
+  tx: AppDb,
+  actor: SessionUser,
+  input: SupplierInput,
+  now: Date,
+): Promise<string> {
+  const [supplier] = await tx
+    .insert(suppliers)
+    .values({
+      ...input,
+      branchId: actor.branchId,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning({ id: suppliers.id });
+  if (!supplier) throw new Error("No se pudo crear el proveedor.");
+  await recordAudit(
+    tx,
+    {
+      branchId: actor.branchId,
+      actorUserId: actor.id,
+      action: "supplier.created",
+      entity: "supplier",
+      entityId: supplier.id,
+      details: input,
+    },
+    now,
+  );
+  return supplier.id;
 }
 
 async function saveSupplier(
@@ -62,22 +96,13 @@ async function saveSupplier(
 ): Promise<SupplierResult> {
   try {
     return await db.transaction(async (tx) => {
-      const rows =
-        id === null
-          ? await tx
-              .insert(suppliers)
-              .values({
-                ...input,
-                branchId: actor.branchId,
-                createdAt: now,
-                updatedAt: now,
-              })
-              .returning({ id: suppliers.id })
-          : await tx
-              .update(suppliers)
-              .set({ ...input, updatedAt: now })
-              .where(supplierScope(actor, id))
-              .returning({ id: suppliers.id });
+      if (id === null)
+        return { ok: true, supplierId: await insertSupplierRow(tx, actor, input, now) };
+      const rows = await tx
+        .update(suppliers)
+        .set({ ...input, updatedAt: now })
+        .where(supplierScope(actor, id))
+        .returning({ id: suppliers.id });
       const [supplier] = rows;
       if (!supplier) return { ok: false, code: "not_found" };
       await recordAudit(
@@ -85,7 +110,7 @@ async function saveSupplier(
         {
           branchId: actor.branchId,
           actorUserId: actor.id,
-          action: id === null ? "supplier.created" : "supplier.updated",
+          action: "supplier.updated",
           entity: "supplier",
           entityId: supplier.id,
           details: input,

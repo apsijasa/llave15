@@ -336,3 +336,18 @@ export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
 };
 export const EXPENSE_METHODS = ["efectivo", "transferencia", "tarjeta", "otro"] as const;
 export type ExpenseMethod = (typeof EXPENSE_METHODS)[number];
+
+export const INVOICE_IMPORTS_PER_BRANCH_PER_DAY = 50;
+export const INVOICE_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
+export const INVOICE_IMPORT_MAX_PAGES = 5;
+export const INVOICE_IMPORT_MAX_LINES = 60;
+export const INVOICE_PROMPT_VERSION = "fx05-1";
+export const IMPORT_PRODUCT_CATEGORIES = PRODUCT_CATEGORIES.filter(
+  (category) => category !== "bicicleta_usada",
+);
+export const IMPORT_STATUS_LABELS = {
+  extraida: "Extraída",
+  confirmada: "Confirmada",
+  descartada: "Descartada",
+  fallida: "Fallida",
+} as const;

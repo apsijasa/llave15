@@ -53,6 +53,7 @@ const showCosts = can(user.role, "costs.view");
   <div class="stack inventory-list">
     <PageHeader title="Inventario">
       {can(user.role, "inventory.adjust") && <a slot="actions" class="btn" href={`${PATH}/nuevo`}>Nuevo producto</a>}
+      {can(user.role, "purchases.manage") && can(user.role, "costs.view") && <a slot="actions" class="btn ghost" href="/taller/compras/factura">Cargar por factura</a>}
     </PageHeader>
     {!parsed.success && <p role="alert">Revisa los filtros de búsqueda.</p>}
     <Card>

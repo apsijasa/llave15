@@ -1,0 +1,115 @@
+---
+import { z } from "zod";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { getAiEnv } from "../../../../lib/env.ts";
+import { PLATFORM } from "../../../../lib/platform.ts";
+import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import { getStorage } from "../../../../server/storage/storage.ts";
+import {
+  extractorFromEnv,
+  noneInvoiceExtractor,
+} from "../../../../server/taller/invoice-extract.ts";
+import { startPurchaseImport } from "../../../../server/taller/purchase-import.ts";
+
+export const prerender = false;
+const PATH = "/taller/compras/factura";
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "purchases.manage") || !can(user.role, "costs.view"))
+  return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+if (Astro.request.method === "POST" && !isAllowedOrigin(Astro.request)) return forbiddenResponse();
+let extractor = noneInvoiceExtractor;
+let misconfigured = false;
+try {
+  extractor = extractorFromEnv(getAiEnv(), fetch);
+} catch {
+  misconfigured = true;
+}
+const unavailable = misconfigured || extractor.name === "none";
+let error = "";
+const errors: Record<string, [number, string]> = {
+  forbidden: [403, "No tienes permiso para realizar esta acción."],
+  unavailable: [
+    503,
+    "La lectura de facturas no está disponible: falta configurar el proveedor de IA.",
+  ],
+  too_large: [413, "Selecciona un archivo de hasta 10 MB."],
+  too_many_pages: [413, "El PDF puede tener hasta 5 páginas."],
+  invalid_file: [415, "Selecciona un PDF o una foto JPG, PNG o WebP válida."],
+  validation_error: [422, "Selecciona el documento del proveedor."],
+  quota: [429, "Se alcanzó el máximo de lecturas de hoy."],
+  extraction_failed: [
+    422,
+    "No pudimos leer la factura. Prueba con una foto más nítida o el PDF del proveedor.",
+  ],
+};
+function fail(code: string) {
+  const [status, message] = errors[code] ?? [422, "Revisa el archivo e inténtalo de nuevo."];
+  Astro.response.status = status;
+  error = message;
+}
+if (Astro.request.method === "POST") {
+  if (unavailable) fail("unavailable");
+  else if (Number(Astro.request.headers.get("content-length")) > 11 * 1024 * 1024)
+    fail("too_large");
+  else {
+    const form = await Astro.request.formData().catch(() => null);
+    const parsed = z.instanceof(File).safeParse(form?.get("documento"));
+    if (!parsed.success) fail("validation_error");
+    else {
+      const file = parsed.data;
+      const result = await startPurchaseImport(
+        db,
+        await getStorage(),
+        user,
+        extractor,
+        { bytes: Buffer.from(await file.arrayBuffer()), type: file.type },
+        now,
+      );
+      if (result.ok)
+        return new Response(null, {
+          status: 303,
+          headers: { location: `${PATH}/${result.importId}`, "cache-control": "no-store" },
+        });
+      fail(result.code);
+    }
+  }
+}
+---
+
+<TallerLayout title={`Cargar inventario por factura — ${PLATFORM.name}`} description="Carga de factura del proveedor." path="/taller/compras" user={user}>
+  <div class="stack">
+    <PageHeader title="Cargar inventario por factura">
+      <a slot="actions" class="btn ghost" href="/taller/compras">Volver a compras</a>
+    </PageHeader>
+    {unavailable && <p role="alert">La lectura de facturas no está disponible: falta configurar el proveedor de IA.</p>}
+    <form method="post" enctype="multipart/form-data" class="stack">
+      <div class="field">
+        <label for="documento">Factura del proveedor</label>
+        <input id="documento" name="documento" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required aria-invalid={Boolean(error)} aria-describedby={error ? "documento-help documento-error" : "documento-help"} />
+        <p id="documento-help">PDF de hasta 10 MB y 5 páginas, o una foto nítida. Los costos se guardan netos; los precios de venta no cambian.</p>
+        {error && <p id="documento-error" role="alert">{error}</p>}
+      </div>
+      <button class="btn" disabled={unavailable}>Leer factura</button>
+    </form>
+  </div>
+</TallerLayout>

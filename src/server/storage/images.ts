@@ -45,3 +45,26 @@ export async function processPhoto(input: Buffer): Promise<{
     throw new InvalidImageError({ cause: error });
   }
 }
+
+export async function processDocumentImage(
+  input: Buffer,
+): Promise<{ jpeg: Buffer; width: number; height: number }> {
+  try {
+    const metadata = await sharp(input).metadata();
+    if (!["jpeg", "png", "webp"].includes(metadata.format ?? "")) throw new InvalidImageError();
+    const result = await sharp(input, { failOn: "error" })
+      .rotate()
+      .resize({
+        width: PHOTO_FULL_MAX_PX,
+        height: PHOTO_FULL_MAX_PX,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 85 })
+      .toBuffer({ resolveWithObject: true });
+    return { jpeg: result.data, width: result.info.width, height: result.info.height };
+  } catch (error) {
+    if (error instanceof InvalidImageError) throw error;
+    throw new InvalidImageError({ cause: error });
+  }
+}

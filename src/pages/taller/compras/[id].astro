@@ -9,6 +9,7 @@ import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/aut
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
 import { getDb } from "../../../server/db/client.ts";
 import { formatClp } from "../../../server/email/templates.ts";
+import { getPurchaseImportForPurchase } from "../../../server/taller/purchase-import.ts";
 import { listProducts } from "../../../server/taller/products.ts";
 import {
   addPurchaseItem,
@@ -134,10 +135,12 @@ if (Astro.request.method === "POST") {
           : "La compra cambió o esta acción no está disponible. Revisa su estado y sus líneas.";
   }
 }
+const imported = await getPurchaseImportForPurchase(db, user, id.data);
 const isDraft = purchase.status === "borrador";
 const canComplete = isDraft || purchase.status === "enviada";
 const products = isDraft && showCosts ? await listProducts(db, user) : [];
 const notices: Record<string, string> = {
+  importada: "Compra creada desde la factura.",
   add: "Línea agregada.",
   send: "Compra enviada.",
   receive: "Compra recibida.",
@@ -154,6 +157,7 @@ const numberFields = [
   <div class="stack purchase-detail">
     <PageHeader title={formatPurchaseNumber(purchase.number)}>
       <a slot="actions" class="btn ghost" href="/taller/compras">Volver a compras</a>
+      {imported && <a slot="actions" class="btn ghost" href={imported.documentUrl} target="_blank" rel="noopener">Ver documento</a>}
     </PageHeader>
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}</p>}
