@@ -102,7 +102,7 @@ describe("tokens y tipografía Llave 15 (BG-47)", () => {
     ).toBe(true);
   });
 
-  it("renderiza la raíz l15, el preload y los dos íconos", async () => {
+  it("renderiza la raíz l15, el preload y los cuatro íconos", async () => {
     const { default: AppLayout } = await import("../../src/layouts/AppLayout.astro");
     const container = await AstroContainer.create();
     const html = await container.renderToString(AppLayout, {
@@ -118,7 +118,14 @@ describe("tokens y tipografía Llave 15 (BG-47)", () => {
     expect(html).toContain(
       '<link rel="icon" type="image/svg+xml" sizes="16x16" href="/brand/llave15-favicon-16.svg">',
     );
+    expect(html).toContain(
+      '<link rel="icon" type="image/png" sizes="32x32" href="/brand/llave15-favicon-32.png">',
+    );
+    expect(html).toContain(
+      '<link rel="apple-touch-icon" href="/brand/llave15-apple-touch-icon.png">',
+    );
     expect(html).not.toContain('href="/favicon.svg"');
+    expect(html).not.toContain("/brand/apple-touch-icon.png");
   });
 
   it("ofrece el descriptor acordado para la plataforma", () => {
@@ -154,5 +161,52 @@ describe("favicon simplificado de Llave 15", () => {
     expect(metadata.format).toBe("png");
     expect(metadata.width).toBe(16);
     expect(metadata.height).toBe(16);
+  });
+});
+
+describe("íconos PNG e imagen para compartir de Llave 15", () => {
+  it.each([
+    ["llave15-favicon-32.png", 32, 32],
+    ["llave15-apple-touch-icon.png", 180, 180],
+    ["llave15-og.png", 1200, 630],
+  ])("%s es un PNG de %i × %i", async (file, width, height) => {
+    const metadata = await sharp(readFileSync(`public/brand/${file}`)).metadata();
+    expect(metadata.format).toBe("png");
+    expect(metadata.width).toBe(width);
+    expect(metadata.height).toBe(height);
+  });
+
+  it("el ícono de inicio de iPhone es opaco", async () => {
+    const { isOpaque } = await sharp(
+      readFileSync("public/brand/llave15-apple-touch-icon.png"),
+    ).stats();
+    expect(isOpaque).toBe(true);
+  });
+
+  it("solo emite Open Graph cuando el layout recibe la imagen", async () => {
+    const { default: AppLayout } = await import("../../src/layouts/AppLayout.astro");
+    const container = await AstroContainer.create();
+    const image = "https://llave15.cl/brand/llave15-og.png";
+    const html = await container.renderToString(AppLayout, {
+      props: {
+        title: "Llave 15",
+        description: "Software de gestión para talleres de bicicletas",
+        canonical: "https://llave15.cl/",
+        ogImage: image,
+      },
+      partial: false,
+    });
+    expect(html).toContain('<meta property="og:type" content="website">');
+    expect(html).toContain(`<meta property="og:site_name" content="${PLATFORM.name}">`);
+    expect(html).toContain('<meta property="og:title" content="Llave 15">');
+    expect(html).toContain('<meta property="og:url" content="https://llave15.cl/">');
+    expect(html).toContain(`<meta property="og:image" content="${image}">`);
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
+
+    const hidden = await container.renderToString(AppLayout, {
+      props: { title: "Llave 15", ogImage: image, noindex: true },
+      partial: false,
+    });
+    expect(hidden).not.toContain('property="og:');
   });
 });

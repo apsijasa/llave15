@@ -33,7 +33,7 @@ function readMark(name: string) {
   return readFileSync(new URL(`../../public/brand/llave15-${name}.svg`, import.meta.url), "utf8");
 }
 
-describe.each(variants)("marca provisional Llave 15: $name", ({ name, viewBox, colors, width }) => {
+describe.each(variants)("marca de Llave 15: $name", ({ name, viewBox, colors, width }) => {
   it("declara el lienzo y el nombre accesible, con el título como primer hijo", () => {
     const svg = readMark(name);
     const root = svg.match(/^\s*<svg\b([^>]*)>/)?.[1] ?? "";

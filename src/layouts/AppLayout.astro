@@ -3,6 +3,7 @@ import "@fontsource-variable/inter/index.css";
 import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import "../styles/global.css";
 import "../styles/llave15.css";
+import { PLATFORM } from "../lib/platform.ts";
 
 /** Raíz del sistema (BG-22): fuentes, tokens y estilos, sin nada de la portada heredada. */
 interface Props {
@@ -11,9 +12,12 @@ interface Props {
   noindex?: boolean;
   /** URL absoluta; nunca se emite junto con `noindex`. */
   canonical?: string;
+  /** URL absoluta de la imagen para compartir: solo el sitio comercial la pasa (Open Graph). */
+  ogImage?: string;
 }
 
-const { title, description, noindex = false, canonical } = Astro.props;
+const { title, description, noindex = false, canonical, ogImage } = Astro.props;
+const shareable = ogImage !== undefined && !noindex;
 ---
 
 <!doctype html>
@@ -29,6 +33,24 @@ const { title, description, noindex = false, canonical } = Astro.props;
     {canonical && !noindex && <link rel="canonical" href={canonical} />}
     <link rel="icon" type="image/svg+xml" href="/brand/llave15-distintivo.svg" />
     <link rel="icon" type="image/svg+xml" sizes="16x16" href="/brand/llave15-favicon-16.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/llave15-favicon-32.png" />
+    <link rel="apple-touch-icon" href="/brand/llave15-apple-touch-icon.png" />
+    {
+      shareable && (
+        <>
+          <meta property="og:type" content="website" />
+          <meta property="og:site_name" content={PLATFORM.name} />
+          <meta property="og:locale" content="es_CL" />
+          <meta property="og:title" content={title} />
+          {description && <meta property="og:description" content={description} />}
+          {canonical && <meta property="og:url" content={canonical} />}
+          <meta property="og:image" content={ogImage} />
+          <meta property="og:image:width" content="1200" />
+          <meta property="og:image:height" content="630" />
+          <meta name="twitter:card" content="summary_large_image" />
+        </>
+      )
+    }
   </head>
   <body>
     <slot />
