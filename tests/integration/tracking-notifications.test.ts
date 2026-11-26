@@ -125,10 +125,7 @@ async function receive() {
 }
 
 async function approveQc() {
-  await test.db
-    .update(workOrders)
-    .set({ status: "control_calidad" })
-    .where(eq(workOrders.id, orderId));
+  await test.db.update(workOrders).set({ status: "en_progreso" }).where(eq(workOrders.id, orderId));
   const input = qcFormSchema.parse({
     checks: Object.fromEntries(QC_CHECK_KEYS.map((key) => [key, { result: "ok", note: "" }])),
   });

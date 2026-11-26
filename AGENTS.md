@@ -108,7 +108,7 @@ Antes de tocar archivos en estas rutas, leer el archivo de reglas correspondient
 7. Nunca marcar una tarea como hecha con una compuerta fallando, ni editar un comando de Verify para que pase.
 8. `branch_id` NOT NULL en toda tabla de operación, incluidas las de reserva desde BG-09.
 9. Nunca borrar una orden, línea, componente, aprobación, foto de informe, venta, compra, gasto ni movimiento: se marcan con `voided_at`.
-10. Saldo cero antes de `entregada` y control de calidad antes de `lista_para_retirar`: garantizados por CHECK en la base.
+10. Saldo cero en `pagado` y `entregada`, y control de calidad antes de `lista_para_retirar`: garantizados por CHECK en la base.
 11. Token de aprobación de un solo uso, guardado como hash; nunca en claro.
 12. El mecánico nunca cambia un precio: el servidor responde 403.
 13. La recepción y el control de calidad, y desde la fase 2 la venta, el cobro en efectivo con caja abierta y el ajuste de stock, se prueban en tablet (spec de Playwright + tablet real) antes de darse por hechos.

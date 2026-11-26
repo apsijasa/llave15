@@ -28,9 +28,9 @@ import {
   BIKE_TYPE_LABELS,
   INTAKE_CHECK_KEYS,
   INTAKE_CHECK_LABELS,
-  STATUS_LABELS,
+  statusLabel,
 } from "../../../../server/taller/rules.ts";
-import type { BikeType, OrderStatus } from "../../../../server/taller/rules.ts";
+import type { BikeType } from "../../../../server/taller/rules.ts";
 
 export const prerender = false;
 const db = getDb();
@@ -57,8 +57,7 @@ const { order, customer, bike } = header;
 if (
   user.role === "mechanic" &&
   order.assignedMechanicId !== user.id &&
-  (order.assignedMechanicId !== null ||
-    !["reservada", "recibida", "diagnostico"].includes(order.status))
+  (order.assignedMechanicId !== null || !["creado", "diagnostico"].includes(order.status))
 )
   return forbiddenResponse();
 const number = formatOrderNumber(order.number);
@@ -133,7 +132,9 @@ if (Astro.request.method === "POST") {
 const [missing, allPhotos, signature] = await Promise.all([
   receptionReadiness(db, order.id),
   listOrderPhotos(db, user, order.id),
-  order.status !== "reservada" ? receptionSignature(db, user, order.id) : null,
+  !(order.status === "creado" && order.receivedAt === null)
+    ? receptionSignature(db, user, order.id)
+    : null,
 ]);
 const photos = allPhotos.filter((photo) => photo.stage === "recepcion");
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
@@ -149,9 +150,9 @@ const receptionDate = receivedAt
 
 <TallerLayout title={`${number} · Fotos y firma — ${PLATFORM.name}`} description="Completar las fotos y la firma de recepción." path="/taller/recepcion/nueva" user={user}>
   <div class="stack">
-    <PageHeader title={number} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={number} status={{ status: order.status, label: statusLabel(order.status) }} />
     <OrderTabs orderId={order.id} active="cierre" tabs={tabs} />
-    <ReceptionSteps current={order.status !== "reservada" || photos.length > 0 ? 4 : 3} />
+    <ReceptionSteps current={!(order.status === "creado" && order.receivedAt === null) || photos.length > 0 ? 4 : 3} />
     <div class="fields">
       <Card title="Cliente">
         <p>{customer.name}</p>
@@ -173,10 +174,10 @@ const receptionDate = receivedAt
       <div class="grid-photos">
         {photos.map((photo, index) => <img src={photo.thumbUrl} alt={`Foto de recepción ${index + 1}`} />)}
       </div>
-      {order.status === "reservada" && <ol><li>Saca las fotos de la bici con «Sacar fotos».</li><li>El cliente firma y escribe su nombre.</li><li>Aprieta «Guardar»: las fotos y la firma se guardan juntas.</li></ol>}
-      <PhotoCapture client:load uploadUrl={`/taller/ordenes/${order.id}/fotos`} stage="recepcion" saveWith={order.status === "reservada" ? "reception-close" : undefined} />
+      {(order.status === "creado" && order.receivedAt === null) && <ol><li>Saca las fotos de la bici con «Sacar fotos».</li><li>El cliente firma y escribe su nombre.</li><li>Aprieta «Guardar»: las fotos y la firma se guardan juntas.</li></ol>}
+      <PhotoCapture client:load uploadUrl={`/taller/ordenes/${order.id}/fotos`} stage="recepcion" saveWith={(order.status === "creado" && order.receivedAt === null) ? "reception-close" : undefined} />
     </Card>
-    {order.status === "reservada" ? <Card title="Firma del cliente"><form id="reception-close" method="post" action={Astro.url.pathname}>
+    {(order.status === "creado" && order.receivedAt === null) ? <Card title="Firma del cliente"><form id="reception-close" method="post" action={Astro.url.pathname}>
       <div class="fields">
         <div class="full"><SignaturePad client:load name="firma" label="Firma del cliente" /></div>
         <div class="field">

@@ -50,6 +50,7 @@ const originalBlocks = parseCss(
 );
 const groups = {
   neutral: [
+    "creado",
     "reservada",
     "recibida",
     "entregada",
@@ -62,6 +63,7 @@ const groups = {
     "no_verificada",
   ],
   progress: [
+    "en_progreso",
     "diagnostico",
     "en_reparacion",
     "control_calidad",
@@ -71,6 +73,7 @@ const groups = {
     "en_revision",
   ],
   waiting: [
+    "en_pausa",
     "esperando_aprobacion",
     "esperando_repuesto",
     "bajo",
@@ -81,7 +84,15 @@ const groups = {
     "media",
     "baja",
   ],
-  ready: ["lista_para_retirar", "verificado", "oficial_confirmada", "approved", "alta", "activo"],
+  ready: [
+    "pagado",
+    "lista_para_retirar",
+    "verificado",
+    "oficial_confirmada",
+    "approved",
+    "alta",
+    "activo",
+  ],
   blocking: [
     "trabajo_rechazado",
     "sin-stock",
@@ -111,6 +122,25 @@ function statusShapes(source: CssBlock[]): CssBlock[] {
       ),
     }))
     .filter((block) => Object.keys(block.declarations).length > 0);
+}
+
+const expandedStatuses = ["creado", "en_progreso", "en_pausa", "pagado"];
+function legacyStatusShapes(source: CssBlock[]): CssBlock[] {
+  return statusShapes(
+    source
+      .map((block) => ({
+        ...block,
+        selectors: block.selectors.filter(
+          (selector) =>
+            !expandedStatuses.some(
+              (status) =>
+                selector === `.taller .status--${status}` ||
+                selector === `.taller .status--${status}::before`,
+            ),
+        ),
+      }))
+      .filter((block) => block.selectors.length > 0),
+  );
 }
 
 describe("controles y estados Llave 15 (BG-48)", () => {
@@ -159,8 +189,10 @@ describe("controles y estados Llave 15 (BG-48)", () => {
       border: "1px solid currentColor",
       "border-radius": "var(--radius-control)",
     });
-    expect(statusShapes(tallerBlocks)).toEqual(statusShapes(originalBlocks));
-    for (const status of Object.keys(STATUS_LABELS)) {
+    expect(legacyStatusShapes(tallerBlocks)).toEqual(statusShapes(originalBlocks));
+    for (const status of Object.keys(STATUS_LABELS).filter(
+      (status) => !expandedStatuses.includes(status),
+    )) {
       const selector = `.taller .status--${status}::before`;
       expect(declarations(tallerBlocks, selector)).toEqual(declarations(originalBlocks, selector));
     }
@@ -173,6 +205,28 @@ describe("controles y estados Llave 15 (BG-48)", () => {
           "repeating-linear-gradient(135deg, var(--status-bg, var(--surface)) 0 4px, var(--hatch) 4px 5px)",
         );
       }
+    }
+  });
+
+  it("agrega las formas y símbolos de los cuatro estados de FX-04", () => {
+    for (const status of ["creado", "en_progreso"]) {
+      expect(declarations(tallerBlocks, `.taller .status--${status}`)["border-style"]).toBe(
+        "solid",
+      );
+    }
+    expect(declarations(tallerBlocks, ".taller .status--en_pausa")["border-style"]).toBe("dotted");
+    expect(declarations(tallerBlocks, ".taller .status--pagado").border).toBe(
+      "3px double currentColor",
+    );
+    for (const [status, symbol] of [
+      ["creado", "■"],
+      ["en_progreso", "⚒"],
+      ["en_pausa", "Ⅱ"],
+      ["pagado", "✓"],
+    ]) {
+      expect(declarations(tallerBlocks, `.taller .status--${status}::before`).content).toBe(
+        `"${symbol}"`,
+      );
     }
   });
 

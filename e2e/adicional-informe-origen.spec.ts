@@ -20,7 +20,7 @@ test("Generar informe llega al servidor", async ({ page }) => {
   await login(page, "owner", `/taller/ordenes/${SEED.orderRecibidaId}/informe`);
   await page.getByRole("button", { name: /Generar informe|Regenerar informe/ }).tap();
   await expect(page.getByRole("alert")).toHaveText(
-    "El informe se genera cuando la orden está Lista para retirar o Entregada.",
+    "El informe se genera cuando la orden está Lista para retirar, Pagado o Retirada.",
   );
   await expect(page.locator("body")).not.toContainText('"forbidden"');
 });

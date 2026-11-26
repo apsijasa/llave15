@@ -146,6 +146,28 @@
   text-align: center;
 }
 /* Cada estado se distingue por la forma del borde, no por el color. */
+.taller .status--creado,
+.taller .status--en_progreso {
+  border-style: solid;
+}
+.taller .status--en_pausa {
+  border-style: dotted;
+}
+.taller .status--pagado {
+  border: 3px double currentColor;
+}
+.taller .status--creado::before {
+  content: "■";
+}
+.taller .status--en_progreso::before {
+  content: "⚒";
+}
+.taller .status--en_pausa::before {
+  content: "Ⅱ";
+}
+.taller .status--pagado::before {
+  content: "✓";
+}
 .taller .status--esperando_aprobacion,
 .taller .status--cancelada {
   border-style: dashed;

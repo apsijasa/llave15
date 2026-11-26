@@ -180,7 +180,7 @@ describe.each(["neto", "final"] as const)("envíos con régimen %s", (mode) => {
     const orderId = await createOrder(mode);
     await test.db
       .update(workOrders)
-      .set({ status: "control_calidad", paidClp: 2000 })
+      .set({ status: "en_progreso", paidClp: 2000 })
       .where(eq(workOrders.id, orderId));
     const input = qcFormSchema.parse({
       checks: Object.fromEntries(QC_CHECK_KEYS.map((key) => [key, { result: "ok", note: "" }])),

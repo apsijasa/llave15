@@ -147,11 +147,11 @@ it("1: aprueba, agrega el servicio, recalcula totales y registra historial y aud
   expect((await test.db.select().from(workOrders))[0]).toMatchObject({
     totalClp: INPUT.priceClp,
     estimatedMinutes: 0,
-    status: "en_reparacion",
+    status: "en_progreso",
   });
   expect((await test.db.select().from(workOrderStatusHistory))[1]).toMatchObject({
     fromStatus: "esperando_aprobacion",
-    toStatus: "en_reparacion",
+    toStatus: "en_progreso",
     actorUserId: null,
     note: "Respuesta del cliente",
     createdAt: LATER,
@@ -187,7 +187,7 @@ it("la primera sentencia aplica las cuatro defensas atómicamente y parametriza 
   expect(first?.[1]).toContain("esperando_aprobacion");
 });
 
-it("2: rechaza sin crear línea y vuelve a en_reparacion", async () => {
+it("2: rechaza sin crear línea y vuelve a en_progreso", async () => {
   const { token } = await proposal();
   expect(await decideApproval(test.db, token, "rechazado", null, LATER)).toEqual({ ok: true });
   expect((await test.db.select().from(workOrderApprovals))[0]).toMatchObject({
@@ -197,7 +197,7 @@ it("2: rechaza sin crear línea y vuelve a en_reparacion", async () => {
   });
   expect(await test.db.select().from(workOrderItems)).toEqual([]);
   expect((await test.db.select().from(workOrders))[0]).toMatchObject({
-    status: "en_reparacion",
+    status: "en_progreso",
     totalClp: 0,
   });
   expect(
@@ -282,7 +282,7 @@ it.each(["approval_voided", "already_decided", "order_voided", "order_status"] a
     if (condition === "order_status")
       await test.db
         .update(workOrders)
-        .set({ status: "en_reparacion" })
+        .set({ status: "en_progreso" })
         .where(eq(workOrders.id, orderId));
     const before = await test.db.select().from(workOrderApprovals);
     const ordersBefore = await test.db.select().from(workOrders);
@@ -311,7 +311,7 @@ it("mantiene esperando_aprobacion hasta la última respuesta e ignora propuestas
   await decideApproval(test.db, first.token, "aprobado", null, LATER);
   expect((await test.db.select().from(workOrders))[0]?.status).toBe("esperando_aprobacion");
   await decideApproval(test.db, last.token, "rechazado", null, LATER);
-  expect((await test.db.select().from(workOrders))[0]?.status).toBe("en_reparacion");
+  expect((await test.db.select().from(workOrders))[0]?.status).toBe("en_progreso");
   expect(await test.db.select().from(workOrderItems)).toHaveLength(1);
 });
 

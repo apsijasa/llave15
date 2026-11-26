@@ -80,7 +80,7 @@ async function seedOrder(user: SessionUser) {
       bikeId: bike.id,
       requestedService: "Mantención general",
       createdBy: user.id,
-      status: "en_reparacion",
+      status: "en_progreso",
       estimatedDeliveryDate: "2026-10-23",
     })
     .returning();

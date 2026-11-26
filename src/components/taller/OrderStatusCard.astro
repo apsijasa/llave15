@@ -1,0 +1,39 @@
+---
+import Card from "./Card.astro";
+interface Props {
+  PATH: string;
+  options: { value: string; label: string; disabled: boolean }[];
+  hasManualTransition: boolean;
+  nextStep?: { suffix: string; label: string };
+  canCancel: boolean;
+  note: string;
+  fieldErrors: Record<string, string>;
+}
+const { PATH, options, hasManualTransition, nextStep, canCancel, note, fieldErrors } = Astro.props;
+---
+      <Card id="status-title" title="Estado de la orden">
+        <form class="order-status-form" method="post" action={PATH}>
+          <input type="hidden" name="action" value="status" />
+          <div class="status-selection">
+            <div class="field">
+              <label for="status-to">Estado</label>
+              <select id="status-to" name="to" required disabled={!hasManualTransition}>
+                <option value="" selected>Selecciona un estado</option>
+                {options.map((option) => <option value={option.value} disabled={option.disabled}>{option.label}</option>)}
+              </select>
+            </div>
+            {nextStep && <a class="btn ghost" href={`${PATH}/${nextStep.suffix}`}>{nextStep.label}</a>}
+          </div>
+          <div class="field"><label for="note">Nota del cambio (opcional)</label><textarea id="note" name="note" rows="2" maxlength="2000" aria-invalid={Boolean(fieldErrors.note)} aria-describedby={fieldErrors.note ? "note-error" : undefined}>{note}</textarea>{fieldErrors.note && <p id="note-error">{fieldErrors.note}</p>}</div>
+          <button class="btn" type="submit" disabled={!hasManualTransition}>Actualizar estado</button>
+        </form>
+        {canCancel && <form class="order-cancel" method="post" action={PATH}>
+          <input type="hidden" name="action" value="status" />
+          <p class="label">Cancelación</p>
+          <div class="field">
+            <label for="cancel-note">Motivo de la cancelación (opcional)</label>
+            <textarea id="cancel-note" name="note" rows="2" maxlength="2000"></textarea>
+          </div>
+          <div class="options"><button class="btn ghost" type="submit" name="to" value="cancelada">Cancelar orden</button></div>
+        </form>}
+      </Card>

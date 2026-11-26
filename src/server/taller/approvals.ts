@@ -9,6 +9,7 @@ import { recordAudit } from "./audit.ts";
 import type { AuditAction } from "./audit.ts";
 import { recomputeOrderTotals } from "./items.ts";
 import { recordStatusChange } from "./orders.ts";
+import { normalizeOrderStatus } from "./rules.ts";
 import type { OrderStatus } from "./rules.ts";
 import { hashShareToken, newShareToken, shareTokenSchema } from "./share-tokens.ts";
 import { canAccessOrder } from "./status.ts";
@@ -19,6 +20,7 @@ export const approvalFormSchema = z.object({
   priceClp: z.coerce.number().int().min(1).max(10_000_000),
 });
 type ApprovalInput = z.infer<typeof approvalFormSchema>;
+const STALE_ORDER = new Error("La orden ya no espera aprobación.");
 
 function orderFilter(actor: SessionUser, orderId: string) {
   return and(
@@ -37,8 +39,8 @@ async function accessOrder(db: AppDb, actor: SessionUser, orderId: string, lock 
 }
 
 function allowsProposal(status: string) {
-  return ["diagnostico", "en_reparacion", "esperando_repuesto", "esperando_aprobacion"].includes(
-    status,
+  return ["diagnostico", "en_progreso", "esperando_repuesto", "esperando_aprobacion"].includes(
+    normalizeOrderStatus(status),
   );
 }
 
@@ -122,7 +124,7 @@ export async function createApproval(
       })
       .returning({ id: workOrderApprovals.id });
     if (!approval) throw new Error("No se pudo crear la propuesta de adicional.");
-    await waitForApproval(tx, actor, orderId, locked.order.status as OrderStatus, now);
+    await waitForApproval(tx, actor, orderId, normalizeOrderStatus(locked.order.status), now);
     await auditApproval(
       tx,
       actor,
@@ -297,9 +299,11 @@ async function resumeAfterApproval(db: AppDb, approval: Approval, now: Date) {
     )
     .limit(1);
   if (pending) return;
+  // Aprobado o rechazado, el trabajo sigue: el rechazo solo deja fuera el adicional (BG-D54).
+  const status = "en_progreso";
   const [resumed] = await db
     .update(workOrders)
-    .set({ status: "en_reparacion", updatedAt: now })
+    .set({ status, updatedAt: now })
     .where(
       and(
         eq(workOrders.branchId, approval.branchId),
@@ -316,7 +320,7 @@ async function resumeAfterApproval(db: AppDb, approval: Approval, now: Date) {
       branchId: approval.branchId,
       orderId: approval.workOrderId,
       from: "esperando_aprobacion",
-      to: "en_reparacion",
+      to: status,
       actorUserId: null,
       note: "Respuesta del cliente",
     },
@@ -326,12 +330,17 @@ async function resumeAfterApproval(db: AppDb, approval: Approval, now: Date) {
 }
 
 async function applyApprovalDecision(db: AppDb, approval: Approval, now: Date) {
-  // Serializa totales y la última respuesta entre propuestas de una misma orden.
-  await db
-    .select({ id: workOrders.id })
+  const [order] = await db
+    .select({ status: workOrders.status, voidedAt: workOrders.voidedAt })
     .from(workOrders)
     .where(and(eq(workOrders.branchId, approval.branchId), eq(workOrders.id, approval.workOrderId)))
     .for("update");
+  if (
+    !order ||
+    order.voidedAt !== null ||
+    normalizeOrderStatus(order.status) !== "esperando_aprobacion"
+  )
+    throw STALE_ORDER;
   if (approval.decision === "aprobado") await addApprovedItem(db, approval, now);
   await resumeAfterApproval(db, approval, now);
   await recordAudit(
@@ -357,30 +366,35 @@ export async function decideApproval(
 ) {
   if (!shareTokenSchema.safeParse(token).success) return { ok: false, code: "invalid" } as const;
   const hash = hashShareToken(token);
-  return db.transaction(async (tx) => {
-    const [approval] = await tx
-      .update(workOrderApprovals)
-      .set({ decidedAt: now, decision, decidedIpHash: ipHash, updatedAt: now })
-      .where(
-        and(
-          eq(workOrderApprovals.tokenHash, hash),
-          isNull(workOrderApprovals.decidedAt),
-          isNull(workOrderApprovals.voidedAt),
-          sql`exists (select 1 from ${workOrders} o
+  return db
+    .transaction(async (tx) => {
+      const [approval] = await tx
+        .update(workOrderApprovals)
+        .set({ decidedAt: now, decision, decidedIpHash: ipHash, updatedAt: now })
+        .where(
+          and(
+            eq(workOrderApprovals.tokenHash, hash),
+            isNull(workOrderApprovals.decidedAt),
+            isNull(workOrderApprovals.voidedAt),
+            sql`exists (select 1 from ${workOrders} o
           where o.id = ${workOrderApprovals.workOrderId}
             and o.voided_at is null and o.status = ${"esperando_aprobacion"})`,
-        ),
-      )
-      .returning();
-    if (!approval) {
-      const [existing] = await tx
-        .select({ id: workOrderApprovals.id })
-        .from(workOrderApprovals)
-        .where(eq(workOrderApprovals.tokenHash, hash))
-        .limit(1);
-      return { ok: false, code: existing ? "already_decided" : "invalid" } as const;
-    }
-    await applyApprovalDecision(tx, approval, now);
-    return { ok: true } as const;
-  });
+          ),
+        )
+        .returning();
+      if (!approval) {
+        const [existing] = await tx
+          .select({ id: workOrderApprovals.id })
+          .from(workOrderApprovals)
+          .where(eq(workOrderApprovals.tokenHash, hash))
+          .limit(1);
+        return { ok: false, code: existing ? "already_decided" : "invalid" } as const;
+      }
+      await applyApprovalDecision(tx, approval, now);
+      return { ok: true } as const;
+    })
+    .catch((error: unknown) => {
+      if (error === STALE_ORDER) return { ok: false, code: "already_decided" } as const;
+      throw error;
+    });
 }

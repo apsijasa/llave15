@@ -183,11 +183,11 @@ it("devuelve solo datos públicos y el historial cronológico sin notas ni autor
   const later = new Date("2026-11-12T16:00:00Z");
   const common = { branchId: owner.branchId, orderId, actorUserId: owner.id, note: "Nota privada" };
   expect(
-    await recordStatusChange(test.db, { ...common, from: "recibida", to: "diagnostico" }, later),
+    await recordStatusChange(test.db, { ...common, from: "creado", to: "diagnostico" }, later),
   ).toEqual({ ok: true });
-  expect(await recordStatusChange(test.db, { ...common, from: null, to: "recibida" }, NOW)).toEqual(
-    { ok: true },
-  );
+  expect(await recordStatusChange(test.db, { ...common, from: null, to: "creado" }, NOW)).toEqual({
+    ok: true,
+  });
   const link = await ensure();
   if (!link.ok) throw new Error(link.code);
   const view = await viewTrackingByToken(test.db, link.token);
@@ -201,7 +201,7 @@ it("devuelve solo datos públicos y el historial cronológico sin notas ni autor
     isReadyForPickup: false,
     isTerminal: false,
     timeline: [
-      { at: NOW, status: "recibida", label: STATUS_LABELS.recibida },
+      { at: NOW, status: "creado", label: STATUS_LABELS.creado },
       { at: later, status: "diagnostico", label: STATUS_LABELS.diagnostico },
     ],
   });

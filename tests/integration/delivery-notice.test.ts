@@ -167,8 +167,8 @@ it("volver a una fecha ya notificada tampoco repite el aviso", async () => {
   expect(await notices()).toHaveLength(2);
 });
 
-it("en reservada guarda sin aviso", async () => {
-  await test.db.update(workOrders).set({ status: "reservada" }).where(eq(workOrders.id, orderId));
+it("en Creado sin recepción guarda sin aviso", async () => {
+  await test.db.update(workOrders).set({ status: "creado" }).where(eq(workOrders.id, orderId));
   expect(await changeDeliveryDate(test.db, owner, orderId, DATE, NOW)).toEqual({
     ok: true,
     notified: false,
@@ -178,27 +178,24 @@ it("en reservada guarda sin aviso", async () => {
   expect(await notices()).toHaveLength(0);
 });
 
-it.each(["entregada", "cancelada", "trabajo_rechazado"])(
-  "rechaza el estado terminal %s",
-  async (status) => {
-    await test.db
-      .update(workOrders)
-      .set({ status, qcApprovedAt: NOW })
-      .where(eq(workOrders.id, orderId));
-    expect(await changeDeliveryDate(test.db, owner, orderId, DATE, NOW)).toEqual({
-      ok: false,
-      code: "invalid_status",
-    });
-    expect(await storedDate()).toBe(PREVIOUS);
-    expect(consoleOutbox).toHaveLength(0);
-  },
-);
+it.each(["entregada", "cancelada"])("rechaza el estado terminal %s", async (status) => {
+  await test.db
+    .update(workOrders)
+    .set({ status, qcApprovedAt: NOW })
+    .where(eq(workOrders.id, orderId));
+  expect(await changeDeliveryDate(test.db, owner, orderId, DATE, NOW)).toEqual({
+    ok: false,
+    code: "invalid_status",
+  });
+  expect(await storedDate()).toBe(PREVIOUS);
+  expect(consoleOutbox).toHaveLength(0);
+});
 
 it("el mecánico asignado puede cambiarla en reparación", async () => {
   const mechanic = await actor("mechanic");
   await test.db
     .update(workOrders)
-    .set({ status: "en_reparacion", assignedMechanicId: mechanic.id })
+    .set({ status: "en_progreso", assignedMechanicId: mechanic.id })
     .where(eq(workOrders.id, orderId));
   expect(await changeDeliveryDate(test.db, mechanic, orderId, DATE, NOW)).toEqual({
     ok: true,
@@ -209,10 +206,7 @@ it("el mecánico asignado puede cambiarla en reparación", async () => {
 
 it("el mecánico no asignado no accede a una orden en reparación", async () => {
   const mechanic = await actor("mechanic");
-  await test.db
-    .update(workOrders)
-    .set({ status: "en_reparacion" })
-    .where(eq(workOrders.id, orderId));
+  await test.db.update(workOrders).set({ status: "en_progreso" }).where(eq(workOrders.id, orderId));
   expect(await changeDeliveryDate(test.db, mechanic, orderId, DATE, NOW)).toEqual({
     ok: false,
     code: "forbidden",

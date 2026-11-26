@@ -33,13 +33,13 @@ import { addProductPartItem, productPartSchema } from "../../../../server/taller
 import { notifyPartAdded } from "../../../../server/taller/part-notice.ts";
 import { listProducts } from "../../../../server/taller/products.ts";
 import {
-  STATUS_LABELS,
+  statusLabel,
   TAX_DOC_TYPES,
   TAX_DOC_TYPE_LABELS,
   TERMINAL_STATUSES,
   VAT_RATE_PERCENT,
 } from "../../../../server/taller/rules.ts";
-import type { BikeType, OrderStatus } from "../../../../server/taller/rules.ts";
+import type { BikeType } from "../../../../server/taller/rules.ts";
 import { orderDetail } from "../../../../server/taller/status.ts";
 
 export const prerender = false;
@@ -245,7 +245,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 
 <TallerLayout title={`${number} · Líneas — ${PLATFORM.name}`} description="Líneas, precios y documento tributario de la orden." path="/taller/ordenes" user={user}>
   <div class="stack">
-    <PageHeader title={`${number} · Líneas`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={`${number} · Líneas`} status={{ status: order.status, label: statusLabel(order.status) }} />
     <OrderTabs orderId={order.id} active="lineas" tabs={tabs} />
     {notice && <p role="status">{notice}</p>}
     {error && <p id="form-error" role="alert">{error}</p>}

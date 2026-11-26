@@ -281,7 +281,7 @@ export async function generateReport(
   return db.transaction(async (tx) => {
     const order = await accessOrder(tx, actor, orderId, true);
     if (!order) return { ok: false, code: "not_found" } as const;
-    if (!["lista_para_retirar", "entregada"].includes(order.status))
+    if (!["lista_para_retirar", "pagado", "entregada"].includes(order.status))
       return { ok: false, code: "invalid_status" } as const;
     return saveReport(tx, actor, order, parsed.data, now);
   });

@@ -33,8 +33,7 @@ import {
   orderTechnicalContext,
 } from "../../../../server/library/technical-context.ts";
 import { formatOrderNumber } from "../../../../server/taller/orders.ts";
-import { STATUS_LABELS } from "../../../../server/taller/rules.ts";
-import type { OrderStatus } from "../../../../server/taller/rules.ts";
+import { statusLabel } from "../../../../server/taller/rules.ts";
 
 export const prerender = false;
 const db = getDb();
@@ -243,7 +242,7 @@ const invalid = (field: string) => (fieldErrors.has(field) ? "true" : undefined)
 
 <TallerLayout title={`${number} · Biblioteca — ${PLATFORM.name}`} description="Contexto y diagnósticos técnicos de la orden." path="/taller/ordenes" user={user}>
   <div class="stack order-library">
-    <PageHeader title={number} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={number} status={{ status: order.status, label: statusLabel(order.status) }} />
     <OrderTabs orderId={order.id} active="biblioteca" tabs={ORDER_TABS.filter((tab) => can(user.role, tab.permission))} />
     {notice && <p role="status">{notice}</p>}
     {error && <p id="form-error" role="alert">{error}</p>}

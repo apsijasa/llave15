@@ -63,7 +63,8 @@ async function seedOrder() {
       bikeId: bike.id,
       number: 1,
       pricingMode: "neto",
-      status: "reservada",
+      status: "creado",
+      receivedAt: NOW,
       requestedService: "Revisión general",
       createdBy: owner.id,
     })
@@ -334,7 +335,7 @@ it("rechaza productos inactivos, ajenos e inexistentes y órdenes cerradas", asy
     .update(products)
     .set({ branchId: owner.branchId })
     .where(eq(products.id, productId));
-  for (const status of ["cancelada", "trabajo_rechazado", "entregada"] as const) {
+  for (const status of ["cancelada", "cancelada", "entregada"] as const) {
     await test.db
       .update(workOrders)
       .set({ status, qcApprovedAt: NOW })

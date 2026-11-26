@@ -57,7 +57,7 @@ async function order(values: Partial<typeof workOrders.$inferInsert> = {}) {
       number: orderNumber,
       customerId,
       bikeId,
-      status: "recibida",
+      status: "creado",
       requestedService: "Mantención",
       totalClp: 11900,
       createdBy: actors.owner.id,

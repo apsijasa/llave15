@@ -141,7 +141,7 @@ async function expectUnchanged() {
   expect(await test.db.select().from(workOrderStatusHistory)).toEqual([]);
   expect(await test.db.select().from(auditLog)).toEqual([]);
   const [order] = await test.db.select().from(workOrders).where(eq(workOrders.id, orderId));
-  expect(order).toMatchObject({ status: "reservada", receivedAt: null });
+  expect(order).toMatchObject({ status: "creado", receivedAt: null });
   expect(storedFiles()).toEqual([]);
 }
 
@@ -179,7 +179,7 @@ beforeEach(async () => {
   };
 });
 
-it("1: informa todos los faltantes en orden y conserva reservada", async () => {
+it("1: informa todos los faltantes en orden y conserva Creado", async () => {
   const missing = ["checklist", "fotos", "fecha", "firma"];
   expect(await receptionReadiness(test.db, orderId)).toEqual(missing);
   expect(await finalize("")).toEqual({
@@ -230,18 +230,9 @@ it("2: guarda PNG, firma, estado, historial y auditoría sin nombre ni texto lib
   expect(put).toHaveBeenCalledExactlyOnceWith(signature.storageKey, png, "image/png");
   expect(await storage.get(signature.storageKey)).toEqual(png);
   const [order] = await test.db.select().from(workOrders).where(eq(workOrders.id, orderId));
-  expect(order).toMatchObject({ status: "recibida", receivedAt: NOW, updatedAt: NOW });
+  expect(order).toMatchObject({ status: "creado", receivedAt: NOW, updatedAt: NOW });
   const history = await test.db.select().from(workOrderStatusHistory);
-  expect(history).toHaveLength(1);
-  expect(history[0]).toMatchObject({
-    branchId: owner.branchId,
-    workOrderId: orderId,
-    fromStatus: "reservada",
-    toStatus: "recibida",
-    actorUserId: owner.id,
-    note: null,
-    createdAt: NOW,
-  });
+  expect(history).toEqual([]);
   const audit = await test.db.select().from(auditLog);
   expect(audit).toHaveLength(1);
   expect(audit[0]).toMatchObject({
@@ -252,7 +243,7 @@ it("2: guarda PNG, firma, estado, historial y auditoría sin nombre ni texto lib
     actorUserId: owner.id,
     createdAt: NOW,
   });
-  expect(audit[0]?.details).toEqual({ from: "reservada", to: "recibida" });
+  expect(audit[0]?.details).toEqual({ receptionCompleted: true });
   expect(await receptionReadiness(test.db, orderId)).toEqual([]);
   expect(await finalize()).toEqual({ ok: false, code: "invalid_status" });
 });
@@ -379,7 +370,7 @@ it.each(["invalid_status", "already_signed", "forbidden"])(
                 .update(workOrders)
                 .set(
                   code === "invalid_status"
-                    ? { status: "recibida" }
+                    ? { status: "creado", receivedAt: NOW }
                     : { assignedMechanicId: owner.id },
                 )
                 .where(eq(workOrders.id, orderId));

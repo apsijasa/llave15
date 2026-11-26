@@ -194,7 +194,7 @@ it("guarda checklist, accesorio, servicio y fecha de una vez", async () => {
   const row = await orden();
   expect(row?.estimatedDeliveryDate).toBe("2026-10-27");
   expect(row?.deliveryDateConfirmedAt).not.toBeNull();
-  expect(row?.status).toBe("reservada");
+  expect(row?.status).toBe("creado");
 });
 
 it("sin accesorio ni servicio escritos, solo guarda el checklist y la fecha", async () => {
@@ -241,8 +241,11 @@ it("un servicio sin precio se detiene ahí y deja guardado el checklist", async 
   expect((await orden())?.deliveryDateConfirmedAt).toBeNull();
 });
 
-it("solo sirve en una orden reservada", async () => {
-  await db.update(workOrders).set({ status: "recibida" }).where(eq(workOrders.id, orderId));
+it("solo sirve en Creado sin recepción", async () => {
+  await db
+    .update(workOrders)
+    .set({ status: "creado", receivedAt: NOW })
+    .where(eq(workOrders.id, orderId));
 
   const result = await continueReception(
     db,
@@ -295,7 +298,7 @@ it("«Continuar» con puntos pendientes se queda y nombra lo que falta", async (
   expect(await guardados()).toEqual(["frenos"]);
 });
 
-it("en una orden reservada hay un solo botón principal: Continuar", async () => {
+it("en Creado sin recepción hay un solo botón principal: Continuar", async () => {
   const html = await (await render()).text();
 
   expect(html).toMatch(
@@ -306,8 +309,11 @@ it("en una orden reservada hay un solo botón principal: Continuar", async () =>
   expect(html.match(/class="btn"/g)).toHaveLength(1);
 });
 
-it("después de recibida, la página conserva sus botones para corregir", async () => {
-  await db.update(workOrders).set({ status: "recibida" }).where(eq(workOrders.id, orderId));
+it("después de completar la recepción, la página conserva sus botones para corregir", async () => {
+  await db
+    .update(workOrders)
+    .set({ status: "creado", receivedAt: NOW })
+    .where(eq(workOrders.id, orderId));
 
   const html = await (await render()).text();
 

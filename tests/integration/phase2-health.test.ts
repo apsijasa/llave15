@@ -50,7 +50,7 @@ beforeEach(async () => {
       number: 1,
       customerId,
       bikeId,
-      status: "recibida",
+      status: "creado",
       requestedService: "Mantención",
       pricingMode: "neto",
       subtotalClp: 10000,

@@ -8,7 +8,7 @@ import { workOrders, workOrderStatusHistory } from "../db/schema-orders.ts";
 import { orderTrackingTokens } from "../db/schema-reports.ts";
 import { bikes, customers } from "../db/schema-taller.ts";
 import { formatOrderNumber, getOrderHeader } from "./orders.ts";
-import { STATUS_LABELS, TERMINAL_STATUSES } from "./rules.ts";
+import { normalizeOrderStatus, statusLabel, TERMINAL_STATUSES } from "./rules.ts";
 import type { OrderStatus } from "./rules.ts";
 import { hashShareToken, shareTokenSchema } from "./share-tokens.ts";
 import { canAccessOrder } from "./status.ts";
@@ -22,7 +22,7 @@ export type TrackingView = {
   estimatedDeliveryDate: string | null;
   isReadyForPickup: boolean;
   isTerminal: boolean;
-  timeline: { at: Date; status: OrderStatus; label: string }[];
+  timeline: { at: Date; status: string; label: string }[];
 };
 
 type EnsureResult =
@@ -140,8 +140,8 @@ async function publicTimeline(db: AppDb, branchId: string, orderId: string) {
     .orderBy(asc(workOrderStatusHistory.createdAt), asc(workOrderStatusHistory.id));
   return rows.map(({ at, status }) => ({
     at,
-    status: status as OrderStatus,
-    label: STATUS_LABELS[status as OrderStatus],
+    status,
+    label: statusLabel(status),
   }));
 }
 
@@ -151,16 +151,16 @@ export async function viewTrackingByToken(db: AppDb, token: string): Promise<Tra
   if (!parsed.success) return null;
   const order = await publicOrder(db, parsed.data);
   if (!order) return null;
-  const status = order.status as OrderStatus;
+  const status = normalizeOrderStatus(order.status);
   const timeline = await publicTimeline(db, order.branchId, order.id);
   return {
     orderNumber: formatOrderNumber(order.number),
     customerFirstName: order.customerName.trim().split(/\s+/)[0] ?? "",
     bike: `${order.brand} ${order.model}`.trim(),
     status,
-    statusLabel: STATUS_LABELS[status],
+    statusLabel: statusLabel(status),
     estimatedDeliveryDate: order.estimatedDeliveryDate,
-    isReadyForPickup: status === "lista_para_retirar",
+    isReadyForPickup: status === "lista_para_retirar" || status === "pagado",
     isTerminal: (TERMINAL_STATUSES as readonly string[]).includes(status),
     timeline:
       timeline.length > 0 ? timeline : [{ at: order.createdAt, status, label: "Orden creada" }],

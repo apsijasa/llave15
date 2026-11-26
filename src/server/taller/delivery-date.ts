@@ -1,3 +1,4 @@
+import { withLegacyStatuses } from "./rules.ts";
 import { and, eq, gte, lte, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SessionUser } from "../auth/admin-auth.ts";
@@ -77,7 +78,7 @@ export async function loadByDate(
         gte(workOrders.estimatedDeliveryDate, from),
         lte(workOrders.estimatedDeliveryDate, to),
         ne(workOrders.id, excludeOrderId),
-        notInArray(workOrders.status, [...LOAD_EXCLUDED_STATUSES]),
+        notInArray(workOrders.status, withLegacyStatuses(LOAD_EXCLUDED_STATUSES)),
       ),
     )
     .groupBy(workOrders.estimatedDeliveryDate);

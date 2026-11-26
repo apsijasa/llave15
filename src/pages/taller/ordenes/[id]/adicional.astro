@@ -22,8 +22,7 @@ import {
   whatsappShareLink,
 } from "../../../../server/taller/approvals.ts";
 import { formatOrderNumber } from "../../../../server/taller/orders.ts";
-import { grossOfNet, STATUS_LABELS, vatOfNet } from "../../../../server/taller/rules.ts";
-import type { OrderStatus } from "../../../../server/taller/rules.ts";
+import { grossOfNet, statusLabel, vatOfNet } from "../../../../server/taller/rules.ts";
 import { orderDetail } from "../../../../server/taller/status.ts";
 
 export const prerender = false;
@@ -133,7 +132,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 
 <TallerLayout title={`${number} · Adicional — ${PLATFORM.name}`} description="Propuestas de trabajo adicional." path="/taller/ordenes" user={user}>
   <div class="stack">
-    <PageHeader title={`${number} · Adicional`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={`${number} · Adicional`} status={{ status: order.status, label: statusLabel(order.status) }} />
     <OrderTabs orderId={order.id} active="adicional" tabs={tabs} />
     {error && <p role="alert">{error}</p>}
     {link && <Card id="share-title" title="Enlace para el cliente">

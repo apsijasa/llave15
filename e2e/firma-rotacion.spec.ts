@@ -113,7 +113,7 @@ test("La firma sobrevive a girar la tablet y la recepción se finaliza", async (
 
   await page.getByRole("button", { name: "Guardar", exact: true }).tap();
   await expect(page).toHaveURL(/\/recepcion\?hecho=recibida$/);
-  await expect(page.getByText("Recibida", { exact: true })).toBeVisible();
+  await expect(page.getByText("Creado", { exact: true })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 

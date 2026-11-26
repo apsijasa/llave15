@@ -310,7 +310,7 @@ describe("líneas y fecha de entrega en PGlite", () => {
       .where(eq(workOrders.id, orderId));
     await test.db.insert(workOrders).values([
       dated(2, "2026-10-06", 100),
-      { ...dated(3, "2026-10-06", 50), status: "en_reparacion" },
+      { ...dated(3, "2026-10-06", 50), status: "en_progreso" },
       dated(4, "2026-10-07", 90),
       dated(5, "2026-10-08", 999),
       { ...dated(1, "2026-10-06", 999), branchId: branch.id },

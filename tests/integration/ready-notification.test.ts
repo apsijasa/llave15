@@ -72,7 +72,7 @@ async function createOrder(email: string | null) {
       customerId: customer.id,
       bikeId: bike.id,
       requestedService: "Revisión general",
-      status: "control_calidad",
+      status: "en_progreso",
       assignedMechanicId: mechanic.id,
       createdBy: owner.id,
       totalClp: 45000,
@@ -85,10 +85,7 @@ async function createOrder(email: string | null) {
 
 /** Deja la orden lista para una segunda aprobación, como tras un control rechazado. */
 async function backToQc() {
-  await test.db
-    .update(workOrders)
-    .set({ status: "control_calidad" })
-    .where(eq(workOrders.id, orderId));
+  await test.db.update(workOrders).set({ status: "en_progreso" }).where(eq(workOrders.id, orderId));
 }
 
 async function readyAudits() {
@@ -136,7 +133,7 @@ describe("aviso al cliente cuando la bici queda lista para retirar", () => {
   it("si el control falla no se envía nada", async () => {
     expect(await submitQc(test.db, owner, orderId, input(["frenos"]), NOW)).toEqual({
       ok: true,
-      status: "en_reparacion",
+      status: "en_progreso",
     });
 
     expect(consoleOutbox).toHaveLength(0);

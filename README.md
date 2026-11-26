@@ -64,6 +64,21 @@ Nunca toques los registros MX, SPF ni autodiscover de Microsoft 365: son los que
 
 ## Operación del taller
 
+| Estado de la orden | Etiqueta |
+|---|---|
+| `creado` | Creado |
+| `diagnostico` | Diagnóstico |
+| `esperando_aprobacion` | Esperando aprobación |
+| `en_progreso` | En progreso |
+| `esperando_repuesto` | Esperando repuestos |
+| `en_pausa` | En pausa |
+| `lista_para_retirar` | Lista para retirar |
+| `pagado` | Pagado |
+| `entregada` | Retirada |
+| `cancelada` | Cancelada |
+
+Se paga antes de retirar: la orden pasa a Pagado al completar el saldo y recién entonces se entrega. Si después se anula un pago o cambia el total, vuelve a Lista para retirar.
+
 ### Acceso y equipo
 
 Entra por `/admin/login` con tu correo y clave y abre `/taller`. También puedes abrir `/taller` directamente: si falta la sesión, el login te devuelve ahí. El mecánico entra al taller; dueño, administrador y recepción llegan por defecto a la agenda `/admin` y pueden pasar al taller.

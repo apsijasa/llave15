@@ -153,7 +153,7 @@ it.each(["approval_voided", "order_status", "order_voided", "invalid_shape"] as 
     if (condition === "order_status")
       await test.db
         .update(workOrders)
-        .set({ status: "en_reparacion" })
+        .set({ status: "en_progreso" })
         .where(eq(workOrders.id, orderId));
     if (condition === "order_voided")
       await test.db.update(workOrders).set({ voidedAt: NOW }).where(eq(workOrders.id, orderId));
@@ -221,7 +221,7 @@ it.each([
   if (condition === "order_status")
     await test.db
       .update(workOrders)
-      .set({ status: "en_reparacion" })
+      .set({ status: "en_progreso" })
       .where(eq(workOrders.id, orderId));
   expect(
     await invalidResponse(

@@ -83,7 +83,7 @@ async function order(number: number, person: Person, createdAt: Date, user = own
       number,
       customerId: person.id,
       bikeId: person.bikeId,
-      status: "recibida",
+      status: "creado",
       requestedService: "Revisión",
       createdBy: user.id,
       createdAt,
@@ -285,14 +285,12 @@ it("promedia entregadas, agrupa creadas y cuenta abiertos fuera del rango", asyn
   expect(data?.ordersCreated).toEqual({
     count: 3,
     byStatus: [
-      { status: "reservada", label: STATUS_LABELS.reservada, count: 1 },
-      { status: "recibida", label: STATUS_LABELS.recibida, count: 1 },
+      { status: "creado", label: STATUS_LABELS.creado, count: 2 },
       { status: "entregada", label: STATUS_LABELS.entregada, count: 1 },
     ],
   });
   expect(data?.openNow).toEqual([
-    { status: "reservada", label: STATUS_LABELS.reservada, count: 1 },
-    { status: "recibida", label: STATUS_LABELS.recibida, count: 1 },
+    { status: "creado", label: STATUS_LABELS.creado, count: 2 },
     { status: "diagnostico", label: STATUS_LABELS.diagnostico, count: 1 },
   ]);
 });

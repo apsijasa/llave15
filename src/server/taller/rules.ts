@@ -26,76 +26,118 @@ export const DISCOVERY_CHANNEL_LABELS: Record<(typeof DISCOVERY_CHANNELS)[number
 };
 
 export const ORDER_STATUSES = [
-  "reservada",
-  "recibida",
+  "creado",
   "diagnostico",
   "esperando_aprobacion",
+  "en_progreso",
   "esperando_repuesto",
-  "en_reparacion",
-  "control_calidad",
+  "en_pausa",
   "lista_para_retirar",
+  "pagado",
   "entregada",
   "cancelada",
-  "trabajo_rechazado",
 ] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export const STATUS_LABELS: Record<OrderStatus, string> = {
-  reservada: "Reservada",
-  recibida: "Recibida",
+  creado: "Creado",
   diagnostico: "Diagnóstico",
   esperando_aprobacion: "Esperando aprobación",
-  esperando_repuesto: "Esperando repuesto",
-  en_reparacion: "En reparación",
-  control_calidad: "Control de calidad",
+  en_progreso: "En progreso",
+  esperando_repuesto: "Esperando repuestos",
+  en_pausa: "En pausa",
   lista_para_retirar: "Lista para retirar",
-  entregada: "Entregada",
+  pagado: "Pagado",
+  entregada: "Retirada",
   cancelada: "Cancelada",
-  trabajo_rechazado: "Trabajo rechazado",
 };
-export const TERMINAL_STATUSES = ["entregada", "cancelada", "trabajo_rechazado"] as const;
-export const MECHANIC_UNASSIGNED_ACCESS_STATUSES = [
+export const LEGACY_ORDER_STATUSES = [
   "reservada",
   "recibida",
-  "diagnostico",
+  "en_reparacion",
+  "control_calidad",
+  "trabajo_rechazado",
 ] as const;
-export const LOAD_EXCLUDED_STATUSES = ["lista_para_retirar", ...TERMINAL_STATUSES] as const;
+export type LegacyOrderStatus = (typeof LEGACY_ORDER_STATUSES)[number];
+export const LEGACY_STATUS_MAP: Record<LegacyOrderStatus, OrderStatus> = {
+  reservada: "creado",
+  recibida: "creado",
+  en_reparacion: "en_progreso",
+  control_calidad: "en_progreso",
+  trabajo_rechazado: "cancelada",
+};
+export const LEGACY_STATUS_LABELS: Record<LegacyOrderStatus, string> = {
+  reservada: "Reservada",
+  recibida: "Recibida",
+  en_reparacion: "En reparación",
+  control_calidad: "Control de calidad",
+  trabajo_rechazado: "Trabajo rechazado",
+};
+export function normalizeOrderStatus(raw: string): OrderStatus {
+  if ((ORDER_STATUSES as readonly string[]).includes(raw)) return raw as OrderStatus;
+  if ((LEGACY_ORDER_STATUSES as readonly string[]).includes(raw))
+    return LEGACY_STATUS_MAP[raw as LegacyOrderStatus];
+  throw new Error("Estado de orden desconocido.");
+}
+export function statusLabel(raw: string): string {
+  if ((ORDER_STATUSES as readonly string[]).includes(raw)) return STATUS_LABELS[raw as OrderStatus];
+  if ((LEGACY_ORDER_STATUSES as readonly string[]).includes(raw))
+    return LEGACY_STATUS_LABELS[raw as LegacyOrderStatus];
+  return raw;
+}
+export function withLegacyStatuses(statuses: readonly OrderStatus[]): string[] {
+  return [
+    ...new Set([
+      ...statuses,
+      ...LEGACY_ORDER_STATUSES.filter((status) => statuses.includes(LEGACY_STATUS_MAP[status])),
+    ]),
+  ];
+}
+export const TERMINAL_STATUSES = ["entregada", "cancelada"] as const;
+export const MECHANIC_UNASSIGNED_ACCESS_STATUSES = ["creado", "diagnostico"] as const;
+export const LOAD_EXCLUDED_STATUSES = [
+  "lista_para_retirar",
+  "pagado",
+  ...TERMINAL_STATUSES,
+] as const;
 export const ORDER_TRANSITIONS = {
-  reservada: ["recibida", "cancelada"],
-  recibida: ["diagnostico", "cancelada"],
+  creado: ["diagnostico", "en_progreso", "cancelada"],
   diagnostico: [
     "esperando_aprobacion",
     "esperando_repuesto",
-    "en_reparacion",
-    "trabajo_rechazado",
+    "en_progreso",
+    "en_pausa",
     "cancelada",
   ],
-  esperando_aprobacion: ["en_reparacion", "trabajo_rechazado", "cancelada"],
-  esperando_repuesto: ["en_reparacion", "esperando_aprobacion", "cancelada"],
-  en_reparacion: ["esperando_repuesto", "esperando_aprobacion", "control_calidad", "cancelada"],
-  control_calidad: ["en_reparacion", "lista_para_retirar"],
-  lista_para_retirar: ["entregada"],
+  esperando_aprobacion: ["en_progreso", "cancelada"],
+  en_progreso: [
+    "esperando_aprobacion",
+    "esperando_repuesto",
+    "en_pausa",
+    "lista_para_retirar",
+    "cancelada",
+  ],
+  esperando_repuesto: ["esperando_aprobacion", "en_progreso", "en_pausa", "cancelada"],
+  en_pausa: ["diagnostico", "en_progreso", "esperando_repuesto", "cancelada"],
+  lista_para_retirar: ["pagado", "entregada"],
+  pagado: ["lista_para_retirar", "entregada"],
   entregada: [],
   cancelada: [],
-  trabajo_rechazado: [],
 } as const satisfies Record<OrderStatus, readonly OrderStatus[]>;
 export const MANUAL_TRANSITIONS = {
-  reservada: ["cancelada"],
-  recibida: ["diagnostico", "cancelada"],
-  diagnostico: ["esperando_repuesto", "en_reparacion", "trabajo_rechazado", "cancelada"],
-  esperando_aprobacion: ["trabajo_rechazado", "cancelada"],
-  esperando_repuesto: ["en_reparacion", "cancelada"],
-  en_reparacion: ["esperando_repuesto", "control_calidad", "cancelada"],
-  control_calidad: ["en_reparacion"],
-  lista_para_retirar: [],
+  creado: ["diagnostico", "en_progreso", "cancelada"],
+  diagnostico: ["esperando_repuesto", "en_progreso", "en_pausa", "cancelada"],
+  esperando_aprobacion: ["cancelada"],
+  en_progreso: ["esperando_repuesto", "en_pausa", "cancelada"],
+  esperando_repuesto: ["en_progreso", "en_pausa", "cancelada"],
+  en_pausa: ["diagnostico", "en_progreso", "esperando_repuesto", "cancelada"],
+  lista_para_retirar: ["pagado"],
+  pagado: [],
   entregada: [],
   cancelada: [],
-  trabajo_rechazado: [],
 } as const satisfies Record<OrderStatus, readonly OrderStatus[]>;
-
 export function isAllowedTransition(from: OrderStatus, to: OrderStatus): boolean {
   return (ORDER_TRANSITIONS[from] as readonly OrderStatus[]).includes(to);
 }
-
 export function isManualTransition(from: OrderStatus, to: OrderStatus): boolean {
   return (MANUAL_TRANSITIONS[from] as readonly OrderStatus[]).includes(to);
 }

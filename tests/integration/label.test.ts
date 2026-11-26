@@ -64,7 +64,7 @@ async function seedOrder() {
       number: 1,
       customerId,
       bikeId: bike.id,
-      status: "recibida",
+      status: "creado",
       requestedService: "Mantención",
       assignedMechanicId: mechanic.id,
       estimatedDeliveryDate: "2026-10-09",
@@ -133,7 +133,7 @@ it("3: escapa el nombre del cliente <b>Ana</b> en la etiqueta", async () => {
 it.each(["OT-00001", "ot1", "1"])("4: encuentra la orden número 1 buscando %s", async (q) => {
   const expected = {
     customers: [],
-    orders: [{ id: orderId, number: 1, label: "OT-00001", status: "recibida" }],
+    orders: [{ id: orderId, number: 1, label: "OT-00001", status: "creado" }],
   };
   expect(await searchTaller(test.db, owner, q)).toEqual(expected);
   expect(await searchTaller(test.db, mechanic, q)).toEqual(expected);

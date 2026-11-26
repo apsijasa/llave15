@@ -29,12 +29,11 @@ import {
   FORM_PAYMENT_METHOD_LABELS,
   POS_PROVIDERS,
   POS_PROVIDER_LABELS,
-  STATUS_LABELS,
+  statusLabel,
   paymentMethodLabel,
   TERMINAL_STATUSES,
   VAT_RATE_PERCENT,
 } from "../../../../server/taller/rules.ts";
-import type { OrderStatus } from "../../../../server/taller/rules.ts";
 import { orderDetail } from "../../../../server/taller/status.ts";
 
 export const prerender = false;
@@ -193,7 +192,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 
 <TallerLayout title={`${number} · Pagos y entrega — ${PLATFORM.name}`} description="Pagos y saldo de la orden de trabajo." path="/taller/ordenes" user={user}>
   <div class="stack">
-    <PageHeader title={`${number} · Pagos y entrega`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={`${number} · Pagos y entrega`} status={{ status: order.status, label: statusLabel(order.status) }} />
     <OrderTabs orderId={order.id} active="entrega" tabs={tabs} />
     {notice && <p role="status">{notice}</p>}
     {error && <p id="form-error" role="alert">{error}</p>}
@@ -254,7 +253,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
     </form></Card>}
     <Card id="delivery-title" title="Entrega y firma">
       {order.status === "entregada" ? <p>Bicicleta entregada.</p>
-        : order.status === "lista_para_retirar" && can(user.role, "delivery.complete")
+        : ["lista_para_retirar", "pagado"].includes(order.status) && can(user.role, "delivery.complete")
           ? <form method="post" action={PATH}>
               <input type="hidden" name="action" value="deliver" />
               <div class="fields">

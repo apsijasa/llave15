@@ -158,15 +158,15 @@ it("1: con saldo pendiente conserva la orden byte por byte y no sube objetos", a
 async function expectDeliveryRecords() {
   const rows = await snapshot();
   expect(rows.orders[0]).toMatchObject({ status: "entregada", deliveredAt: NOW, updatedAt: NOW });
-  expect(rows.history).toHaveLength(1);
-  expect(rows.history[0]).toMatchObject({
+  expect(rows.history).toHaveLength(2);
+  expect(rows.history.find((row) => row.toStatus === "entregada")).toMatchObject({
     branchId: owner.branchId,
     workOrderId: orderId,
-    fromStatus: "lista_para_retirar",
+    fromStatus: "pagado",
     toStatus: "entregada",
     actorUserId: owner.id,
-    createdAt: NOW,
-    updatedAt: NOW,
+    createdAt: new Date(NOW.getTime() + 1),
+    updatedAt: new Date(NOW.getTime() + 1),
   });
   expect(rows.audits).toHaveLength(1);
   expect(rows.audits[0]).toMatchObject({
@@ -177,7 +177,7 @@ async function expectDeliveryRecords() {
     entityId: orderId,
     createdAt: NOW,
     updatedAt: NOW,
-    details: { from: "lista_para_retirar", to: "entregada" },
+    details: { from: "pagado", to: "entregada" },
   });
 }
 
@@ -211,7 +211,7 @@ it("2: guarda firma de entrega, fecha, historial y auditoría con saldo cero", a
   expect(await snapshot()).toEqual(before);
 });
 
-it.each(ORDER_STATUSES.filter((status) => status !== "lista_para_retirar"))(
+it.each(ORDER_STATUSES.filter((status) => !["lista_para_retirar", "pagado"].includes(status)))(
   "3: rechaza entrega desde %s sin cambios",
   async (status) => {
     await updateOrder({ status });
@@ -367,7 +367,7 @@ it.each(["invalid_status", "balance_pending", "already_signed", "not_found"])(
             else
               await updateOrder(
                 code === "invalid_status"
-                  ? { status: "control_calidad" }
+                  ? { status: "en_progreso" }
                   : code === "balance_pending"
                     ? { paidClp: 0 }
                     : { voidedAt: NOW },

@@ -1,3 +1,4 @@
+import { withLegacyStatuses } from "./rules.ts";
 import { TIMEZONE, addDays, localToday } from "../../lib/time.ts";
 import {
   and,
@@ -26,7 +27,8 @@ import {
   LOAD_EXCLUDED_STATUSES,
   MECHANIC_UNASSIGNED_ACCESS_STATUSES,
   ORDER_STATUSES,
-  STATUS_LABELS,
+  normalizeOrderStatus,
+  statusLabel,
   TERMINAL_STATUSES,
 } from "./rules.ts";
 import type { OrderStatus } from "./rules.ts";
@@ -47,13 +49,13 @@ function orderScope(actor: SessionUser) {
     eq(workOrders.branchId, actor.branchId),
     isNull(workOrders.voidedAt),
     // Ningún grupo muestra órdenes cerradas: no se carga el historial completo en cada visita.
-    notInArray(workOrders.status, [...TERMINAL_STATUSES]),
+    notInArray(workOrders.status, withLegacyStatuses(TERMINAL_STATUSES)),
     actor.role === "mechanic"
       ? or(
           eq(workOrders.assignedMechanicId, actor.id),
           and(
             isNull(workOrders.assignedMechanicId),
-            inArray(workOrders.status, [...MECHANIC_UNASSIGNED_ACCESS_STATUSES]),
+            inArray(workOrders.status, withLegacyStatuses(MECHANIC_UNASSIGNED_ACCESS_STATUSES)),
           ),
         )
       : undefined,
@@ -61,7 +63,7 @@ function orderScope(actor: SessionUser) {
 }
 
 async function dashboardOrders(db: AppDb, actor: SessionUser) {
-  return db
+  const rows = await db
     .select({
       id: workOrders.id,
       number: workOrders.number,
@@ -69,6 +71,7 @@ async function dashboardOrders(db: AppDb, actor: SessionUser) {
       brand: bikes.brand,
       model: bikes.model,
       status: workOrders.status,
+      receivedAt: workOrders.receivedAt,
       mechanicName: users.name,
       assignedMechanicId: workOrders.assignedMechanicId,
       estimatedDeliveryDate: workOrders.estimatedDeliveryDate,
@@ -88,19 +91,20 @@ async function dashboardOrders(db: AppDb, actor: SessionUser) {
     )
     .where(orderScope(actor))
     .orderBy(desc(workOrders.number));
+  return rows.map((row) => ({ ...row, status: normalizeOrderStatus(row.status) }));
 }
 
 type OrderRow = Awaited<ReturnType<typeof dashboardOrders>>[number];
 
 function orderItem(row: OrderRow): DashboardOrder {
-  const status = row.status as OrderStatus;
+  const status = normalizeOrderStatus(row.status);
   return {
     id: row.id,
     number: formatOrderNumber(row.number),
     customerName: row.customerName,
     bike: `${row.brand} ${row.model}`.trim(),
     status,
-    statusLabel: STATUS_LABELS[status],
+    statusLabel: statusLabel(status),
     mechanicName: row.mechanicName,
     estimatedDeliveryDate: row.estimatedDeliveryDate,
   };
@@ -215,20 +219,28 @@ export async function adminDashboard(db: AppDb, actor: SessionUser, now: Date) {
     finance ? incomeToday(db, actor, today) : null,
   ]);
   const workshopStatuses: readonly string[] = ORDER_STATUSES.slice(
-    ORDER_STATUSES.indexOf("recibida"),
-    ORDER_STATUSES.indexOf("lista_para_retirar") + 1,
+    ORDER_STATUSES.indexOf("creado"),
+    ORDER_STATUSES.indexOf("pagado") + 1,
   );
   const byStatus = (status: OrderStatus) =>
     orders.filter((order) => order.status === status).map(orderItem);
   return {
     bookingsToday,
     incomeTodayClp,
-    inWorkshop: orders.filter((order) => workshopStatuses.includes(order.status)).map(orderItem),
+    inWorkshop: orders
+      .filter(
+        (order) =>
+          workshopStatuses.includes(order.status) &&
+          (order.status !== "creado" || order.receivedAt !== null),
+      )
+      .map(orderItem),
     waitingApproval: byStatus("esperando_aprobacion"),
     waitingParts: byStatus("esperando_repuesto"),
-    inRepair: byStatus("en_reparacion"),
-    qcPending: byStatus("control_calidad"),
-    readyForPickup: byStatus("lista_para_retirar"),
+    inRepair: byStatus("en_progreso"),
+    qcPending: byStatus("en_progreso"),
+    readyForPickup: orders
+      .filter((order) => ["lista_para_retirar", "pagado"].includes(order.status))
+      .map(orderItem),
     overdue: orders.filter((order) => isOverdue(order, today)).map(orderItem),
     upcomingDeliveries: orders.filter((order) => isDueSoon(order, today)).map(orderItem),
     loadByMechanic: await mechanicLoad(db, actor, orders),
@@ -253,13 +265,17 @@ export async function mechanicDashboard(db: AppDb, actor: SessionUser, now: Date
     })),
     assigned: assigned.filter(hasLoad).map(orderItem),
     pending: assigned
-      .filter((order) => ["recibida", "diagnostico", "en_reparacion"].includes(order.status))
+      .filter(
+        (order) =>
+          ["creado", "diagnostico", "en_progreso"].includes(order.status) &&
+          (order.status !== "creado" || order.receivedAt !== null),
+      )
       .map(orderItem),
     overdue: assigned.filter((order) => isOverdue(order, today)).map(orderItem),
     waitingApproval: byStatus("esperando_aprobacion"),
     waitingParts: byStatus("esperando_repuesto"),
     dueSoon: assigned.filter((order) => isDueSoon(order, today)).map(orderItem),
-    qcPending: byStatus("control_calidad"),
+    qcPending: byStatus("en_progreso"),
     unassigned: orders
       .filter(
         (order) =>

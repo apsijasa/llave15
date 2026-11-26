@@ -313,10 +313,10 @@ it("conserva todas las transiciones y excluye exactamente los saltos propios de 
     const expected = transitions[from]?.filter(
       (to) =>
         to !== "esperando_aprobacion" &&
-        !(from === "reservada" && to === "recibida") &&
-        !(from === "esperando_aprobacion" && to === "en_reparacion") &&
-        !(from === "control_calidad" && to === "lista_para_retirar") &&
-        !(from === "lista_para_retirar" && to === "entregada"),
+        !(from === "esperando_aprobacion" && to === "en_progreso") &&
+        !(from === "en_progreso" && to === "lista_para_retirar") &&
+        !(from === "lista_para_retirar" && to === "entregada") &&
+        from !== "pagado",
     );
     expect(MANUAL_TRANSITIONS[from]).toEqual(expected);
   }

@@ -32,7 +32,7 @@ async function prepareReception(page: Page) {
   await page.getByRole("button", { name: "Crear orden", exact: true }).tap();
   await expect(page).toHaveURL(/\/taller\/ordenes\/[0-9a-f-]{36}\/recepcion$/);
   await expect(page.getByRole("heading", { name: /OT-\d{5}/, level: 1 })).toBeVisible();
-  await expect(page.getByText("Reservada", { exact: true })).toBeVisible();
+  await expect(page.getByText("Creado", { exact: true })).toBeVisible();
   await completeChecklist(page);
   await expect(page.getByRole("option", { name: /Ajuste de frenos/ })).toHaveAttribute(
     "value",
@@ -132,7 +132,7 @@ test("El dueño completa la recepción de Pedro Reserva con cuatro fotos y firma
   await expect(page.getByRole("alert")).toHaveText("Falta la firma del cliente");
   // Las fotos quedaron guardadas aunque faltara la firma: no hay que sacarlas de nuevo.
   await expectSavedPhotos(page);
-  await expect(page.getByText("Reservada", { exact: true })).toBeVisible();
+  await expect(page.getByText("Creado", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/\/cierre$/);
   await drawSignature(page);
   await page.getByRole("button", { name: "Borrar", exact: true }).tap();
@@ -140,7 +140,7 @@ test("El dueño completa la recepción de Pedro Reserva con cuatro fotos y firma
   await drawSignature(page);
   await page.getByRole("button", { name: "Guardar", exact: true }).tap();
   await expect(page).toHaveURL(/\/recepcion\?hecho=recibida$/);
-  await expect(page.getByText("Recibida", { exact: true })).toBeVisible();
+  await expect(page.getByText("Creado", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("status").filter({ hasText: /^Recepción finalizada$/ }),
   ).toBeVisible();

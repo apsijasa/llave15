@@ -203,19 +203,16 @@ it("usa los montos netos de la orden para Neto, IVA y Total", async () => {
   }
 });
 
-it.each(["reservada", "cancelada", "trabajo_rechazado", "entregada"])(
-  "no avisa en %s",
-  async (status) => {
-    const itemId = await add();
-    await test.db
-      .update(workOrders)
-      .set({ status, qcApprovedAt: NOW, paidClp: 11900 })
-      .where(eq(workOrders.id, orderId));
-    expect(await notifyPartAdded(test.db, owner, orderId, itemId, NOW)).toBe(false);
-    expect(consoleOutbox).toHaveLength(0);
-    expect(await notices()).toHaveLength(0);
-  },
-);
+it.each(["creado", "cancelada", "entregada"])("no avisa en %s", async (status) => {
+  const itemId = await add();
+  await test.db
+    .update(workOrders)
+    .set({ status, qcApprovedAt: NOW, paidClp: 11900 })
+    .where(eq(workOrders.id, orderId));
+  expect(await notifyPartAdded(test.db, owner, orderId, itemId, NOW)).toBe(false);
+  expect(consoleOutbox).toHaveLength(0);
+  expect(await notices()).toHaveLength(0);
+});
 
 it("no avisa sin correo del cliente", async () => {
   const itemId = await add();

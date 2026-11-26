@@ -217,7 +217,7 @@ it("rechaza al mecánico sin escribir filas", async () => {
   expect(consoleOutbox).toEqual([]);
 });
 
-it.each(["entregada", "cancelada", "trabajo_rechazado"])(
+it.each(["entregada", "cancelada", "cancelada"])(
   "rechaza el estado terminal %s",
   async (status) => {
     await test.db

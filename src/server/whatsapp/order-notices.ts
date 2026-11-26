@@ -1,3 +1,4 @@
+import { withLegacyStatuses } from "../taller/rules.ts";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getWhatsAppEnv } from "../../lib/env.ts";
 import { errorMessage, log } from "../../lib/log.ts";
@@ -44,7 +45,7 @@ async function readyOrder(db: AppDb, actor: SessionUser, orderId: string) {
         eq(workOrders.id, orderId),
         eq(workOrders.branchId, actor.branchId),
         isNull(workOrders.voidedAt),
-        eq(workOrders.status, "lista_para_retirar"),
+        inArray(workOrders.status, withLegacyStatuses(["lista_para_retirar", "pagado"])),
       ),
     );
   return order;

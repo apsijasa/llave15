@@ -282,10 +282,8 @@ it("5: rechaza al mecánico antes de validar y no escribe filas", async () => {
   expect(await getReportForStaff(test.db, { ...owner, role: "mechanic" }, order.id)).toBeNull();
 });
 
-it("rechaza en_reparacion y acepta entregada", async () => {
-  await test.db.execute(
-    sql`update work_orders set status = 'en_reparacion' where id = ${order.id}`,
-  );
+it("rechaza en_progreso y acepta entregada", async () => {
+  await test.db.execute(sql`update work_orders set status = 'en_progreso' where id = ${order.id}`);
   expect(await generateReport(test.db, owner, order.id, INPUT, NOW)).toEqual(
     failure("invalid_status"),
   );
@@ -387,12 +385,10 @@ it("la página muestra los errores de validación y estado con role alert", asyn
   const invalid = await render({ ...INPUT, recommendations: "x".repeat(2001) });
   expect(invalid.status).toBe(422);
   expect(await invalid.text()).toContain('aria-invalid="true" aria-describedby="form-error"');
-  await test.db.execute(
-    sql`update work_orders set status = 'en_reparacion' where id = ${order.id}`,
-  );
+  await test.db.execute(sql`update work_orders set status = 'en_progreso' where id = ${order.id}`);
   const response = await render(INPUT);
   expect(response.status).toBe(409);
   expect(await response.text()).toContain(
-    "El informe se genera cuando la orden está Lista para retirar o Entregada.",
+    "El informe se genera cuando la orden está Lista para retirar, Pagado o Retirada.",
   );
 });

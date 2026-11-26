@@ -19,7 +19,7 @@ import type { ObjectStorage } from "../storage/storage.ts";
 import { recordAudit } from "./audit.ts";
 import { isChecklistComplete, listAccessories } from "./intake.ts";
 import { listItems } from "./items.ts";
-import { formatOrderNumber, getOrderHeader, recordStatusChange } from "./orders.ts";
+import { formatOrderNumber, getOrderHeader } from "./orders.ts";
 import { PRICING_MODES } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 import { ensureTrackingLink } from "./tracking.ts";
@@ -157,7 +157,8 @@ async function receptionAccess(db: AppDb, actor: SessionUser, orderId: string) {
   if (!header || header.order.voidedAt) return { ok: false, code: "not_found" } as const;
   const { order } = header;
   if (!canAccessOrder(actor, order)) return { ok: false, code: "forbidden" } as const;
-  if (order.status !== "reservada") return { ok: false, code: "invalid_status" } as const;
+  if (order.status !== "creado" || order.receivedAt !== null)
+    return { ok: false, code: "invalid_status" } as const;
   return { ok: true } as const;
 }
 
@@ -170,17 +171,6 @@ class ReceptionWriteError extends Error {
 }
 
 async function recordReceptionChange(db: AppDb, actor: SessionUser, orderId: string, now: Date) {
-  await recordStatusChange(
-    db,
-    {
-      branchId: actor.branchId,
-      orderId,
-      from: "reservada",
-      to: "recibida",
-      actorUserId: actor.id,
-    },
-    now,
-  );
   await recordAudit(
     db,
     {
@@ -189,7 +179,7 @@ async function recordReceptionChange(db: AppDb, actor: SessionUser, orderId: str
       action: "order.status_changed",
       entity: "work_order",
       entityId: orderId,
-      details: { from: "reservada", to: "recibida" },
+      details: { receptionCompleted: true },
     },
     now,
   );
@@ -225,7 +215,7 @@ async function commitReception(
     );
     await tx
       .update(workOrders)
-      .set({ status: "recibida", receivedAt: now, updatedAt: now })
+      .set({ receivedAt: now, updatedAt: now })
       .where(and(eq(workOrders.branchId, actor.branchId), eq(workOrders.id, input.orderId)));
     await recordReceptionChange(tx, actor, input.orderId, now);
     return { ok: true } as const;
