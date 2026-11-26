@@ -1,0 +1,82 @@
+---
+import Card from "../Card.astro";
+import FinanceBlocks from "../FinanceBlocks.astro";
+interface Props {
+  kpis: { label: string; value: string | number; detail?: string }[];
+  byMethod: { label: string; count: number; amount: string }[];
+  payments: {
+    datetime: string;
+    date: string;
+    orderNumber: string;
+    kind: string;
+    method: string;
+    amount: string;
+    receivedByName: string;
+  }[];
+  statusTables: {
+    id: string;
+    title: string;
+    caption: string;
+    rows: { status: string; label: string; count: number }[];
+  }[];
+  serviceTables: {
+    caption: string;
+    rows: { description: string; quantity: number; amount: string }[];
+  }[];
+  summaryTables: { id: string; title: string; rows: (string | number)[][] }[];
+  financeSections: { title: string; rows: { label: string; value: string }[] }[];
+}
+const { kpis, byMethod, payments, statusTables, serviceTables, summaryTables, financeSections } =
+  Astro.props;
+---
+
+    <div class="kpis">
+      {kpis.map((kpi) => <Card label={kpi.label}><p class="label">{kpi.label}</p><p class="kpi-value">{kpi.value}</p>{kpi.detail && <p class="muted">{kpi.detail}</p>}</Card>)}
+    </div>
+    <Card title="Por medio de pago" id="income-title">
+      <div class="scroll-x"><table class="dense">
+        <caption>Ingresos por medio de pago</caption>
+        <thead><tr><th scope="col">Medio de pago</th><th scope="col">Pagos</th><th scope="col">Monto</th></tr></thead>
+        <tbody>{byMethod.map((row) => <tr><th scope="row">{row.label}</th><td>{row.count}</td><td>{row.amount}</td></tr>)}</tbody>
+      </table></div>
+    </Card>
+    <Card title="Pagos del período" id="payments-title">
+      <p class="muted">Hasta 200 pagos, del más reciente al más antiguo.</p>
+      <div class="scroll-x"><table class="dense">
+        <caption>Pagos del período</caption>
+        <thead><tr><th scope="col">Fecha</th><th scope="col">Orden</th><th scope="col">Tipo</th><th scope="col">Medio</th><th scope="col">Monto</th><th scope="col">Recibido por</th></tr></thead>
+        <tbody>
+          {payments.map((row) => <tr><td><time datetime={row.datetime}>{row.date}</time></td><td>{row.orderNumber}</td><td>{row.kind}</td><td>{row.method}</td><td>{row.amount}</td><td>{row.receivedByName}</td></tr>)}
+          {payments.length === 0 && <tr><td colspan="6">No hay pagos en este período.</td></tr>}
+        </tbody>
+      </table></div>
+    </Card>
+    {statusTables.map((table) => <Card title={table.title} id={`${table.id}-title`}>
+      <div class="scroll-x"><table class="dense">
+        <caption>{table.caption}</caption>
+        <thead><tr><th scope="col">Estado</th><th scope="col">Órdenes</th></tr></thead>
+        <tbody>
+          {table.rows.map((row) => <tr><th scope="row"><span class={`status status--${row.status}`}>{row.label}</span></th><td>{row.count}</td></tr>)}
+          {table.rows.length === 0 && <tr><td colspan="2">No hay órdenes.</td></tr>}
+        </tbody>
+      </table></div>
+    </Card>)}
+    <Card title="Servicios más pedidos" id="services-title">
+      {serviceTables.map((table) => <div class="scroll-x"><table class="dense">
+        <caption>{table.caption}</caption>
+        <thead><tr><th scope="col">Servicio</th><th scope="col">Cantidad</th><th scope="col">Monto</th></tr></thead>
+        <tbody>
+          {table.rows.map((row) => <tr><th scope="row">{row.description}</th><td>{row.quantity}</td><td>{row.amount}</td></tr>)}
+          {table.rows.length === 0 && <tr><td colspan="3">No hay servicios en este período.</td></tr>}
+        </tbody>
+      </table></div>)}
+    </Card>
+    {summaryTables.map((table) => <Card title={table.title} id={`${table.id}-title`}>
+      <div class="scroll-x"><table class="dense">
+        <caption>{table.title}</caption>
+        <thead><tr><th scope="col">Indicador</th><th scope="col">Valor</th></tr></thead>
+        <tbody>{table.rows.map(([label, value]) => <tr><th scope="row">{label}</th><td>{value}</td></tr>)}</tbody>
+      </table></div>
+    </Card>)}
+    <FinanceBlocks sections={financeSections} />
+

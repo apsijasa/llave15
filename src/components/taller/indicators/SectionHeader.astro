@@ -1,0 +1,22 @@
+---
+interface Props {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  id: string;
+}
+const { eyebrow, title, subtitle, id } = Astro.props;
+---
+<div class="panel-section-head">
+  <p class="label">{eyebrow}</p>
+  <h2 id={id}>{title}</h2>
+  <p class="muted">{subtitle}</p>
+</div>
+<style is:global>
+  .taller .panel-section-head { display: grid; gap: 4px; margin-block-end: 16px; }
+  .taller .chart { display: grid; gap: 16px; margin: 0; min-width: 0; position: relative; }
+  .taller .chart figcaption { font-weight: 600; font-size: 16px; }
+  .taller .chart svg { display: block; max-width: 100%; height: auto; }
+  .taller .chart svg text { font-family: var(--body); font-size: 12px; font-variant-numeric: tabular-nums; fill: var(--ink); }
+  .taller .chart-data { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+</style>

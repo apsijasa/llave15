@@ -136,6 +136,8 @@ Espera el resultado de la subida. Si aparece **No se pudo subir la foto. Intenta
 
 Dueño y administrador ven en **Indicadores** los ingresos por medio de pago, las entregas y el ticket promedio, las órdenes por estado, los servicios más pedidos, los clientes nuevos y recurrentes, la conversión de reservas y la cobertura de checklist, control e informes, para el rango de fechas que elijan (hasta un año). Desde la fase 2 suma la Etapa B: egresos, balance, mix de ingresos, POS por proveedor e inventario.
 
+Desde la Etapa C la pantalla es un panel: cuatro señales comparadas con el período anterior (ingresos, ticket promedio, trabajos abiertos y balance neto), evolución diaria de ingresos y gastos, mix de ingresos, servicios y estados que concentran la carga, antigüedad de los trabajos abiertos, embudos de adicionales y de agenda, recurrencia de clientes, cobertura de checklist, inventario y calidad del registro de pagos. Las tablas de siempre quedan al pie como detalle.
+
 ### Tareas diarias y respaldos
 
 El escenario de **Make.com** se configura para las **10:00**, zona **America/Santiago**, y encadena cuatro llamadas POST: `/api/tareas/recordatorios`, `/api/tareas/alertas`, `/api/tareas/retencion` y `/api/tareas/mantenciones`, con `Authorization: Bearer <TASKS_SECRET>`. El secreto va en Make.com y en los secretos de la publicación. Configura un aviso al dueño ante respuestas fallidas; los detalles están en **Recordatorios por correo (cron externo)**.

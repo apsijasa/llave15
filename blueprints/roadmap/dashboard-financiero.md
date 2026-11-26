@@ -53,7 +53,7 @@ Que el dueño tenga, en una sola pantalla de `/taller`, la lectura completa del 
 
 - [x] **Etapa A, indicadores con datos de la fase 1: hecha.** Pantalla `/taller/indicadores` para dueño y administración (permiso `dashboard.finance`), decisión 54. Consultas sobre datos de la fase 1 con rango de fechas, sin cambios de esquema.
 - **Etapa B, junto con la fase 2.** Al construir caja, inventario y registro de gastos, se agregan balance, mix de ingresos, inventario y el reporte de ingresos y egresos. El diseño de la fase 2 debe guardar desde el primer día lo que estos indicadores necesitan: costo de cada repuesto, categoría de cada gasto y origen de cada venta.
-- **Etapa C, cierre del panel.** Comparativas contra el período anterior, metas, reportes descargables y, si se decide, cotizaciones independientes.
+- **Etapa C, cierre del panel: parcial.** Comparativas contra el período anterior y gráficos hechos (`feat/panel-indicadores`, BG-D55); metas y reportes descargables pendientes. Las "cotizaciones" se resuelven con los adicionales por orden, sin entidad independiente.
 
 ## Decisión registrada
 

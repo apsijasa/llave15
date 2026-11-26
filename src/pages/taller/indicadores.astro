@@ -3,7 +3,13 @@ import { TIMEZONE } from "../../lib/time.ts";
 import { PLATFORM } from "../../lib/platform.ts";
 import { DateTime } from "luxon";
 import Card from "../../components/taller/Card.astro";
-import FinanceBlocks from "../../components/taller/FinanceBlocks.astro";
+import SectionHeader from "../../components/taller/indicators/SectionHeader.astro";
+import KpiTile from "../../components/taller/indicators/KpiTile.astro";
+import LineChart from "../../components/taller/indicators/LineChart.astro";
+import BarChart from "../../components/taller/indicators/BarChart.astro";
+import Donut from "../../components/taller/indicators/Donut.astro";
+import Funnel from "../../components/taller/indicators/Funnel.astro";
+import DetailTables from "../../components/taller/indicators/DetailTables.astro";
 import PageHeader from "../../components/taller/PageHeader.astro";
 import TallerLayout from "../../layouts/TallerLayout.astro";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
@@ -19,6 +25,10 @@ import type { Indicators } from "../../server/taller/indicators.ts";
 import { financeIndicators } from "../../server/taller/indicators-finance.ts";
 import type { FinanceIndicators } from "../../server/taller/indicators-finance.ts";
 import { PAYMENT_METHOD_LABELS } from "../../server/taller/rules.ts";
+
+import { profileForBranch } from "../../server/shops/profile.ts";
+import { dashboardIndicators } from "../../server/taller/indicators-dashboard.ts";
+import { dashboardView } from "../../server/taller/indicators-view.ts";
 
 export const prerender = false;
 
@@ -46,10 +56,15 @@ const parsed = indicatorsRangeSchema.safeParse({
 });
 if (!parsed.success) Astro.response.status = 422;
 const range = parsed.success ? parsed.data : defaults;
-const indicators = await workshopIndicators(db, user, range, now);
-if (!indicators) return forbiddenResponse();
-const finance = await financeIndicators(db, user, range, now);
-if (!finance) return forbiddenResponse();
+const [indicators, finance, dashboard, profile] = await Promise.all([
+  workshopIndicators(db, user, range, now),
+  financeIndicators(db, user, range, now),
+  dashboardIndicators(db, user, range, now),
+  profileForBranch(db, user.branchId),
+]);
+if (!indicators || !finance || !dashboard) return forbiddenResponse();
+const view = dashboardView(indicators, finance, dashboard);
+const subtitle = profile ? `${profile.name} · ${view.rangeLabel}` : view.rangeLabel;
 
 const today = DateTime.fromJSDate(now, { zone: TIMEZONE });
 const previousMonth = today.minus({ months: 1 });
@@ -125,10 +140,37 @@ const dateFormat = new Intl.DateTimeFormat("es-CL", {
   timeZone: TIMEZONE,
 });
 
-/** Secciones de la Etapa B; los costos solo existen si `financeIndicators` los envió. */
-function financeSections(data: FinanceIndicators) {
+const byMethod = indicators.income.byMethod.map((r) => ({ ...r, amount: formatClp(r.amountClp) }));
+const paymentRows = indicators.payments.map((r) => ({
+  ...r,
+  datetime: r.receivedAt.toISOString(),
+  date: dateFormat.format(r.receivedAt),
+  kind: r.kind === "abono" ? "Abono" : "Pago final",
+  method: PAYMENT_METHOD_LABELS[r.method],
+  amount: formatClp(r.amountClp),
+}));
+const formattedServices = serviceTables.map((table) => ({
+  ...table,
+  rows: table.rows.map((r) => ({ ...r, amount: formatClp(r.amountClp) })),
+}));
+
+function financeInventorySection(data: FinanceIndicators) {
   const money = (amount: number | undefined) => (amount === undefined ? [] : [formatClp(amount)]);
   const row = (label: string, values: string[]) => values.map((value) => ({ label, value }));
+  return {
+    title: "Inventario",
+    rows: [
+      { label: "Productos activos", value: String(data.inventory.activeCount) },
+      { label: "Bajo mínimo", value: String(data.inventory.lowStockCount) },
+      { label: "Sin stock", value: String(data.inventory.outOfStockCount) },
+      ...row("Valor a costo", money(data.inventory.valueAtCostClp)),
+      ...row("Margen de repuestos", money(data.partsMarginClp)),
+    ],
+  };
+}
+
+/** Secciones de la Etapa B; los costos solo existen si `financeIndicators` los envió. */
+function financeSections(data: FinanceIndicators) {
   return [
     {
       title: "Egresos del período",
@@ -162,23 +204,14 @@ function financeSections(data: FinanceIndicators) {
       title: "POS por proveedor",
       rows: data.pos.map((entry) => ({ label: entry.label, value: formatClp(entry.grossClp) })),
     },
-    {
-      title: "Inventario",
-      rows: [
-        { label: "Productos activos", value: String(data.inventory.activeCount) },
-        { label: "Bajo mínimo", value: String(data.inventory.lowStockCount) },
-        { label: "Sin stock", value: String(data.inventory.outOfStockCount) },
-        ...row("Valor a costo", money(data.inventory.valueAtCostClp)),
-        ...row("Margen de repuestos", money(data.partsMarginClp)),
-      ],
-    },
+    financeInventorySection(data),
   ];
 }
 ---
 
 <TallerLayout title={`Indicadores — ${PLATFORM.name}`} description="Indicadores financieros y operativos del taller." path="/taller/indicadores" user={user}>
   <div class="stack indicators-page">
-    <PageHeader title="Indicadores" subtitle="Ingresos y operación del taller para el período seleccionado." />
+    <PageHeader title="Indicadores" subtitle={subtitle} />
     <Card title="Rango de fechas" id="range-title">
       {!parsed.success && <p role="alert" id="range-error">El rango no es válido: usa fechas yyyy-mm-dd, Desde anterior o igual a Hasta y hasta un año.</p>}
       <form method="get" class="indicators-range">
@@ -190,55 +223,44 @@ function financeSections(data: FinanceIndicators) {
         {shortcuts.map((shortcut) => <a href={shortcut.href} aria-current={shortcut.active ? "page" : undefined}>{shortcut.label}</a>)}
       </nav>
     </Card>
-    <div class="kpis">
-      {kpis.map((kpi) => <Card label={kpi.label}><p class="label">{kpi.label}</p><p class="kpi-value">{kpi.value}</p>{kpi.detail && <p class="muted">{kpi.detail}</p>}</Card>)}
-    </div>
-    <Card title="Por medio de pago" id="income-title">
-      <div class="scroll-x"><table class="dense">
-        <caption>Ingresos por medio de pago</caption>
-        <thead><tr><th scope="col">Medio de pago</th><th scope="col">Pagos</th><th scope="col">Monto</th></tr></thead>
-        <tbody>{indicators.income.byMethod.map((row) => <tr><th scope="row">{row.label}</th><td>{row.count}</td><td>{formatClp(row.amountClp)}</td></tr>)}</tbody>
-      </table></div>
-    </Card>
-    <Card title="Pagos del período" id="payments-title">
-      <p class="muted">Hasta 200 pagos, del más reciente al más antiguo.</p>
-      <div class="scroll-x"><table class="dense">
-        <caption>Pagos del período</caption>
-        <thead><tr><th scope="col">Fecha</th><th scope="col">Orden</th><th scope="col">Tipo</th><th scope="col">Medio</th><th scope="col">Monto</th><th scope="col">Recibido por</th></tr></thead>
-        <tbody>
-          {indicators.payments.map((row) => <tr><td><time datetime={row.receivedAt.toISOString()}>{dateFormat.format(row.receivedAt)}</time></td><td>{row.orderNumber}</td><td>{row.kind === "abono" ? "Abono" : "Pago final"}</td><td>{PAYMENT_METHOD_LABELS[row.method]}</td><td>{formatClp(row.amountClp)}</td><td>{row.receivedByName}</td></tr>)}
-          {indicators.payments.length === 0 && <tr><td colspan="6">No hay pagos en este período.</td></tr>}
-        </tbody>
-      </table></div>
-    </Card>
-    {statusTables.map((table) => <Card title={table.title} id={`${table.id}-title`}>
-      <div class="scroll-x"><table class="dense">
-        <caption>{table.caption}</caption>
-        <thead><tr><th scope="col">Estado</th><th scope="col">Órdenes</th></tr></thead>
-        <tbody>
-          {table.rows.map((row) => <tr><th scope="row"><span class={`status status--${row.status}`}>{row.label}</span></th><td>{row.count}</td></tr>)}
-          {table.rows.length === 0 && <tr><td colspan="2">No hay órdenes.</td></tr>}
-        </tbody>
-      </table></div>
-    </Card>)}
-    <Card title="Servicios más pedidos" id="services-title">
-      {serviceTables.map((table) => <div class="scroll-x"><table class="dense">
-        <caption>{table.caption}</caption>
-        <thead><tr><th scope="col">Servicio</th><th scope="col">Cantidad</th><th scope="col">Monto</th></tr></thead>
-        <tbody>
-          {table.rows.map((row) => <tr><th scope="row">{row.description}</th><td>{row.quantity}</td><td>{formatClp(row.amountClp)}</td></tr>)}
-          {table.rows.length === 0 && <tr><td colspan="3">No hay servicios en este período.</td></tr>}
-        </tbody>
-      </table></div>)}
-    </Card>
-    {summaryTables.map((table) => <Card title={table.title} id={`${table.id}-title`}>
-      <div class="scroll-x"><table class="dense">
-        <caption>{table.title}</caption>
-        <thead><tr><th scope="col">Indicador</th><th scope="col">Valor</th></tr></thead>
-        <tbody>{table.rows.map(([label, value]) => <tr><th scope="row">{label}</th><td>{value}</td></tr>)}</tbody>
-      </table></div>
-    </Card>)}
-    <FinanceBlocks sections={financeSections(finance)} />
+    <section aria-labelledby="overview-title">
+      <SectionHeader id="overview-title" eyebrow="Visión general" title="El taller en una mirada" subtitle="Las cuatro señales principales para entender el período." />
+      <div class="panel-kpis">{view.overview.primary.map((tile) => <KpiTile {...tile} />)}</div>
+      <div class="panel-kpis panel-secondary">{view.overview.secondary.map((tile) => <KpiTile {...tile} />)}</div>
+    </section>
+    <section aria-labelledby="reading-title">
+      <SectionHeader id="reading-title" eyebrow="Lectura financiera" title="Cómo se movió el dinero" subtitle="Evolución, resultado y origen de los ingresos." />
+      <div class="panel-grid">
+        <Card><LineChart {...view.finance.line}><dl class="panel-facts">{view.finance.stats.map((s) => <div><dt>{s.label}</dt><dd>{s.value}</dd></div>)}</dl></LineChart></Card>
+        <Card><Donut id="donut-result" {...view.finance.result} /></Card>
+        <Card><Donut id="donut-mix" {...view.finance.mix} /></Card>
+      </div>
+    </section>
+    <section aria-labelledby="pulse-title">
+      <SectionHeader id="pulse-title" eyebrow="Pulso operativo" title="Qué está moviendo el taller" subtitle="Servicios, días y estados que concentran la carga de trabajo." />
+      <div class="panel-grid">
+        <Card><Funnel {...view.pulse.services} /></Card><Card><BarChart {...view.pulse.weekday} /></Card>
+        <Card><Funnel {...view.pulse.statuses} /></Card><Card><BarChart {...view.pulse.ages} /></Card>
+      </div>
+    </section>
+    <section aria-labelledby="opportunities-title">
+      <SectionHeader id="opportunities-title" eyebrow="Oportunidades" title="De consultas a clientes" subtitle="Adicionales, agenda y recurrencia de clientes." />
+      <div class="panel-grid">
+        <Card><Funnel {...view.opportunities.approvals} /></Card>
+        <Card><Funnel {...view.opportunities.bookings} /></Card>
+        <Card><Donut id="donut-returning" {...view.opportunities.returning} /><dl class="panel-facts">{view.opportunities.clients.map((s) => <div><dt>{s.label}</dt><dd>{s.value}</dd></div>)}</dl></Card>
+      </div>
+    </section>
+    <section aria-labelledby="control-title">
+      <SectionHeader id="control-title" eyebrow="Control y calidad" title="Una operación bajo control" subtitle="Checklist, inventario y registro de pagos." />
+      <div class="panel-grid">
+        <Card><Donut id="donut-checklist" {...view.control.checklist} /><dl class="panel-facts">{view.control.coverage.map((s) => <div><dt>{s.label}</dt><dd>{s.value}</dd></div>)}</dl></Card>
+        <Card label="Inventario"><h3>Inventario</h3><dl class="panel-facts">{view.control.inventory.map((s) => <div><dt>{s.status ? <span class={`status status--${s.status}`}>{s.label}</span> : s.label}</dt><dd>{s.value}</dd></div>)}</dl></Card>
+        <Card><Donut id="donut-payment" {...view.control.payment} /></Card>
+      </div>
+    </section>
+    <h2 id="detail-title">Detalle del período</h2>
+    <DetailTables kpis={kpis} byMethod={byMethod} payments={paymentRows} statusTables={statusTables} serviceTables={formattedServices} summaryTables={summaryTables} financeSections={financeSections(finance)} />
   </div>
 </TallerLayout>
 
@@ -273,4 +295,15 @@ function financeSections(data: FinanceIndicators) {
     padding-block-end: 8px;
     color: var(--ink-2);
   }
+  .taller .panel-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .taller .panel-secondary { margin-block-start: 16px; }
+  .taller .panel-secondary .panel-kpi-value { font-size: 20px; line-height: 28px; }
+  .taller .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+  .taller .panel-grid > *, .taller .panel-kpis > * { min-width: 0; }
+  .taller .panel-facts { display: grid; gap: 8px; margin: 0; font-size: 14px; }
+  .taller .panel-facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; }
+  .taller .panel-facts dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .taller .indicators-page .status--bajo { border-style: dashed; }
+  .taller .indicators-page .status--sin-stock { border: 3px double currentColor; }
+  @media (min-width: 1024px) { .taller .panel-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 </style>

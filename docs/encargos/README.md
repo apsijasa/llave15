@@ -56,3 +56,11 @@ Reparto (`docs/BITACORA.md` §2): Claude escribe el encargo y revisa lo que vuel
 | A-08 | Pantalla `/taller/indicadores` | 54 | — | `a-08` |
 | A-06 | WhatsApp "lista para retirar" para órdenes | 53 | `order_whatsapp_notices` | `a-06` |
 | A-09 | Cierre documental (Claude, sin Codex) | — | — | `a-09` |
+
+
+## Etapa C (noviembre 2026)
+
+| Id | Encargo | Decisión | Esquema | Tag |
+|---|---|---|---|---|
+| C-01 | [Panel: consultas del servidor](C-01-panel-servidor.md) | BG-D55 | — | `c-01` |
+| C-02 | [Panel: pantalla y gráficos SVG](C-02-panel-pantalla.md) | BG-D55 | — | `c-02` |

@@ -1,0 +1,27 @@
+---
+import Card from "../Card.astro";
+interface Props {
+  label: string;
+  value: string;
+  delta?: { text: string; direction: "up" | "down" | "flat" | "none"; caption: string };
+  detail?: string;
+  lines?: string[];
+}
+const { label, value, delta, detail, lines } = Astro.props;
+---
+<Card>
+  <p class="label">{label}</p>
+  {value && <p class="panel-kpi-value">{value}</p>}
+  {delta && <p class={`delta delta--${delta.direction}`}>{delta.text}{delta.caption && " "}{delta.caption && <span>{delta.caption}</span>}</p>}
+  {lines && lines.length > 0 && <ul class="panel-kpi-lines">{lines.map((line) => <li>{line}</li>)}</ul>}
+  {detail && <p class="muted">{detail}</p>}
+</Card>
+<style is:global>
+  .taller .panel-kpi-value { font-size: 24px; line-height: 32px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .taller .panel-kpi-lines { margin: 0; padding-inline-start: 16px; display: grid; gap: 8px; }
+  .taller .delta { font-size: 14px; font-variant-numeric: tabular-nums; }
+  .taller .delta span { display: block; color: var(--ink-2); }
+  .taller .delta--up { color: var(--status-ready-ink); }
+  .taller .delta--down { color: var(--status-blocking-ink); }
+  .taller .delta--flat, .taller .delta--none { color: var(--ink-2); }
+</style>
