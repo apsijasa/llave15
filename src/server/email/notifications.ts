@@ -26,7 +26,10 @@ export type NotifyDeps = {
   whatsappSender?: OrderNoticeSender;
 };
 
-export const ICS_FILENAME = "reserva-vector-bikes.ics";
+/** Nombre del adjunto de calendario: `reserva-<slug>.ics`, por taller. */
+export function icsFilename(slug: string): string {
+  return `reserva-${slug}.ics`;
+}
 
 /**
  * El `.ics` original sale con `SEQUENCE: 0`. Para que el calendario mueva el evento en vez de
@@ -176,7 +179,7 @@ export async function notifyBookingCreated(
     );
     confirmation.attachments = [
       {
-        filename: ICS_FILENAME,
+        filename: icsFilename(profile.slug),
         content: buildIcs(booking, 0, profile),
         contentType: "text/calendar",
       },
@@ -224,7 +227,7 @@ export async function notifyBookingRescheduled(
     );
     rescheduled.attachments = [
       {
-        filename: ICS_FILENAME,
+        filename: icsFilename(profile.slug),
         content: buildIcs(booking, icsSequence(booking.updatedAt), profile),
         contentType: "text/calendar",
       },

@@ -5,7 +5,7 @@ import { cancelBooking } from "../../src/server/booking/cancel-booking.ts";
 import { createBooking } from "../../src/server/booking/create-booking.ts";
 import type { Booking } from "../../src/server/db/schema.ts";
 import {
-  ICS_FILENAME,
+  icsFilename,
   buildIcs,
   notifyBookingCancelled,
   notifyBookingCreated,
@@ -159,7 +159,7 @@ describe("correos transaccionales", () => {
     expect(confirmation?.text).toContain("$15.000");
 
     const attachment = confirmation?.attachments?.[0];
-    expect(attachment?.filename).toBe(ICS_FILENAME);
+    expect(attachment?.filename).toBe(icsFilename("vector-bikes"));
     expect(attachment?.content).toContain("BEGIN:VCALENDAR");
     expect(attachment?.content).toContain("DTSTART:20260916T200000Z");
 
@@ -231,7 +231,9 @@ describe("correos transaccionales", () => {
         subject: "Prueba",
         html: "<p>hola</p>",
         text: "hola",
-        attachments: [{ filename: ICS_FILENAME, content: ics, contentType: "text/calendar" }],
+        attachments: [
+          { filename: icsFilename("vector-bikes"), content: ics, contentType: "text/calendar" },
+        ],
       },
       env,
     );

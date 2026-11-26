@@ -6,7 +6,7 @@ import { type CreateBookingInput, createBooking } from "../../src/server/booking
 import { rescheduleBooking } from "../../src/server/booking/reschedule-booking.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { type Booking, bookings, branches, users } from "../../src/server/db/schema.ts";
-import { ICS_FILENAME } from "../../src/server/email/notifications.ts";
+import { icsFilename } from "../../src/server/email/notifications.ts";
 import { consoleOutbox } from "../../src/server/email/transport.ts";
 import type { EmailTransport } from "../../src/server/email/transport.ts";
 import { type TestDb, createTestDb } from "../helpers/pglite.ts";
@@ -109,7 +109,7 @@ describe("aviso de reserva reprogramada", () => {
     await mover(booking);
 
     const adjunto = paraElCliente()[0]?.attachments?.[0];
-    expect(adjunto?.filename).toBe(ICS_FILENAME);
+    expect(adjunto?.filename).toBe(icsFilename("vector-bikes"));
     expect(adjunto?.content).toContain(`UID:${booking.code}@vectorbikes.cl`);
     const sequence = Number(/SEQUENCE:(\d+)/.exec(adjunto?.content ?? "")?.[1] ?? "-1");
     expect(sequence).toBeGreaterThan(0);
