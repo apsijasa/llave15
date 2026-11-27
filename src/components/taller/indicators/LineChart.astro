@@ -1,0 +1,43 @@
+---
+interface Props {
+  title: string;
+  points: { label: string; income: number; expenses: number }[];
+  incomeLabel: string;
+  expensesLabel: string;
+  firstLabel: string;
+  lastLabel: string;
+  formatted: { label: string; income: string; expenses: string }[];
+}
+const { title, points, incomeLabel, expensesLabel, firstLabel, lastLabel, formatted } = Astro.props;
+const max = Math.max(1, ...points.flatMap((p) => [p.income, p.expenses]));
+const path = (key: "income" | "expenses") =>
+  points
+    .map(
+      (p, index) =>
+        `${24 + (index * 432) / Math.max(1, points.length - 1)},${156 - (p[key] * 128) / max}`,
+    )
+    .join(" ");
+---
+<figure class="chart">
+  <figcaption>{title}</figcaption>
+  <slot />
+  <svg viewBox="0 0 480 192" width="100%" role="img" aria-label={title}>
+    <line x1="24" y1="156" x2="456" y2="156" stroke="var(--rule)" />
+    <polyline points={path("income")} fill="none" stroke="var(--ink)" stroke-width="2" />
+    <polyline points={path("expenses")} fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 3" />
+    {points.length === 1 && <circle cx="24" cy={156 - (points[0]?.income ?? 0) * 128 / max} r="3" fill="var(--ink)" />}
+    {points.length === 1 && <rect x="20" y={152 - (points[0]?.expenses ?? 0) * 128 / max} width="8" height="8" fill="none" stroke="var(--accent)" stroke-dasharray="4 3" />}
+    <text x="24" y="180">{firstLabel}</text><text x="456" y="180" text-anchor="end">{lastLabel}</text>
+  </svg>
+  <table class="dense chart-data">
+    <caption>{title}</caption>
+    <thead><tr><th scope="col">Día</th><th scope="col">Ingresos</th><th scope="col">Gastos</th></tr></thead>
+    <tbody>{formatted.map((p) => <tr><th scope="row">{p.label}</th><td>{p.income}</td><td>{p.expenses}</td></tr>)}</tbody>
+  </table>
+  <ul class="line-legend"><li><span class="line-key" aria-hidden="true"></span>{incomeLabel} · línea sólida</li><li><span class="line-key line-key--expenses" aria-hidden="true"></span>{expensesLabel} · línea punteada</li></ul>
+</figure>
+<style is:global>
+  .taller .line-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0; margin: 0; list-style: none; font-size: 14px; }
+  .taller .line-key { display: inline-block; width: 24px; border-top: 2px solid var(--ink); margin-inline-end: 8px; vertical-align: middle; }
+  .taller .line-key--expenses { border-top: 2px dashed var(--accent); }
+</style>

@@ -1,0 +1,33 @@
+---
+interface Props {
+  title: string;
+  eyebrow?: string;
+  rows: { label: string; value: number; text: string; status?: string }[];
+  footer?: string;
+  empty?: string;
+}
+const { title, eyebrow, rows, footer, empty = "No hay trabajos en este período" } = Astro.props;
+const max = Math.max(1, ...rows.map((r) => r.value));
+---
+<figure class="chart">
+  <figcaption>{title}</figcaption>
+  {eyebrow && <p class="label">{eyebrow}</p>}
+  {rows.length === 0 && <p class="muted">{empty}</p>}
+  <div class="funnel-plot">
+    {rows.map((r) => <div class="funnel-row">
+      <span class="funnel-label">{r.status ? <span class={`status status--${r.status}`}>{r.label}</span> : r.label}</span>
+      <div class="funnel-track" aria-hidden="true"><div class="funnel-bar" style={`--w: ${Math.max(0, r.value) * 100 / max}%`}></div></div>
+      <span class="funnel-value">{r.text}</span>
+    </div>)}
+  </div>
+  <table class="dense chart-data"><caption>{title}</caption><thead><tr><th scope="col">Grupo</th><th scope="col">Cantidad</th></tr></thead><tbody>{rows.map((r) => <tr><th scope="row">{r.label}</th><td>{r.text}</td></tr>)}</tbody></table>
+  {footer && <p class="muted">{footer}</p>}
+</figure>
+<style is:global>
+  .taller .funnel-plot { display: grid; gap: 12px; }
+  .taller .funnel-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+  .taller .funnel-label { min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+  .taller .funnel-label .status { white-space: normal; }
+  .taller .funnel-bar { width: var(--w); min-height: 20px; background: var(--ink); }
+  .taller .funnel-value { font-variant-numeric: tabular-nums; }
+</style>
