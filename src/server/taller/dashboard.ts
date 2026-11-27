@@ -1,4 +1,3 @@
-import { withLegacyStatuses } from "./rules.ts";
 import { TIMEZONE, addDays, localToday } from "../../lib/time.ts";
 import {
   and,
@@ -49,13 +48,13 @@ function orderScope(actor: SessionUser) {
     eq(workOrders.branchId, actor.branchId),
     isNull(workOrders.voidedAt),
     // Ningún grupo muestra órdenes cerradas: no se carga el historial completo en cada visita.
-    notInArray(workOrders.status, withLegacyStatuses(TERMINAL_STATUSES)),
+    notInArray(workOrders.status, [...TERMINAL_STATUSES]),
     actor.role === "mechanic"
       ? or(
           eq(workOrders.assignedMechanicId, actor.id),
           and(
             isNull(workOrders.assignedMechanicId),
-            inArray(workOrders.status, withLegacyStatuses(MECHANIC_UNASSIGNED_ACCESS_STATUSES)),
+            inArray(workOrders.status, [...MECHANIC_UNASSIGNED_ACCESS_STATUSES]),
           ),
         )
       : undefined,

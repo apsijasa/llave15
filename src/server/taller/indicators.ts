@@ -1,4 +1,3 @@
-import { withLegacyStatuses } from "./rules.ts";
 import { TIMEZONE, localToday } from "../../lib/time.ts";
 import { and, asc, count, desc, eq, gte, isNull, lt, notInArray, sql } from "drizzle-orm";
 import { DateTime } from "luxon";
@@ -213,9 +212,7 @@ async function openNow(db: AppDb, actor: SessionUser) {
   const rows = await db
     .select({ status: workOrders.status, count: count() })
     .from(workOrders)
-    .where(
-      and(orderScope(actor), notInArray(workOrders.status, withLegacyStatuses(TERMINAL_STATUSES))),
-    )
+    .where(and(orderScope(actor), notInArray(workOrders.status, [...TERMINAL_STATUSES])))
     .groupBy(workOrders.status);
   return statusCounts(rows);
 }

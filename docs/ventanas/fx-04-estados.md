@@ -40,4 +40,4 @@ La base admite los diez estados nuevos y los cinco alias heredados. El código e
 
 7. Solo con cero pendientes en producción, pedir el encargo de contract que retirará los alias del CHECK y del código. El contract vuelve a cambiar `work_orders_status_check`: su ventana debe incluir la misma comprobación en producción después de publicar.
 
-**Registro (27-11-2026).** Publicado junto con el panel de indicadores (BG-D55) y FX-05. Los tres CHECK se aplicaron a mano en producción y luego `orders:remap-status` traspasó 2 órdenes `recibida` → `creado`; la revisión final imprimió `"pending":0`. El contract sigue pendiente.
+**Registro (27-11-2026).** Publicado junto con el panel de indicadores (BG-D55) y FX-05. Los tres CHECK se aplicaron a mano en producción y luego `orders:remap-status` traspasó 2 órdenes `recibida` → `creado`; la revisión final imprimió `"pending":0`. Contract: `docs/ventanas/fx-06-contract-estados.md`.

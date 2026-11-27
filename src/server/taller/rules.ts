@@ -50,6 +50,7 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   entregada: "Retirada",
   cancelada: "Cancelada",
 };
+// Solo para mostrar filas viejas del historial (BG-D54).
 export const LEGACY_ORDER_STATUSES = [
   "reservada",
   "recibida",
@@ -58,13 +59,7 @@ export const LEGACY_ORDER_STATUSES = [
   "trabajo_rechazado",
 ] as const;
 export type LegacyOrderStatus = (typeof LEGACY_ORDER_STATUSES)[number];
-export const LEGACY_STATUS_MAP: Record<LegacyOrderStatus, OrderStatus> = {
-  reservada: "creado",
-  recibida: "creado",
-  en_reparacion: "en_progreso",
-  control_calidad: "en_progreso",
-  trabajo_rechazado: "cancelada",
-};
+// Solo para mostrar filas viejas del historial (BG-D54).
 export const LEGACY_STATUS_LABELS: Record<LegacyOrderStatus, string> = {
   reservada: "Reservada",
   recibida: "Recibida",
@@ -74,8 +69,6 @@ export const LEGACY_STATUS_LABELS: Record<LegacyOrderStatus, string> = {
 };
 export function normalizeOrderStatus(raw: string): OrderStatus {
   if ((ORDER_STATUSES as readonly string[]).includes(raw)) return raw as OrderStatus;
-  if ((LEGACY_ORDER_STATUSES as readonly string[]).includes(raw))
-    return LEGACY_STATUS_MAP[raw as LegacyOrderStatus];
   throw new Error("Estado de orden desconocido.");
 }
 export function statusLabel(raw: string): string {
@@ -83,14 +76,6 @@ export function statusLabel(raw: string): string {
   if ((LEGACY_ORDER_STATUSES as readonly string[]).includes(raw))
     return LEGACY_STATUS_LABELS[raw as LegacyOrderStatus];
   return raw;
-}
-export function withLegacyStatuses(statuses: readonly OrderStatus[]): string[] {
-  return [
-    ...new Set([
-      ...statuses,
-      ...LEGACY_ORDER_STATUSES.filter((status) => statuses.includes(LEGACY_STATUS_MAP[status])),
-    ]),
-  ];
 }
 export const TERMINAL_STATUSES = ["entregada", "cancelada"] as const;
 export const MECHANIC_UNASSIGNED_ACCESS_STATUSES = ["creado", "diagnostico"] as const;

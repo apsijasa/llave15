@@ -1,4 +1,3 @@
-import { withLegacyStatuses } from "./rules.ts";
 import { TIMEZONE, localToday } from "../../lib/time.ts";
 import { and, asc, eq, inArray, isNull, lt, notInArray } from "drizzle-orm";
 import { DateTime } from "luxon";
@@ -38,7 +37,7 @@ async function overdueOrderRows(db: AppDb, now: Date) {
       and(
         isNull(workOrders.voidedAt),
         lt(workOrders.estimatedDeliveryDate, today),
-        notInArray(workOrders.status, withLegacyStatuses(TERMINAL_STATUSES)),
+        notInArray(workOrders.status, [...TERMINAL_STATUSES]),
       ),
     )
     .orderBy(asc(workOrders.estimatedDeliveryDate), asc(workOrders.number));

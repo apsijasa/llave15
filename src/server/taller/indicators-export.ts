@@ -12,7 +12,7 @@ import { financeIndicators } from "./indicators-finance.ts";
 import type { FinanceIndicators } from "./indicators-finance.ts";
 import { indicatorsRangeSchema, workshopIndicators } from "./indicators.ts";
 import type { Indicators } from "./indicators.ts";
-import { TERMINAL_STATUSES, withLegacyStatuses } from "./rules.ts";
+import { TERMINAL_STATUSES } from "./rules.ts";
 
 export const REPORT_KINDS = ["ingresos-egresos", "resumen", "mecanicos"] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
@@ -161,7 +161,7 @@ async function mechanicOrders(db: AppDb, actor: SessionUser, range: Range) {
     gte(workOrders.deliveredAt, bounds.start),
     lt(workOrders.deliveredAt, bounds.end),
   );
-  const opened = notInArray(workOrders.status, withLegacyStatuses(TERMINAL_STATUSES));
+  const opened = notInArray(workOrders.status, [...TERMINAL_STATUSES]);
   const services = mechanicServices(db, actor.branchId);
   return db
     .select({

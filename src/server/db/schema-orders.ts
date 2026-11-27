@@ -91,7 +91,7 @@ export const workOrders = pgTable(
     check("work_orders_booking_position_check", sql`booking_position between 1 and 3`),
     check(
       "work_orders_status_check",
-      sql`status in ('creado', 'en_progreso', 'en_pausa', 'pagado', 'reservada', 'recibida', 'diagnostico', 'esperando_aprobacion', 'esperando_repuesto', 'en_reparacion', 'control_calidad', 'lista_para_retirar', 'entregada', 'cancelada', 'trabajo_rechazado')`,
+      sql`status in ('creado', 'diagnostico', 'esperando_aprobacion', 'en_progreso', 'esperando_repuesto', 'en_pausa', 'lista_para_retirar', 'pagado', 'entregada', 'cancelada')`,
     ),
     check(
       "work_orders_non_negative_check",
