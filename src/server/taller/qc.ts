@@ -16,7 +16,13 @@ import { createTransport } from "../email/transport.ts";
 import { notifyOrderReadyByWhatsApp } from "../whatsapp/order-notices.ts";
 import { recordAudit } from "./audit.ts";
 import { formatOrderNumber, recordStatusChange } from "./orders.ts";
-import { PRICING_MODES, QC_CHECK_KEYS, QC_REQUIRE_SECOND_PERSON, QC_RESULTS } from "./rules.ts";
+import {
+  normalizeOrderStatus,
+  PRICING_MODES,
+  QC_CHECK_KEYS,
+  QC_REQUIRE_SECOND_PERSON,
+  QC_RESULTS,
+} from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 import { ensureTrackingLink } from "./tracking.ts";
 
@@ -47,7 +53,7 @@ async function recordQcOutcome(
   now: Date,
 ) {
   const approved = failedItems.length === 0;
-  const status = approved ? "lista_para_retirar" : "en_reparacion";
+  const status = approved ? "lista_para_retirar" : "en_progreso";
   await db
     .update(workOrders)
     .set({
@@ -58,19 +64,21 @@ async function recordQcOutcome(
       updatedAt: now,
     })
     .where(orderFilter(actor, orderId));
-  const history = await recordStatusChange(
-    db,
-    {
-      branchId: actor.branchId,
-      orderId,
-      from: "control_calidad",
-      to: status,
-      actorUserId: actor.id,
-      note: approved ? undefined : "Control rechazado",
-    },
-    now,
-  );
-  if (!history.ok) throw new Error("No se pudo registrar el estado del control de calidad.");
+  if (approved) {
+    const history = await recordStatusChange(
+      db,
+      {
+        branchId: actor.branchId,
+        orderId,
+        from: "en_progreso",
+        to: status,
+        actorUserId: actor.id,
+        note: approved ? undefined : "Control rechazado",
+      },
+      now,
+    );
+    if (!history.ok) throw new Error("No se pudo registrar el estado del control de calidad.");
+  }
   await recordAudit(
     db,
     {
@@ -197,7 +205,8 @@ async function saveQc(
       .from(workOrders)
       .where(orderFilter(actor, orderId))
       .for("update");
-    if (order?.status !== "control_calidad") return { ok: false, code: "invalid_status" } as const;
+    if (!order || normalizeOrderStatus(order.status) !== "en_progreso")
+      return { ok: false, code: "invalid_status" } as const;
     const selfCheck = order.assignedMechanicId === null || order.assignedMechanicId === actor.id;
     if (QC_REQUIRE_SECOND_PERSON && selfCheck)
       return { ok: false, code: "second_person_required" } as const;

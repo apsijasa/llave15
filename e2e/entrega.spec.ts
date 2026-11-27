@@ -47,7 +47,7 @@ test("El dueño registra el pago final y entrega la bicicleta con firma", async 
   await drawSignature(page);
   await page.getByRole("button", { name: "Entregar bicicleta", exact: true }).tap();
   await expect(page).toHaveURL(/\/entrega\?hecho=deliver$/);
-  await expect(page.locator("span.status")).toHaveText("Entregada");
+  await expect(page.locator("span.status")).toHaveText("Retirada");
   await expect(page.getByRole("status")).toHaveText("Bicicleta entregada.");
   await expect(page.getByRole("button", { name: "Entregar bicicleta", exact: true })).toHaveCount(
     0,

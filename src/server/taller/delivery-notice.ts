@@ -84,7 +84,11 @@ async function notifyDeliveryDateChanged(
     previousDate,
   } = change;
   try {
-    if (date === previousDate || order.status === "reservada" || customer.email === null)
+    if (
+      date === previousDate ||
+      (order.status === "creado" && order.receivedAt === null) ||
+      customer.email === null
+    )
       return false;
     if (await hasDeliveryNotice(db, actor, order.id, date)) return false;
     const siteUrl = deps.siteUrl ?? getAppEnv().APP_URL;

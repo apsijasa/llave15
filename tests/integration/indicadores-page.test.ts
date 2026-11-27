@@ -109,7 +109,7 @@ async function seedPayment() {
       number: 1,
       customerId: customer.id,
       bikeId: bike.id,
-      status: "recibida",
+      status: "creado",
       requestedService: "Revisión",
       createdBy: owner.id,
       totalClp: 20000,

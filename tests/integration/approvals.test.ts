@@ -135,7 +135,7 @@ beforeEach(async () => {
   };
 });
 
-it.each(["diagnostico", "en_reparacion", "esperando_repuesto"])(
+it.each(["diagnostico", "en_progreso", "esperando_repuesto"])(
   "1: propone desde %s y pasa a esperando_aprobacion con historial",
   async (status) => {
     await test.db.update(workOrders).set({ status }).where(eq(workOrders.id, orderId));
@@ -260,26 +260,21 @@ it("agrega otra pendiente sin duplicar el cambio de estado ni historial", async 
   expect(await test.db.select().from(workOrderStatusHistory)).toHaveLength(1);
 });
 
-it.each([
-  "reservada",
-  "recibida",
-  "control_calidad",
-  "lista_para_retirar",
-  "entregada",
-  "cancelada",
-  "trabajo_rechazado",
-])("rechaza el estado %s sin escribir propuesta o auditoría", async (status) => {
-  await test.db
-    .update(workOrders)
-    .set({ status, qcApprovedAt: NOW })
-    .where(eq(workOrders.id, orderId));
-  expect(await createApproval(test.db, owner, orderId, INPUT, NOW)).toEqual({
-    ok: false,
-    code: "invalid_status",
-  });
-  expect(await test.db.select().from(workOrderApprovals)).toEqual([]);
-  expect(await test.db.select().from(auditLog)).toEqual([]);
-});
+it.each(["creado", "creado", "en_pausa", "lista_para_retirar", "entregada", "cancelada"])(
+  "rechaza el estado %s sin escribir propuesta o auditoría",
+  async (status) => {
+    await test.db
+      .update(workOrders)
+      .set({ status, qcApprovedAt: NOW })
+      .where(eq(workOrders.id, orderId));
+    expect(await createApproval(test.db, owner, orderId, INPUT, NOW)).toEqual({
+      ok: false,
+      code: "invalid_status",
+    });
+    expect(await test.db.select().from(workOrderApprovals)).toEqual([]);
+    expect(await test.db.select().from(auditLog)).toEqual([]);
+  },
+);
 
 it("aísla creación, listado y regeneración por sucursal y excluye órdenes anuladas", async () => {
   const original = await proposal();

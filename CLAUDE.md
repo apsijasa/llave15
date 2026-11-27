@@ -44,9 +44,11 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 
 - **Reserva.** `/<slug>/reservar` → `BookingIsland.tsx` (props del taller) → `POST /api/reservas` con `taller` → `handleCreateBooking` en `src/server/api/handlers.ts` (taller por `scopeBySlug` → rate limit por taller → zod con la configuración del taller → Turnstile con `cdata` = slug) → `createBooking(db, input, now, scope)` en `src/server/booking/create-booking.ts` (transacción: lock de `booking_days` por sucursal y fecha, advisory lock por teléfono, revalidación con `slots.ts`, insert con `branch_id`) → commit → correos con la marca del taller → 201.
 - **Alcance.** `BookingScope = { shopId, slug, branchId, config }` (`src/server/shops/scope.ts`): `scopeForBranch`, `scopeBySlug`, `activeShopScopes`; sin alcance, `singleShopScope` usa el único taller y **lanza con dos**. El perfil (`ShopProfile`, `src/server/shops/profile.ts`) sale por sucursal, slug o token.
-- **Recepción.** tablet → `src/pages/taller/recepcion/nueva.astro` (POST) → `startReception` en `src/server/taller/orders.ts` (cliente y bici, número y régimen con `allocateNewOrder`, orden `reservada`, historial y auditoría) → `/taller/ordenes/<id>/recepcion` → `/taller/ordenes/<id>/cierre` (`PhotoCapture` → `fotos.ts`; `SignaturePad` en el POST) → `finalizeReception` en `src/server/taller/reception.ts` → `recibida`.
+- **Recepción.** tablet → `src/pages/taller/recepcion/nueva.astro` (POST) → `startReception` en `src/server/taller/orders.ts` (cliente y bici, número y régimen con `allocateNewOrder`, orden `creado`, historial y auditoría) → `/taller/ordenes/<id>/recepcion` → `/taller/ordenes/<id>/cierre` (`PhotoCapture` → `fotos.ts`; `SignaturePad` en el POST) → `finalizeReception` en `src/server/taller/reception.ts` → fija `received_at` (sigue `creado`). Estados de la orden (BG-D54): Creado → Diagnóstico → Esperando aprobación → En progreso ⇄ Esperando repuestos / En pausa → Lista para retirar → Pagado → Retirada, más Cancelada; reglas en `src/server/taller/rules.ts`.
 - **Landing y demo (BG-D52).** `/` es SSR: `isPlatformHost` (`src/server/shops/host.ts`) muestra en `llave15.cl` la landing (`src/components/llave15/PlatformLanding.astro` en `PlatformSiteLayout`, textos en `src/lib/platform-site.ts`) y en el dominio heredado la portada de Vector Bikes, hasta BG-DC1. `/demo` (POST) → `submitDemoRequest` en `src/server/shops/demo-submit.ts` (zod → Turnstile `cdata` `demo` → 3 por IP por hora → fila `demo_requests` → aviso a los administradores de plataforma y acuse al solicitante, después de guardar) → 303. Se gestionan en `/plataforma/solicitudes`; aviso legal en `/aviso-de-privacidad`. `robots.txt` y el sitemap son SSR por dominio (`src/server/shops/site-seo.ts`): cada dominio anuncia solo sus páginas; las de Llave 15 llevan canonical en `APP_URL`.
 - **Venta de mostrador.** `src/pages/taller/ventas/nueva.astro` ("Calcular total" → `previewSale`; "Registrar venta" → `createSale` en `src/server/taller/sales.ts`): número `VM-00001`, precio y costo congelados, `applyStockMovement(venta)`, pago con `sale_id`; efectivo con caja habilitada exige `requireOpenCashSession` y crea el `cash_movements`.
+
+- **Compra por factura (F2-D34).** `/taller/compras/factura` (POST multipart) → `startPurchaseImport` (archivo → almacenamiento → Anthropic fuera de transacción → `purchase_imports`) → `/taller/compras/factura/<id>` (revisión) → `confirmPurchaseImport` (una transacción: proveedor y productos nuevos, `OC`, líneas y, con Recibir ahora, `receiveItems`) → `/taller/compras/<id>`.
 
 **Fronteras.**
 
@@ -66,7 +68,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 
 | Tema | Única fuente de verdad |
 |---|---|
-| Esquema | catorce archivos que importan en un solo sentido: `src/server/db/schema-shops.ts` (talleres; desde BG-03) ← `schema.ts` (reservas, sucursal, usuarios) ← `schema-taller.ts` ← `schema-inventory.ts` ← `schema-orders.ts` ← `schema-reports.ts` ← `schema-cash.ts` ← `schema-sales.ts` ← `schema-payments.ts` ← `schema-library-catalog.ts` ← `schema-library-knowledge.ts` ← `schema-library-procedures.ts` ← `schema-library-private.ts` (biblioteca; tablas globales sin `branch_id`, BT-D1) ← `schema-platform.ts` (`demo_requests`, sin `branch_id`, BG-D51) → `pnpm db:generate` → `pnpm db:migrate` |
+| Esquema | quince archivos que importan en un solo sentido: `src/server/db/schema-shops.ts` (talleres; desde BG-03) ← `schema.ts` (reservas, sucursal, usuarios) ← `schema-taller.ts` ← `schema-inventory.ts` ← `schema-orders.ts` ← `schema-reports.ts` ← `schema-cash.ts` ← `schema-sales.ts` ← `schema-payments.ts` ← `schema-library-catalog.ts` ← `schema-library-knowledge.ts` ← `schema-library-procedures.ts` ← `schema-library-private.ts` (biblioteca; tablas globales sin `branch_id`, BT-D1) ← `schema-platform.ts` (`demo_requests`, sin `branch_id`, BG-D51) ← `schema-purchase-imports.ts` (`purchase_imports`, `branch_id` NOT NULL; F2-D34) → `pnpm db:generate` → `pnpm db:migrate` |
 | Conexión | `src/server/db/client.ts` (`getDb()`, tipo `AppDb`); los módulos reciben `db` como argumento |
 | Entorno | `src/lib/env.ts` (accesores por funcionalidad, `getAppEnv`, `getTrackingEnv`); nunca `process.env` en otro lado |
 | Perfil y configuración del taller | la fila de `shops`; `src/server/shops/profile.ts` (`ShopProfile`), `src/server/booking/config.ts` (`BookingConfig`), alcance en `src/server/shops/scope.ts` |
@@ -78,10 +80,12 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | Stock · Caja | `src/server/taller/stock.ts` (`applyStockMovement`, el único que cambia `products.stock_qty`) · `src/server/taller/cash.ts` (`requireOpenCashSession`, `recordCashMovement`) |
 | Permisos · Sesión | `src/server/auth/permissions.ts` (`can(role, action)`; costos solo con `costs.view`; `shop.manage` solo dueño) · `src/server/auth/admin-auth.ts` (`requireAdmin`, `loginRedirect`) |
 | Auditoría | `src/server/taller/audit.ts` (`recordAudit`, dentro de la transacción) |
-| Almacenamiento de imágenes | `src/server/storage/storage.ts` (`getStorage()`); pipeline en `src/server/storage/images.ts`; logos en `shops/<id>/logo.png` |
+| Almacenamiento de imágenes | `src/server/storage/storage.ts` (`getStorage()`); pipeline en `src/server/storage/images.ts`; logos en `shops/<id>/logo.png`; facturas en `purchases/imports/<id>/documento.(pdf&#124;jpg)` |
 | Correos | `src/server/email/brand.ts` (remitente `<Taller> · Llave 15`, `Reply-To`, pie `Gestionado con Llave 15`), `email/booking/*`, `email/garage/*` |
 | Feriados · Tokens de diseño · Logs | `src/data/feriados-cl.json` · `src/styles/tokens.css` (desde BG-22; `:root.l15` desde BG-47) · `src/lib/log.ts` |
 | Biblioteca técnica | `src/server/library/**` (reglas en `library/rules.ts`, acceso en `access.ts`); decisiones en `blueprints/vector-biblioteca/BIBLIOTECA.md` |
+
+| Compra por factura | `src/server/taller/invoice-extract.ts`, `invoice-normalize.ts` (lectura), `purchase-import.ts`, `purchase-import-match.ts`, `purchase-import-confirm.ts` (importación y confirmación); documento por `/taller/compras/factura/<id>/documento` |
 
 ## Reglas de código
 
@@ -144,7 +148,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | `TASKS_SECRET` (≥ 32) | F1-01 | `src/server/api/task-handlers.ts` (`/api/tareas/*`) |
 | `E2E_DATABASE_URL` (opcional; por defecto `…/vector_bikes_e2e`) | F1-06 | `e2e/**`, `playwright.config.ts` |
 | `STORAGE_DRIVER` (`local`/`replit`), `STORAGE_LOCAL_DIR`, `STORAGE_BUCKET_ID` | F1-08 | `src/server/storage/storage.ts` |
-| `AI_PROVIDER` (`none`/`anthropic`, opcional), `ANTHROPIC_API_KEY` (solo con `anthropic`), `AI_MODEL` (opcional, `claude-opus-5-5`) | BT-17 | `src/lib/env.ts` (`getAiEnv`), `src/server/library/ai-provider.ts` |
+| `AI_PROVIDER` (`none`/`anthropic`, opcional), `ANTHROPIC_API_KEY` (solo con `anthropic`), `AI_MODEL` (opcional, `claude-opus-5-5`) | BT-17 | `src/lib/env.ts` (`getAiEnv`), `src/server/library/ai-provider.ts`, `src/server/taller/invoice-extract.ts` |
 | `APP_URL` (opcional; vacío = `PUBLIC_SITE_URL`) | BG-34 | cookie, CSRF y enlaces del sistema |
 | `TRACKING_TOKEN_SECRET` (≥ 32, opcional; vacío = `CANCEL_TOKEN_SECRET`) | BG-35 | `src/server/taller/tracking.ts` |
 
@@ -175,7 +179,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 7. Nunca marcar una tarea como hecha con una compuerta fallando, ni editar un comando de Verify para que pase.
 8. `branch_id` NOT NULL en toda tabla de operación, incluidas las de reserva desde BG-09.
 9. Nunca borrar una orden, línea, componente, aprobación, foto de informe, venta, compra, gasto ni movimiento: se marcan con `voided_at`.
-10. Saldo cero antes de `entregada` y control de calidad antes de `lista_para_retirar`: garantizados por CHECK en la base.
+10. Saldo cero en `pagado` y `entregada`, y control de calidad antes de `lista_para_retirar`: garantizados por CHECK en la base.
 11. Token de aprobación de un solo uso, guardado como hash; nunca en claro.
 12. El mecánico nunca cambia un precio: el servidor responde 403.
 13. La recepción y el control de calidad, y desde la fase 2 la venta, el cobro en efectivo con caja abierta y el ajuste de stock, se prueban en tablet (spec de Playwright + tablet real) antes de darse por hechos.

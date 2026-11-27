@@ -87,7 +87,7 @@ async function seedOrder() {
       customerId: customer?.id ?? "",
       bikeId: bike?.id ?? "",
       requestedService: "Cadena salta bajo carga",
-      status: "en_reparacion",
+      status: "en_progreso",
       assignedMechanicId: owner.id,
       createdBy: owner.id,
     })

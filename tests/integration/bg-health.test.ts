@@ -61,7 +61,7 @@ async function seedOrder(branchId: string, ownerId: string, bookingId: string) {
       bikeId: bike.id,
       bookingId,
       bookingPosition: 1,
-      status: "recibida",
+      status: "creado",
       requestedService: "Mantención",
       createdBy: ownerId,
       createdAt: NOW,

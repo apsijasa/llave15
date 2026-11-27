@@ -8,6 +8,7 @@ import type { ObjectStorage } from "../storage/storage.ts";
 import { recordAudit } from "./audit.ts";
 import { recordStatusChange } from "./orders.ts";
 import { decodeSignature, insertSignatureRow, uploadSignature } from "./reception.ts";
+import { normalizeOrderStatus } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 
 const deliveryInputSchema = z.object({
@@ -43,7 +44,8 @@ function orderFilter(actor: SessionUser, orderId: string) {
 function deliveryAccess(actor: SessionUser, order: typeof workOrders.$inferSelect | undefined) {
   if (!order) return { ok: false, code: "not_found" } as const;
   if (!canAccessOrder(actor, order)) return { ok: false, code: "forbidden" } as const;
-  if (order.status !== "lista_para_retirar") return { ok: false, code: "invalid_status" } as const;
+  if (!["lista_para_retirar", "pagado"].includes(normalizeOrderStatus(order.status)))
+    return { ok: false, code: "invalid_status" } as const;
   if (order.paidClp !== order.totalClp) return { ok: false, code: "balance_pending" } as const;
   return { ok: true } as const;
 }
@@ -63,17 +65,26 @@ async function hasDeliverySignature(db: AppDb, actor: SessionUser, orderId: stri
   return Boolean(signature);
 }
 
-async function recordDeliveryChange(db: AppDb, actor: SessionUser, orderId: string, now: Date) {
+async function recordDeliveryChange(
+  db: AppDb,
+  actor: SessionUser,
+  orderId: string,
+  now: Date,
+  afterPayment: boolean,
+) {
+  // Las dos filas del paso de compatibilidad deben conservar su secuencia al ordenar el historial.
+  const historyAt = structuredClone(now);
+  if (afterPayment) historyAt.setTime(now.getTime() + 1);
   const history = await recordStatusChange(
     db,
     {
       branchId: actor.branchId,
       orderId,
-      from: "lista_para_retirar",
+      from: "pagado",
       to: "entregada",
       actorUserId: actor.id,
     },
-    now,
+    historyAt,
   );
   if (!history.ok) throw new Error("No se pudo registrar el estado de la entrega.");
   await recordAudit(
@@ -84,10 +95,26 @@ async function recordDeliveryChange(db: AppDb, actor: SessionUser, orderId: stri
       action: "order.delivered",
       entity: "work_order",
       entityId: orderId,
-      details: { from: "lista_para_retirar", to: "entregada" },
+      details: { from: "pagado", to: "entregada" },
     },
     now,
   );
+}
+
+async function recordPaidBeforeDelivery(db: AppDb, actor: SessionUser, orderId: string, now: Date) {
+  const paid = await recordStatusChange(
+    db,
+    {
+      branchId: actor.branchId,
+      orderId,
+      from: "lista_para_retirar",
+      to: "pagado",
+      actorUserId: actor.id,
+      note: "Pago completo",
+    },
+    now,
+  );
+  if (!paid.ok) throw new Error("No se pudo registrar el pago antes de la entrega.");
 }
 
 async function commitDelivery(
@@ -122,7 +149,15 @@ async function commitDelivery(
       .update(workOrders)
       .set({ status: "entregada", deliveredAt: now, updatedAt: now })
       .where(orderFilter(actor, input.orderId));
-    await recordDeliveryChange(tx, actor, input.orderId, now);
+    if (order && normalizeOrderStatus(order.status) === "lista_para_retirar")
+      await recordPaidBeforeDelivery(tx, actor, input.orderId, now);
+    await recordDeliveryChange(
+      tx,
+      actor,
+      input.orderId,
+      now,
+      order !== undefined && normalizeOrderStatus(order.status) === "lista_para_retirar",
+    );
     return { ok: true } as const;
   });
 }

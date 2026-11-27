@@ -97,7 +97,8 @@ async function seedOrder(pricingMode: PricingMode) {
       customerId,
       bikeId,
       pricingMode,
-      status: "recibida",
+      status: "creado",
+      receivedAt: NOW,
       requestedService: "Revisión general",
       createdBy: owner.id,
     })
@@ -217,7 +218,7 @@ it("el CHECK exige pagar también el IVA antes de entregar una orden neto", asyn
     ),
   ).rejects.toMatchObject({ code: "23514", constraint: "work_orders_delivered_paid_check" });
   const [unchanged] = await test.db.select().from(workOrders).where(eq(workOrders.id, orderId));
-  expect(unchanged).toMatchObject({ status: "recibida", paidClp: 0, totalClp: 11900 });
+  expect(unchanged).toMatchObject({ status: "creado", paidClp: 0, totalClp: 11900 });
   await test.db
     .update(workOrders)
     .set({

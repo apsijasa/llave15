@@ -17,9 +17,8 @@ import {
   QC_CHECK_LABELS,
   QC_RESULTS,
   QC_RESULT_LABELS,
-  STATUS_LABELS,
+  statusLabel,
 } from "../../../../server/taller/rules.ts";
-import type { OrderStatus } from "../../../../server/taller/rules.ts";
 import { orderDetail } from "../../../../server/taller/status.ts";
 
 export const prerender = false;
@@ -105,14 +104,14 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 
 <TallerLayout title={`${number} · Control de calidad — ${PLATFORM.name}`} description="Control de calidad e historial de revisiones." path="/taller/ordenes" user={user}>
   <div class="stack">
-    <PageHeader title={`${number} · Control de calidad`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={`${number} · Control de calidad`} status={{ status: order.status, label: statusLabel(order.status) }} />
     <OrderTabs orderId={order.id} active="control" tabs={tabs} />
     {error && <p role="alert">{error}</p>}
     {Astro.url.searchParams.get("hecho") === "aprobado" && <p role="status">Control de calidad aprobado.</p>}
-    {Astro.url.searchParams.get("hecho") === "rechazado" && <p role="status">Control rechazado. La orden vuelve a reparación.</p>}
+    {Astro.url.searchParams.get("hecho") === "rechazado" && <p role="status">Control rechazado. La orden sigue En progreso.</p>}
     <Card>
       {can(user.role, "qc.approve") ? (
-        order.status === "control_calidad" ? (
+        order.status === "en_progreso" ? (
           <form method="post" action={Astro.url.pathname}>
             <div class="fields">
               {QC_CHECK_KEYS.map((key) => (
@@ -134,7 +133,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
             </div>
             <button type="submit" class="btn">Aprobar control</button>
           </form>
-        ) : <p class="muted">La orden debe estar en control de calidad para registrar una revisión.</p>
+        ) : <p class="muted">La orden debe estar En progreso para registrar una revisión.</p>
       ) : <p class="muted">Solo el dueño aprueba el control de calidad</p>}
     </Card>
     <Card id="history-heading" title="Historial de controles">

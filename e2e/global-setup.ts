@@ -209,8 +209,8 @@ async function seedOrders(sql: Sql): Promise<void> {
       id, branch_id, number, customer_id, bike_id, status, requested_service, assigned_mechanic_id,
       estimated_delivery_date, received_at, created_by, qc_approved_at, qc_approved_by, total_clp
     ) values
-      (${SEED.orderRecibidaId}, ${SEED.branchId}, 1, ${SEED.customerId}, ${SEED.bikeId}, 'recibida', 'Mantención general', ${SEED.mechanicId}, ${localDate(2)}, ${now}, ${SEED.ownerId}, null, null, 0),
-      (${SEED.orderControlId}, ${SEED.branchId}, 2, ${SEED.customerId}, ${SEED.bikeId}, 'control_calidad', 'Ajuste de frenos', ${SEED.mechanicId}, ${localDate(1)}, ${now}, ${SEED.ownerId}, null, null, 0),
+      (${SEED.orderRecibidaId}, ${SEED.branchId}, 1, ${SEED.customerId}, ${SEED.bikeId}, 'creado', 'Mantención general', ${SEED.mechanicId}, ${localDate(2)}, ${now}, ${SEED.ownerId}, null, null, 0),
+      (${SEED.orderControlId}, ${SEED.branchId}, 2, ${SEED.customerId}, ${SEED.bikeId}, 'en_progreso', 'Ajuste de frenos', ${SEED.mechanicId}, ${localDate(1)}, ${now}, ${SEED.ownerId}, null, null, 0),
       (${SEED.orderListaId}, ${SEED.branchId}, 3, ${SEED.customerId}, ${SEED.bikeId}, 'lista_para_retirar', 'Mantención general', ${SEED.mechanicId}, ${localDate(0)}, ${now}, ${SEED.ownerId}, ${now}, ${SEED.ownerId}, ${listaTotal})
   `;
   if (hasItems) {

@@ -70,7 +70,8 @@ async function createOrder(staff = owner, sameBike?: typeof order) {
       number: ++orderNumber,
       customerId: sameBike?.customerId ?? customer.id,
       bikeId: sameBike?.bikeId ?? bike?.id ?? "",
-      status: "recibida",
+      status: "creado",
+      receivedAt: NOW,
       requestedService: "Revisión general",
       createdBy: staff.id,
     })

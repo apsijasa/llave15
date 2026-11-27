@@ -39,7 +39,7 @@ export const workOrders = pgTable(
       .notNull()
       .references(() => bikes.id, { onDelete: "restrict" }),
     bookingId: uuid("booking_id").references(() => bookings.id, { onDelete: "restrict" }),
-    status: text("status").notNull().default("reservada"),
+    status: text("status").notNull().default("creado"),
     requestedService: text("requested_service").notNull(),
     diagnosis: text("diagnosis"),
     observations: text("observations"),
@@ -91,16 +91,19 @@ export const workOrders = pgTable(
     check("work_orders_booking_position_check", sql`booking_position between 1 and 3`),
     check(
       "work_orders_status_check",
-      sql`status in ('reservada', 'recibida', 'diagnostico', 'esperando_aprobacion', 'esperando_repuesto', 'en_reparacion', 'control_calidad', 'lista_para_retirar', 'entregada', 'cancelada', 'trabajo_rechazado')`,
+      sql`status in ('creado', 'en_progreso', 'en_pausa', 'pagado', 'reservada', 'recibida', 'diagnostico', 'esperando_aprobacion', 'esperando_repuesto', 'en_reparacion', 'control_calidad', 'lista_para_retirar', 'entregada', 'cancelada', 'trabajo_rechazado')`,
     ),
     check(
       "work_orders_non_negative_check",
       sql`total_clp >= 0 and paid_clp >= 0 and estimated_minutes >= 0`,
     ),
-    check("work_orders_delivered_paid_check", sql`status <> 'entregada' or paid_clp = total_clp`),
+    check(
+      "work_orders_delivered_paid_check",
+      sql`status not in ('pagado', 'entregada') or paid_clp = total_clp`,
+    ),
     check(
       "work_orders_qc_check",
-      sql`status not in ('lista_para_retirar', 'entregada') or qc_approved_at is not null`,
+      sql`status not in ('lista_para_retirar', 'pagado', 'entregada') or qc_approved_at is not null`,
     ),
     check(
       "work_orders_tax_doc_type_check",

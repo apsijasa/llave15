@@ -21,8 +21,7 @@ import {
 import { listItems } from "../../../../server/taller/items.ts";
 import { formatOrderNumber } from "../../../../server/taller/orders.ts";
 import { orderDetail } from "../../../../server/taller/status.ts";
-import { STATUS_LABELS } from "../../../../server/taller/rules.ts";
-import type { OrderStatus } from "../../../../server/taller/rules.ts";
+import { statusLabel } from "../../../../server/taller/rules.ts";
 
 export const prerender = false;
 const db = getDb();
@@ -128,7 +127,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 
 <TallerLayout title={`${number} · Componentes — ${PLATFORM.name}`} description="Componentes instalados y reemplazados de la bicicleta." path="/taller/ordenes" user={user}>
   <div class="stack">
-    <PageHeader title={`${number} · Componentes`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={`${number} · Componentes`} status={{ status: order.status, label: statusLabel(order.status) }} />
     <OrderTabs orderId={order.id} active="componentes" tabs={tabs} />
     <Card><p>{bike.brand} {bike.model}</p></Card>
     {notice && <p role="status">{notice}</p>}

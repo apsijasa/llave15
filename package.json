@@ -21,6 +21,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env scripts/db-migrate.ts",
     "db:check": "node --env-file-if-exists=.env scripts/db-check.ts",
+    "orders:remap-status": "node --env-file-if-exists=.env scripts/orders-remap-status.ts",
     "bg:backfill": "node --env-file-if-exists=.env scripts/bg-backfill.ts",
     "bg:check": "node --env-file-if-exists=.env scripts/bg-check.ts",
     "platform:admin": "node --env-file-if-exists=.env scripts/platform-admin.ts",

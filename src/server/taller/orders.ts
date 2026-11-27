@@ -11,7 +11,7 @@ import { bookingInActorShop } from "./booking-reception.ts";
 import { bikeFormSchema, insertBike, listBikesOfCustomer } from "./bikes.ts";
 import { customerFormSchema, findCustomerByPhone, insertCustomer } from "./customers.ts";
 import { allocateNewOrder } from "./order-creation.ts";
-import { isAllowedTransition, TAX_DOC_TYPES } from "./rules.ts";
+import { isAllowedTransition, normalizeOrderStatus, TAX_DOC_TYPES } from "./rules.ts";
 import type { OrderStatus } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 
@@ -75,8 +75,7 @@ export async function prefillFromBooking(db: AppDb, actor: SessionUser, bookingI
     .limit(1);
   if (!booking) return null;
   const customer = await findCustomerByPhone(db, actor, booking.phoneE164);
-  // La bici que toca es la de la posición siguiente a las que ya tienen orden. La 1 vive en la
-  // reserva misma; las demás, en `booking_bikes`.
+  // La siguiente bici vive en la reserva (posición 1) o en booking_bikes.
   const next = await nextBookingBike(db, actor, booking);
   const [brand = "", ...model] = next.bike.trim().split(/\s+/);
   return {
@@ -220,7 +219,7 @@ async function insertReceptionOrder(
       bikeId: bike.id,
       bookingId: input.bookingId,
       bookingPosition,
-      status: "reservada",
+      status: "creado",
       requestedService: input.requestedService,
       createdBy: actor.id,
       assignedMechanicId: actor.role === "mechanic" ? actor.id : null,
@@ -250,7 +249,7 @@ export async function startReception(
           branchId: actor.branchId,
           orderId: order.id,
           from: null,
-          to: "reservada",
+          to: "creado",
           actorUserId: actor.id,
         },
         now,
@@ -285,6 +284,7 @@ export async function getOrderHeader(db: AppDb, actor: SessionUser, id: string) 
     .innerJoin(bikes, and(eq(bikes.id, workOrders.bikeId), eq(bikes.branchId, actor.branchId)))
     .where(and(eq(workOrders.branchId, actor.branchId), eq(workOrders.id, id)))
     .limit(1);
+  if (header) header.order.status = normalizeOrderStatus(header.order.status);
   return header ?? null;
 }
 export const taxDocSchema = z.strictObject({
@@ -342,7 +342,7 @@ async function recordWarrantyOpening(
   now: Date,
 ) {
   const author = { branchId: actor.branchId, actorUserId: actor.id };
-  await recordStatusChange(db, { ...author, orderId, from: null, to: "reservada" }, now);
+  await recordStatusChange(db, { ...author, orderId, from: null, to: "creado" }, now);
   await recordAudit(
     db,
     {
@@ -372,7 +372,8 @@ export async function openWarrantyOrder(
       .where(and(eq(workOrders.branchId, actor.branchId), eq(workOrders.id, originalId)))
       .for("update");
     if (!original || original.voidedAt) return { ok: false, code: "not_found" } as const;
-    if (original.status !== "entregada") return { ok: false, code: "not_delivered" } as const;
+    if (normalizeOrderStatus(original.status) !== "entregada")
+      return { ok: false, code: "not_delivered" } as const;
     const { number, pricingMode } = await allocateNewOrder(tx, actor.branchId);
     const [order] = await tx
       .insert(workOrders)
@@ -383,7 +384,7 @@ export async function openWarrantyOrder(
         customerId: original.customerId,
         bikeId: original.bikeId,
         warrantyOfOrderId: originalId,
-        status: "reservada",
+        status: "creado",
         requestedService: `Garantía de ${formatOrderNumber(original.number)}: ${parsed.data.reason}`,
         createdBy: actor.id,
         assignedMechanicId: actor.role === "mechanic" ? actor.id : null,

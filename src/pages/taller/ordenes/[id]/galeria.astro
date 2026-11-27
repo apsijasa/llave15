@@ -12,8 +12,7 @@ import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
 import { getDb } from "../../../../server/db/client.ts";
 import { formatOrderNumber } from "../../../../server/taller/orders.ts";
 import { listOrderPhotos, stageAcceptsStatus } from "../../../../server/taller/photos.ts";
-import { STATUS_LABELS } from "../../../../server/taller/rules.ts";
-import type { OrderStatus } from "../../../../server/taller/rules.ts";
+import { statusLabel } from "../../../../server/taller/rules.ts";
 import { canAccessOrder, orderDetail } from "../../../../server/taller/status.ts";
 
 export const prerender = false;
@@ -57,7 +56,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 
 <TallerLayout title={`${number} · Galería — ${PLATFORM.name}`} description="Fotos de la orden agrupadas por etapa." path="/taller/ordenes" user={user}>
   <div class="stack">
-    <PageHeader title={`${number} · Galería`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={`${number} · Galería`} status={{ status: order.status, label: statusLabel(order.status) }} />
     <OrderTabs orderId={order.id} active="galeria" tabs={tabs} />
     {stages.map(({ stage, title, label }) => <Card id={`${stage}-heading`} title={title}>
       <div class="grid-photos">

@@ -9,8 +9,7 @@ import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../server/aut
 import { can, forbiddenResponse } from "../../../server/auth/permissions.ts";
 import { getDb } from "../../../server/db/client.ts";
 import { formatOrderNumber } from "../../../server/taller/orders.ts";
-import { STATUS_LABELS } from "../../../server/taller/rules.ts";
-import type { OrderStatus } from "../../../server/taller/rules.ts";
+import { statusLabel } from "../../../server/taller/rules.ts";
 import { listOrders, orderScopeSchema } from "../../../server/taller/status.ts";
 
 export const prerender = false;
@@ -40,7 +39,7 @@ const orders = await listOrders(db, user, scope);
           {orders.map(({ order, customerName, bikeBrand, bikeModel }) => (
             <tr>
               <th scope="row"><a href={`${PATH}/${order.id}`}>{formatOrderNumber(order.number)}</a></th>
-              <td><span class={`status status--${order.status}`}>{STATUS_LABELS[order.status as OrderStatus]}</span></td>
+              <td><span class={`status status--${order.status}`}>{statusLabel(order.status)}</span></td>
               <td>{customerName}</td><td>{bikeBrand} {bikeModel}</td>
               <td>{order.estimatedDeliveryDate ?? "Sin fecha"}</td><td class="mono">{formatClp(order.totalClp)}</td>
             </tr>

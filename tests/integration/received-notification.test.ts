@@ -212,9 +212,9 @@ describe("aviso al cliente cuando se finaliza la recepción", () => {
   });
 
   it("si la finaliza un mecánico, el correo igual trae las líneas y el total", async () => {
-    // `listItems` pasa por `canAccessOrder`. Una orden sin asignar en `recibida`
+    // `listItems` pasa por `canAccessOrder`. Una orden sin asignar en `creado`
     // le sigue siendo accesible al mecánico que la recibió; si alguien saca
-    // "recibida" de MECHANIC_UNASSIGNED_ACCESS_STATUSES, el correo perdería las
+    // "creado" de MECHANIC_UNASSIGNED_ACCESS_STATUSES, el correo perdería las
     // líneas en silencio y esta prueba lo caza.
     await ready();
     await test.db.insert(workOrderItems).values({

@@ -15,33 +15,31 @@ import type { TestDb } from "../helpers/pglite.ts";
 const NOW = new Date("2026-10-09T01:00:00.000Z");
 const TODAY = "2026-10-08";
 const EXPECTED_LOAD = [
-  "reservada",
-  "recibida",
+  "creado",
   "diagnostico",
   "esperando_aprobacion",
   "esperando_repuesto",
-  "en_reparacion",
-  "control_calidad",
+  "en_progreso",
+  "en_pausa",
 ] as const;
 const EXPECTED_SOON = [
-  "reservada",
+  "en_pausa",
   "diagnostico",
   "esperando_aprobacion",
   "esperando_repuesto",
-  "control_calidad",
+  "en_progreso",
 ] as const;
 const DATES: Record<OrderStatus, string> = {
-  reservada: TODAY,
-  recibida: "2026-10-07",
+  creado: "2026-10-07",
   diagnostico: TODAY,
   esperando_aprobacion: "2026-10-09",
+  en_progreso: TODAY,
   esperando_repuesto: "2026-10-10",
-  en_reparacion: "2026-10-11",
-  control_calidad: TODAY,
+  en_pausa: TODAY,
   lista_para_retirar: "2026-10-07",
+  pagado: "2026-10-07",
   entregada: "2026-10-07",
   cancelada: "2026-10-07",
-  trabajo_rechazado: "2026-10-07",
 };
 type Identity = { owner: SessionUser; customerId: string; bikeId: string };
 type Order = typeof workOrders.$inferSelect;
@@ -128,7 +126,8 @@ async function createOrder(
       createdBy: target.owner.id,
       number: ++number,
       requestedService: "Mantención",
-      status: "recibida",
+      status: "creado",
+      receivedAt: NOW,
       estimatedDeliveryDate: TODAY,
       estimatedMinutes: 30,
       totalClp: 20000,
@@ -154,7 +153,7 @@ async function seedStatuses(
         assignedMechanicId,
         voidedAt,
         estimatedDeliveryDate: DATES[status],
-        paidClp: status === "entregada" ? 20000 : 0,
+        paidClp: ["pagado", "entregada"].includes(status) ? 20000 : 0,
       },
       target,
     );
@@ -221,28 +220,29 @@ it("1: agrupa por estado y excluye órdenes anuladas y de otra sucursal", async 
   for (const [group, status] of [
     ["waitingApproval", "esperando_aprobacion"],
     ["waitingParts", "esperando_repuesto"],
-    ["inRepair", "en_reparacion"],
-    ["qcPending", "control_calidad"],
+    ["inRepair", "en_progreso"],
+    ["qcPending", "en_progreso"],
     ["readyForPickup", "lista_para_retirar"],
   ] as const) {
     const expected = [assigned[status], unassigned[status], others[status]];
-    if (status === "lista_para_retirar") expected.push(paidReady);
+    if (status === "lista_para_retirar")
+      expected.push(paidReady, assigned.pagado, unassigned.pagado, others.pagado);
     expectIds(dashboard[group], expected);
   }
-  const workshop: OrderStatus[] = [...EXPECTED_LOAD.slice(1), "lista_para_retirar"];
+  const workshop: OrderStatus[] = [...EXPECTED_LOAD, "lista_para_retirar", "pagado"];
   expectIds(dashboard.inWorkshop, [
     ...workshop.flatMap((status) => [assigned[status], unassigned[status], others[status]]),
     undated,
     paidReady,
     inactiveOrder,
   ]);
-  expect(dashboard.inWorkshop.find((row) => row.id === assigned.recibida.id)).toEqual({
-    id: assigned.recibida.id,
-    number: "OT-00002",
+  expect(dashboard.inWorkshop.find((row) => row.id === assigned.creado.id)).toEqual({
+    id: assigned.creado.id,
+    number: "OT-00001",
     customerName: "Ana Pérez",
     bike: "Trek Marlin",
-    status: "recibida",
-    statusLabel: "Recibida",
+    status: "creado",
+    statusLabel: "Creado",
     mechanicName: mechanic.name,
     estimatedDeliveryDate: "2026-10-07",
   });
@@ -251,9 +251,12 @@ it("1: agrupa por estado y excluye órdenes anuladas y de otra sucursal", async 
 it("2: atraso abierto, fechas próximas inclusivas y saldo pendiente por id", async () => {
   const dashboard = await admin();
   expectIds(dashboard.overdue, [
-    assigned.recibida,
-    unassigned.recibida,
-    others.recibida,
+    assigned.creado,
+    unassigned.creado,
+    others.creado,
+    assigned.pagado,
+    unassigned.pagado,
+    others.pagado,
     assigned.lista_para_retirar,
     unassigned.lista_para_retirar,
     others.lista_para_retirar,
@@ -276,7 +279,7 @@ async function payment(
 ) {
   await test.db.insert(payments).values({
     branchId: identity.owner.branchId,
-    workOrderId: assigned.recibida.id,
+    workOrderId: assigned.creado.id,
     kind: "final",
     method: "efectivo",
     amountClp,
@@ -294,9 +297,9 @@ it("3: suma solo pagos del día local, con inicio incluido y fin excluido", asyn
   await payment("2026-10-09T03:00:00.000Z", 6000);
   await payment("2026-10-08T16:00:00.000Z", 5000, {
     branchId: foreign.owner.branchId,
-    workOrderId: foreignOrders.recibida.id,
+    workOrderId: foreignOrders.creado.id,
   });
-  await payment("2026-10-08T16:00:00.000Z", 4000, { workOrderId: voided.recibida.id });
+  await payment("2026-10-08T16:00:00.000Z", 4000, { workOrderId: voided.creado.id });
   expect((await admin()).incomeTodayClp).toBe(12000 + 8000);
 });
 
@@ -304,21 +307,17 @@ it("4: todos los grupos asignados pertenecen al actor y sin asignar usa el conju
   const dashboard = await mine();
   expectIds(dashboard.assigned, [...statusRows(assigned, EXPECTED_LOAD), undated]);
   expectIds(dashboard.pending, [
-    assigned.recibida,
+    assigned.creado,
     assigned.diagnostico,
-    assigned.en_reparacion,
+    assigned.en_progreso,
     undated,
   ]);
-  expectIds(dashboard.overdue, [assigned.recibida, assigned.lista_para_retirar]);
+  expectIds(dashboard.overdue, [assigned.creado, assigned.lista_para_retirar, assigned.pagado]);
   expectIds(dashboard.waitingApproval, [assigned.esperando_aprobacion]);
   expectIds(dashboard.waitingParts, [assigned.esperando_repuesto]);
-  expectIds(dashboard.qcPending, [assigned.control_calidad]);
+  expectIds(dashboard.qcPending, [assigned.en_progreso]);
   expectIds(dashboard.dueSoon, statusRows(assigned, EXPECTED_SOON));
-  expectIds(dashboard.unassigned, [
-    unassigned.reservada,
-    unassigned.recibida,
-    unassigned.diagnostico,
-  ]);
+  expectIds(dashboard.unassigned, [unassigned.creado, unassigned.diagnostico]);
   expectPrivateDataAbsent(dashboard);
 });
 

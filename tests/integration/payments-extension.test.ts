@@ -61,7 +61,7 @@ async function createOrder() {
     customer_id: customer.id,
     bike_id: bike.id,
     assigned_mechanic_id: mechanic.id,
-    status: "recibida",
+    status: "creado",
     requested_service: "Revisión general",
     total_clp: 10000,
     created_by: owner.id,

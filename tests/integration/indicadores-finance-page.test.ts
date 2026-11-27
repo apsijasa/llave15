@@ -85,7 +85,7 @@ beforeEach(async () => {
       number: 1,
       customerId,
       bikeId,
-      status: "recibida",
+      status: "creado",
       requestedService: "Mantención",
       totalClp: 11900,
       createdBy: owner.id,

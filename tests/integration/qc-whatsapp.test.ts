@@ -73,7 +73,7 @@ async function seedOrder() {
       customerId: customer.id,
       bikeId: bike.id,
       bookingId,
-      status: "control_calidad",
+      status: "en_progreso",
       requestedService: "Mantención",
       createdBy: actor.id,
     })

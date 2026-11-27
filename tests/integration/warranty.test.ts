@@ -101,7 +101,7 @@ beforeEach(async () => {
   return () => test.close();
 });
 
-it("1: crea una garantía reservada con el mismo cliente, bicicleta y vínculo original", async () => {
+it("1: crea una garantía en Creado con el mismo cliente, bicicleta y vínculo original", async () => {
   await deliverOrder();
   const [original] = await test.db.select().from(workOrders).where(eq(workOrders.id, orderId));
   const warrantyId = await openWarranty(`  ${REASON}  `);
@@ -110,7 +110,7 @@ it("1: crea una garantía reservada con el mismo cliente, bicicleta y vínculo o
   expect(warranty).toMatchObject({
     branchId: owner.branchId,
     number: 2,
-    status: "reservada",
+    status: "creado",
     customerId: original?.customerId,
     bikeId: original?.bikeId,
     warrantyOfOrderId: orderId,
@@ -131,7 +131,7 @@ it("1: crea una garantía reservada con el mismo cliente, bicicleta y vínculo o
   expect(history[0]).toMatchObject({
     branchId: owner.branchId,
     fromStatus: null,
-    toStatus: "reservada",
+    toStatus: "creado",
     actorUserId: owner.id,
     createdAt: NOW,
   });

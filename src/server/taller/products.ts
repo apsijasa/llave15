@@ -63,7 +63,7 @@ const filtersSchema = z.object({
   category: z.enum(PRODUCT_CATEGORIES).optional(),
   lowOnly: z.boolean().optional(),
 });
-type ProductInput = z.infer<typeof productFormSchema>;
+export type ProductInput = z.infer<typeof productFormSchema>;
 type ProductResult =
   | { ok: true; productId: string }
   | {
@@ -120,7 +120,7 @@ async function auditProduct(
   );
 }
 
-async function insertProduct(tx: AppDb, actor: SessionUser, input: ProductInput, now: Date) {
+export async function insertProduct(tx: AppDb, actor: SessionUser, input: ProductInput, now: Date) {
   const { stockQty, ...fields } = input;
   const [product] = await tx
     .insert(products)

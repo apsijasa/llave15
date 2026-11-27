@@ -56,7 +56,7 @@ async function order(
   branchId: string,
   createdBy: string,
   mechanicId: string | null,
-  status = "en_reparacion",
+  status = "en_progreso",
 ) {
   const [customer] = await test.db
     .insert(customers)

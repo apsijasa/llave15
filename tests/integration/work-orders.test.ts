@@ -170,13 +170,13 @@ it("3: prellena la reserva con la ficha y bicicletas existentes o con sus datos"
   expect(await prefillFromBooking(test.db, owner, randomUUID())).toBeNull();
 });
 
-it("4: crea una orden reservada con historial, autor, auditoría y asignación al mecánico", async () => {
+it("4: crea una orden en Creado con historial, autor, auditoría y asignación al mecánico", async () => {
   const result = await create(mechanic);
   const header = await getOrderHeader(test.db, mechanic, result.orderId);
   expect(header?.order).toMatchObject({
     branchId: owner.branchId,
     number: result.number,
-    status: "reservada",
+    status: "creado",
     customerId,
     bikeId,
     bookingId: null,
@@ -198,7 +198,7 @@ it("4: crea una orden reservada con historial, autor, auditoría y asignación a
     branchId: owner.branchId,
     workOrderId: result.orderId,
     fromStatus: null,
-    toStatus: "reservada",
+    toStatus: "creado",
     actorUserId: mechanic.id,
     note: null,
     createdAt: NOW,
@@ -227,7 +227,7 @@ it("5: SQL directo no puede entregar con saldo pendiente, incluso con QC aprobad
   `),
     "work_orders_delivered_paid_check",
   );
-  expect((await getOrderHeader(test.db, owner, order.orderId))?.order.status).toBe("reservada");
+  expect((await getOrderHeader(test.db, owner, order.orderId))?.order.status).toBe("creado");
 });
 
 it("6: SQL directo no puede dejar lista para retirar sin QC", async () => {
@@ -239,7 +239,7 @@ it("6: SQL directo no puede dejar lista para retirar sin QC", async () => {
   `),
     "work_orders_qc_check",
   );
-  expect((await getOrderHeader(test.db, owner, order.orderId))?.order.status).toBe("reservada");
+  expect((await getOrderHeader(test.db, owner, order.orderId))?.order.status).toBe("creado");
 });
 
 it("el mecánico crea un cliente y una bicicleta nuevos en recepción sin customers.manage", async () => {
@@ -361,16 +361,16 @@ it("valida la selección de ficha o datos nuevos y el servicio antes de escribir
 });
 
 it("valida transiciones y escribe historial con nota solo cuando está permitido", async () => {
-  expect(isAllowedTransition("reservada", "recibida")).toBe(true);
-  expect(isManualTransition("reservada", "recibida")).toBe(false);
-  expect(isManualTransition("recibida", "diagnostico")).toBe(true);
-  expect(isManualTransition("control_calidad", "lista_para_retirar")).toBe(false);
-  expect(isAllowedTransition("entregada", "recibida")).toBe(false);
+  expect(isAllowedTransition("creado", "diagnostico")).toBe(true);
+  expect(isManualTransition("creado", "creado")).toBe(false);
+  expect(isManualTransition("creado", "diagnostico")).toBe(true);
+  expect(isManualTransition("en_progreso", "lista_para_retirar")).toBe(false);
+  expect(isAllowedTransition("entregada", "creado")).toBe(false);
   const order = await create();
   const change = {
     branchId: owner.branchId,
     orderId: order.orderId,
-    from: "reservada",
+    from: "creado",
     to: "entregada",
     actorUserId: owner.id,
   } as const;
@@ -382,7 +382,7 @@ it("valida transiciones y escribe historial con nota solo cuando está permitido
   expect(
     await recordStatusChange(
       test.db,
-      { ...change, to: "recibida", note: "Recepción completa" },
+      { ...change, to: "diagnostico", note: "Recepción completa" },
       NOW,
     ),
   ).toEqual({ ok: true });
@@ -390,9 +390,9 @@ it("valida transiciones y escribe historial con nota solo cuando está permitido
   const history = await test.db
     .select()
     .from(workOrderStatusHistory)
-    .where(eq(workOrderStatusHistory.fromStatus, "reservada"));
+    .where(eq(workOrderStatusHistory.fromStatus, "creado"));
   expect(history[0]).toMatchObject({
-    toStatus: "recibida",
+    toStatus: "diagnostico",
     actorUserId: owner.id,
     note: "Recepción completa",
   });

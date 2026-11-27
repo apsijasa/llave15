@@ -134,7 +134,7 @@ export async function notifyPartAdded(
     if (!header || header.order.voidedAt || header.customer.email === null) return false;
     if (!canAccessOrder(actor, header.order)) return false;
     if (
-      header.order.status === "reservada" ||
+      (header.order.status === "creado" && header.order.receivedAt === null) ||
       (TERMINAL_STATUSES as readonly string[]).includes(header.order.status)
     )
       return false;

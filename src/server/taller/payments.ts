@@ -10,6 +10,9 @@ import { recordAudit } from "./audit.ts";
 import { recordCashMovement, requireOpenCashSession, voidCashMovementFor } from "./cash.ts";
 import type { AuditAction } from "./audit.ts";
 import { FORM_PAYMENT_METHODS, PAYMENT_KINDS, POS_PROVIDERS, TERMINAL_STATUSES } from "./rules.ts";
+import { recordStatusChange } from "./orders.ts";
+import { normalizeOrderStatus } from "./rules.ts";
+import type { OrderStatus } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 
 const clpInteger = z
@@ -59,8 +62,20 @@ async function accessibleOrder(db: AppDb, actor: SessionUser, orderId: string, l
 
 /** Recibe la transacción que registra o anula el pago. */
 export async function recomputePaid(db: AppDb, orderId: string, now: Date) {
+  await updatePaidStatus(db, orderId, null, now);
+}
+function paymentStatus(from: OrderStatus, paidClp: number, totalClp: number): OrderStatus {
+  if (from === "lista_para_retirar" && paidClp === totalClp) return "pagado";
+  if (from === "pagado" && paidClp < totalClp) return "lista_para_retirar";
+  return from;
+}
+async function updatePaidStatus(db: AppDb, orderId: string, actorUserId: string | null, now: Date) {
   const [order] = await db
-    .select({ branchId: workOrders.branchId })
+    .select({
+      branchId: workOrders.branchId,
+      status: workOrders.status,
+      totalClp: workOrders.totalClp,
+    })
     .from(workOrders)
     .where(eq(workOrders.id, orderId));
   if (!order) return;
@@ -77,10 +92,27 @@ export async function recomputePaid(db: AppDb, orderId: string, now: Date) {
       ),
     );
   if (!total) throw new Error("No se pudieron calcular los pagos.");
+  const from = normalizeOrderStatus(order.status);
+  const to = paymentStatus(from, total.paidClp, order.totalClp);
   await db
     .update(workOrders)
-    .set({ paidClp: total.paidClp, updatedAt: now })
+    .set({ paidClp: total.paidClp, status: to, updatedAt: now })
     .where(and(eq(workOrders.branchId, order.branchId), eq(workOrders.id, orderId)));
+  if (to !== from) {
+    const result = await recordStatusChange(
+      db,
+      {
+        branchId: order.branchId,
+        orderId,
+        from,
+        to,
+        actorUserId,
+        note: to === "pagado" ? "Pago completo" : "Pago anulado",
+      },
+      now,
+    );
+    if (!result.ok) throw new Error("No se pudo registrar el estado del pago.");
+  }
 }
 
 async function auditPayment(
@@ -174,7 +206,7 @@ async function insertPayment(
     );
     if (!movement.ok) throw new CashMovementFailure(movement.code);
   }
-  await recomputePaid(db, orderId, now);
+  await updatePaidStatus(db, orderId, actor.id, now);
   await auditPayment(db, actor, orderId, "payment.recorded", values, now);
   return { ok: true, paymentId: payment.id } as const;
 }
@@ -200,7 +232,7 @@ export async function recordPayment(
       const access = await accessibleOrder(tx, actor, orderId, true);
       if (!access.ok) return access;
       const { order } = access;
-      if ((TERMINAL_STATUSES as readonly string[]).includes(order.status))
+      if ((TERMINAL_STATUSES as readonly string[]).includes(normalizeOrderStatus(order.status)))
         return { ok: false, code: "invalid_status" } as const;
       if (parsed.data.amountClp <= 0 || parsed.data.amountClp > order.totalClp - order.paidClp)
         return { ok: false, code: "invalid_amount" } as const;
@@ -234,7 +266,8 @@ async function lockPayment(db: AppDb, actor: SessionUser, paymentId: string) {
     .where(and(scope, isNull(payments.voidedAt)))
     .for("update");
   if (!payment) return { ok: false, code: "not_found" } as const;
-  if (access.order.status === "entregada") return { ok: false, code: "invalid_status" } as const;
+  if (normalizeOrderStatus(access.order.status) === "entregada")
+    return { ok: false, code: "invalid_status" } as const;
   return { ok: true, payment } as const;
 }
 
@@ -253,7 +286,7 @@ export async function voidPayment(db: AppDb, actor: SessionUser, paymentId: stri
       .update(payments)
       .set({ voidedAt: now, voidedBy: actor.id, updatedAt: now })
       .where(and(eq(payments.branchId, actor.branchId), eq(payments.id, paymentId)));
-    await recomputePaid(tx, payment.workOrderId, now);
+    await updatePaidStatus(tx, payment.workOrderId, actor.id, now);
     await auditPayment(
       tx,
       actor,

@@ -65,7 +65,7 @@ async function seedOrder(branchId: string, createdBy: string, mechanicId: string
       number: Math.floor(Math.random() * 90000) + 1,
       customerId: customer.id,
       bikeId: bike.id,
-      status: "en_reparacion",
+      status: "en_progreso",
       requestedService: "La cadena salta",
       assignedMechanicId: mechanicId,
       createdBy,

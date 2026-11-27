@@ -225,10 +225,10 @@ it("restringe lecturas y cambios por sucursal y acceso del mecánico", async () 
   expect(await listAccessories(test.db, mechanic, orderId)).toEqual([added.accessory]);
 });
 
-it("solo guarda checklist en reservada o recibida", async () => {
+it("solo guarda checklist en Creado, antes o después de recibir", async () => {
   await test.db
     .update(workOrders)
-    .set({ status: "recibida", assignedMechanicId: null })
+    .set({ status: "creado", assignedMechanicId: null })
     .where(eq(workOrders.id, orderId));
   expect(await saveChecklist(test.db, mechanic, orderId, input(), NOW)).toEqual({ ok: true });
   const before = await listIntakeChecks(test.db, mechanic, orderId);

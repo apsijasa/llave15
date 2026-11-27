@@ -44,7 +44,7 @@ async function actor(branchId: string, role: SessionUser["role"]): Promise<Sessi
 }
 
 async function createOrder(
-  status: OrderStatus = "recibida",
+  status: OrderStatus = "creado",
   assignedMechanicId: string | null = mechanic.id,
   branchId = owner.branchId,
 ) {
@@ -82,6 +82,7 @@ async function createOrder(
       assignedMechanicId,
       createdBy: owner.id,
       qcApprovedAt: NOW,
+      receivedAt: NOW,
     })
     .returning();
   if (!order) throw new Error("Falta la orden de prueba.");
@@ -110,7 +111,7 @@ beforeEach(async () => {
   return () => test.close();
 });
 
-it("1: rechaza recibida → lista_para_retirar sin cambiar orden, historial ni auditoría", async () => {
+it("1: rechaza creado → lista_para_retirar sin cambiar orden, historial ni auditoría", async () => {
   const before = await orderRow();
   expect(
     await changeOrderStatus(test.db, mechanic, orderId, "lista_para_retirar", null, NOW),
@@ -131,7 +132,7 @@ it("2: guarda transición manual con autor y nota, y audita la nota redactada", 
   expect(history[0]).toMatchObject({
     branchId: owner.branchId,
     workOrderId: orderId,
-    fromStatus: "recibida",
+    fromStatus: "creado",
     toStatus: "diagnostico",
     actorUserId: mechanic.id,
     note,
@@ -144,7 +145,7 @@ it("2: guarda transición manual con autor y nota, y audita la nota redactada", 
     actorUserId: mechanic.id,
     entityId: orderId,
     details: {
-      from: "recibida",
+      from: "creado",
       to: "diagnostico",
       note: "Revisar con [redactado] al [redactado]",
     },
@@ -165,11 +166,11 @@ it("3: el mecánico no abre ni cambia una orden asignada a otro", async () => {
     ok: false,
     code: "forbidden",
   });
-  expect(await orderRow()).toMatchObject({ status: "recibida", notes: null });
+  expect(await orderRow()).toMatchObject({ status: "creado", notes: null });
   expect(await test.db.select().from(auditLog)).toEqual([]);
 });
 
-it.each(["recibida", "diagnostico"] as const)(
+it.each(["creado", "diagnostico"] as const)(
   "4: toma una orden sin asignar en %s y audita mechanicId",
   async (status) => {
     const id = await createOrder(status, null);
@@ -189,14 +190,14 @@ it("5: lista solo sus órdenes y las sin asignar en los tres estados iniciales",
   const expected = [orderId];
   for (const status of ORDER_STATUSES) {
     const id = await createOrder(status, null);
-    if (["reservada", "recibida", "diagnostico"].includes(status)) expected.push(id);
+    if (["creado", "diagnostico"].includes(status)) expected.push(id);
   }
-  const assignedAdvanced = await createOrder("en_reparacion");
+  const assignedAdvanced = await createOrder("en_progreso");
   expected.push(assignedAdvanced);
-  await createOrder("recibida", otherMechanic.id);
+  await createOrder("creado", otherMechanic.id);
   const [branch] = await test.db.insert(branches).values({ name: "Otra sucursal" }).returning();
   if (!branch) throw new Error("Falta la otra sucursal.");
-  await createOrder("recibida", null, branch.id);
+  await createOrder("creado", null, branch.id);
   const rows = await listOrders(test.db, mechanic, { scope: "open" });
   expect(rows.map(({ order }) => order.id).sort()).toEqual(expected.sort());
   expect(rows.every(({ order }) => canAccessOrder(mechanic, order))).toBe(true);
@@ -246,23 +247,25 @@ it("asigna únicamente mecánicos activos de la sucursal y solo con orders.assig
   expect(await assignMechanic(test.db, owner, orderId, null, NOW)).toEqual({ ok: true });
 });
 
-it("no permite tomar una reservada, asignada o avanzada, ni tomar como dueño", async () => {
+it("no permite tomar una Creado sin recepción, asignada o avanzada, ni tomar como dueño", async () => {
   expect(await takeOrder(test.db, owner, orderId, NOW)).toEqual({ ok: false, code: "forbidden" });
   for (const [status, assigned, code] of [
-    ["reservada", null, "invalid_status"],
-    ["recibida", mechanic.id, "invalid_status"],
-    ["recibida", otherMechanic.id, "forbidden"],
-    ["en_reparacion", null, "forbidden"],
+    ["creado", null, "invalid_status"],
+    ["creado", mechanic.id, "invalid_status"],
+    ["creado", otherMechanic.id, "forbidden"],
+    ["en_progreso", null, "forbidden"],
   ] as const) {
     const id = await createOrder(status, assigned);
+    if (status === "creado" && assigned === null)
+      await test.db.update(workOrders).set({ receivedAt: null }).where(eq(workOrders.id, id));
     expect(await takeOrder(test.db, mechanic, id, NOW)).toEqual({ ok: false, code });
     expect(await orderRow(id)).toMatchObject({ assignedMechanicId: assigned, status });
   }
   expect(await audits("order.assigned")).toEqual([]);
 });
 
-it("cancelar y rechazar trabajo requieren orders.cancel; audita note null", async () => {
-  for (const to of ["cancelada", "trabajo_rechazado"] as const) {
+it("cancelar requiere orders.cancel; audita note null", async () => {
+  for (const to of ["cancelada"] as const) {
     expect(await changeOrderStatus(test.db, mechanic, orderId, to, null, NOW)).toEqual({
       ok: false,
       code: "forbidden",
@@ -272,7 +275,7 @@ it("cancelar y rechazar trabajo requieren orders.cancel; audita note null", asyn
     ok: true,
   });
   expect((await audits("order.status_changed"))[0]?.details).toEqual({
-    from: "recibida",
+    from: "creado",
     to: "cancelada",
     note: null,
   });
@@ -353,7 +356,7 @@ it("revierte estado, historial, asignación y notas si falla la auditoría", asy
   expect(await orderRow()).toEqual(before);
   expect(await test.db.select().from(workOrderStatusHistory)).toEqual([]);
   expect(await test.db.select().from(auditLog)).toEqual([]);
-  const unassigned = await createOrder("recibida", null);
+  const unassigned = await createOrder("creado", null);
   await expect(takeOrder(test.db, mechanic, unassigned, NOW)).rejects.toThrow();
   expect(await orderRow(unassigned)).toMatchObject({ assignedMechanicId: null });
 });

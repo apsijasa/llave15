@@ -105,6 +105,7 @@
   border-radius: var(--radius-control);
 }
 .l15 .status,
+.l15 .status--creado,
 .l15 .status--reservada,
 .l15 .status--recibida,
 .l15 .status--entregada,
@@ -118,6 +119,7 @@
   --status-bg: var(--status-neutral-bg);
   --status-ink: var(--status-neutral-ink);
 }
+.l15 .status--en_progreso,
 .l15 .status--diagnostico,
 .l15 .status--en_reparacion,
 .l15 .status--control_calidad,
@@ -128,6 +130,7 @@
   --status-bg: var(--status-progress-bg);
   --status-ink: var(--status-progress-ink);
 }
+.l15 .status--en_pausa,
 .l15 .status--esperando_aprobacion,
 .l15 .status--esperando_repuesto,
 .l15 .status--bajo,
@@ -140,6 +143,7 @@
   --status-bg: var(--status-waiting-bg);
   --status-ink: var(--status-waiting-ink);
 }
+.l15 .status--pagado,
 .l15 .status--lista_para_retirar,
 .l15 .status--verificado,
 .l15 .status--oficial_confirmada,

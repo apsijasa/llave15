@@ -122,7 +122,7 @@ beforeEach(async () => {
 async function recibida(signedByName = "Patricia Cruzat") {
   await db
     .update(workOrders)
-    .set({ status: "recibida", receivedAt: NOW })
+    .set({ status: "creado", receivedAt: NOW })
     .where(eq(workOrders.id, orderId));
   await db.insert(orderSignatures).values({
     branchId: owner.branchId,

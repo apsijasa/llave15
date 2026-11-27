@@ -136,7 +136,8 @@ beforeEach(async () => {
       number: 1,
       customerId: customer?.id ?? "",
       bikeId: bike?.id ?? "",
-      status: "recibida",
+      status: "creado",
+      receivedAt: NOW,
       requestedService: "Mantención general",
       createdBy: owner.id,
     })

@@ -12,26 +12,26 @@ import { InvalidImageError, processPhoto } from "../storage/images.ts";
 import { isStorageKey } from "../storage/storage.ts";
 import type { ObjectStorage } from "../storage/storage.ts";
 import { getOrderHeader } from "./orders.ts";
-import { PHOTO_STAGES } from "./rules.ts";
+import { normalizeOrderStatus, PHOTO_STAGES } from "./rules.ts";
 import type { OrderStatus } from "./rules.ts";
 import { canAccessOrder } from "./status.ts";
 
 export const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 export type PhotoStage = (typeof PHOTO_STAGES)[number];
 const stageStatuses: Record<PhotoStage, readonly OrderStatus[]> = {
-  recepcion: ["reservada", "recibida"],
+  recepcion: ["creado"],
   reparacion: [
     "diagnostico",
     "esperando_aprobacion",
     "esperando_repuesto",
-    "en_reparacion",
-    "control_calidad",
+    "en_progreso",
+    "en_pausa",
   ],
-  terminado: ["control_calidad", "lista_para_retirar"],
+  terminado: ["en_progreso", "lista_para_retirar", "pagado"],
 };
 
 export function stageAcceptsStatus(stage: PhotoStage, status: string): boolean {
-  return (stageStatuses[stage] as readonly string[]).includes(status);
+  return (stageStatuses[stage] as readonly string[]).includes(normalizeOrderStatus(status));
 }
 const photoInputSchema = z.object({
   orderId: z.uuid(),

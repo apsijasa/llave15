@@ -135,8 +135,8 @@ beforeEach(async () => {
 });
 
 it.each([
-  ["recepcion", "reservada", "recepcion_6m"],
-  ["terminado", "control_calidad", "permanente"],
+  ["recepcion", "creado", "recepcion_6m"],
+  ["terminado", "en_progreso", "permanente"],
 ])("1: guarda %s con retención %s", async (stage, status, retention) => {
   await test.db.update(workOrders).set({ status }).where(eq(workOrders.id, orderId));
   const response = await upload(request(jpeg, "image/jpeg", stage));
@@ -233,10 +233,7 @@ it("4: sirve solo medios vigentes y accesibles, con cabeceras privadas", async (
 });
 
 it("5: mecánico no asignado no sube reparación ni accede a otra orden", async () => {
-  await test.db
-    .update(workOrders)
-    .set({ status: "en_reparacion" })
-    .where(eq(workOrders.id, orderId));
+  await test.db.update(workOrders).set({ status: "en_progreso" }).where(eq(workOrders.id, orderId));
   expect((await upload(request(jpeg, "image/jpeg", "reparacion"), mechanic)).status).toBe(403);
   await expectEmpty();
   await upload(request(jpeg, "image/jpeg", "reparacion"));
@@ -299,10 +296,7 @@ it("ordena las etapas y rechaza un estado incompatible o sucursal ajena", async 
   expect((await upload(request(jpeg, "image/jpeg", "terminado"))).status).toBe(409);
   expect((await upload(request(), owner, randomUUID())).status).toBe(404);
   await upload();
-  await test.db
-    .update(workOrders)
-    .set({ status: "control_calidad" })
-    .where(eq(workOrders.id, orderId));
+  await test.db.update(workOrders).set({ status: "en_progreso" }).where(eq(workOrders.id, orderId));
   await upload(request(jpeg, "image/jpeg", "terminado"));
   await upload(request(jpeg, "image/jpeg", "reparacion"));
   expect((await listOrderPhotos(test.db, owner, orderId)).map((photo) => photo.stage)).toEqual([

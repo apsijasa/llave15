@@ -49,6 +49,7 @@ export type AuditAction =
   | "inventory.imported"
   | "supplier.created"
   | "supplier.updated"
+  | "purchase.imported"
   | "purchase.created"
   | "purchase.item_added"
   | "purchase.sent"

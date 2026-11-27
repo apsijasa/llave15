@@ -232,7 +232,7 @@ describe("correos de orden aislados por taller", () => {
       await test.db
         .update(workOrders)
         .set({
-          status: "control_calidad",
+          status: "en_progreso",
           assignedMechanicId: shop.mechanic.id,
         })
         .where(and(eq(workOrders.branchId, shop.branch.id), eq(workOrders.id, orderId)));

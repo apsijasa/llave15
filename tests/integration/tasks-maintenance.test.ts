@@ -83,7 +83,7 @@ async function seedIdentity(name = "Diego Muñoz"): Promise<Identity> {
 async function seedOrder(
   number: number,
   date: string | null,
-  status = "recibida",
+  status = "creado",
   who = identity,
   voided = false,
 ) {
@@ -223,7 +223,7 @@ it.each(["alertas", "retencion"])("%s rechaza secreto no configurado", async (ta
 it("envía el resumen exacto de dos atrasadas y omite entregadas", async () => {
   await seedOrder(2, "2026-10-07");
   const other = await seedIdentity("Ana Pérez");
-  await seedOrder(1, "2026-10-06", "en_reparacion", other);
+  await seedOrder(1, "2026-10-06", "en_progreso", other);
   await seedOrder(3, "2026-10-01", "entregada");
   vi.stubEnv("TASKS_SECRET", SECRET);
   const response = await handleAlertsTask(taskRequest("alertas"), test.db, NOW);
@@ -252,8 +252,8 @@ it("sin atrasadas no envía ni siquiera si el transporte fallaría", async () =>
   await seedOrder(2, "2026-10-09");
   await seedOrder(3, null);
   await seedOrder(4, "2026-10-01", "cancelada");
-  await seedOrder(5, "2026-10-01", "trabajo_rechazado");
-  await seedOrder(6, "2026-10-01", "recibida", identity, true);
+  await seedOrder(5, "2026-10-01", "cancelada");
+  await seedOrder(6, "2026-10-01", "creado", identity, true);
   const transport = { send: vi.fn().mockRejectedValue(new Error("sin envío")) };
   expect(await sendOverdueDigest(test.db, NOW, { transport })).toEqual({ overdue: 0, sent: false });
   const response = await alerts();

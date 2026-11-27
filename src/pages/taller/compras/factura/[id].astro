@@ -1,0 +1,212 @@
+---
+import { z } from "zod";
+import ImportLineRow from "../../../../components/taller/ImportLineRow.astro";
+import PageHeader from "../../../../components/taller/PageHeader.astro";
+import TallerLayout from "../../../../layouts/TallerLayout.astro";
+import { PLATFORM } from "../../../../lib/platform.ts";
+import { formatRut } from "../../../../lib/rut.ts";
+import { isAllowedOrigin } from "../../../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../../../server/auth/permissions.ts";
+import { getDb } from "../../../../server/db/client.ts";
+import { formatClp } from "../../../../server/email/templates.ts";
+import { listProducts } from "../../../../server/taller/products.ts";
+import {
+  confirmFormToInput,
+  confirmPurchaseImport,
+} from "../../../../server/taller/purchase-import-confirm.ts";
+import {
+  discardPurchaseImport,
+  getPurchaseImport,
+} from "../../../../server/taller/purchase-import.ts";
+import {
+  IMPORT_PRODUCT_CATEGORIES,
+  PRODUCT_CATEGORY_LABELS,
+  PURCHASE_DOC_TYPES,
+  PURCHASE_DOC_TYPE_LABELS,
+} from "../../../../server/taller/rules.ts";
+import { listSuppliers } from "../../../../server/taller/suppliers.ts";
+
+export const prerender = false;
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: loginRedirect(Astro.url.pathname + Astro.url.search),
+      "cache-control": "no-store",
+    },
+  });
+if (!can(user.role, "purchases.manage") || !can(user.role, "costs.view"))
+  return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "GET, POST", "cache-control": "no-store" },
+  });
+if (Astro.request.method === "POST" && !isAllowedOrigin(Astro.request)) return forbiddenResponse();
+const id = z.uuid().safeParse(Astro.params.id);
+const view = id.success ? await getPurchaseImport(db, user, id.data) : null;
+if (!view || view.status === "fallida")
+  return new Response("Lectura no encontrada.", {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+const redirect = (location: string) =>
+  new Response(null, { status: 303, headers: { location, "cache-control": "no-store" } });
+if (view.status === "confirmada") return redirect(`/taller/compras/${view.purchaseOrderId}`);
+let values: Record<string, string> | null = null;
+let fields: Record<string, string> = {};
+let error = "";
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData().catch(() => new FormData());
+  values = Object.fromEntries([...form].map(([key, value]) => [key, String(value)]));
+  const action = z.enum(["confirm", "discard"]).safeParse(form.get("action"));
+  if (!action.success) {
+    Astro.response.status = 422;
+    error = "Selecciona una acción válida.";
+  } else {
+    const result =
+      action.data === "discard"
+        ? await discardPurchaseImport(db, user, view.id, now)
+        : await confirmPurchaseImport(
+            db,
+            user,
+            view.id,
+            confirmFormToInput(form, view.lines.length),
+            now,
+          );
+    if (result.ok)
+      return redirect(
+        "purchaseId" in result
+          ? `/taller/compras/${result.purchaseId}?hecho=importada`
+          : "/taller/compras?hecho=descartada",
+      );
+    if (result.code === "forbidden") return forbiddenResponse();
+    Astro.response.status =
+      result.code === "validation_error" ? 422 : result.code === "not_found" ? 404 : 409;
+    error =
+      result.code === "invalid_status"
+        ? "Esta factura ya fue procesada."
+        : "Revisa los campos marcados.";
+    if (result.code === "validation_error") fields = result.fields;
+    else if ("field" in result && result.field)
+      fields[result.field] =
+        result.code === "rut_exists"
+          ? "Ya existe un proveedor con este RUT."
+          : "Ya existe un producto con este SKU.";
+  }
+}
+const suppliers = await listSuppliers(db, user);
+const products = await listProducts(db, user);
+const extraction = view.extraction;
+const defaults: Record<string, string> = {
+  "supplier-mode": view.supplierMatch.supplierId ? "existing" : "create",
+  "supplier-supplierId": view.supplierMatch.supplierId ?? "",
+  "supplier-name": extraction.supplier.name ?? "",
+  "supplier-rut": extraction.supplier.rut ? formatRut(extraction.supplier.rut) : "",
+  docType: extraction.document.type ?? "factura",
+  docNumber: extraction.document.number ?? "",
+  notes: "",
+  receiveNow: "on",
+};
+const value = (name: string) => (values ? (values[name] ?? "") : (defaults[name] ?? ""));
+const errorId = (name: string) => (fields[name] ? `${name}-error` : undefined);
+const productOptions = products
+  .filter((p) => p.isActive)
+  .map((p) => ({ value: p.id, label: `${p.sku} · ${p.name}` }));
+const categories = IMPORT_PRODUCT_CATEGORIES.map((category) => ({
+  value: category,
+  label: PRODUCT_CATEGORY_LABELS[category],
+}));
+const sum = view.lines.reduce((total, line) => {
+  if (values?.[`line-${line.index}-mode`] === "skip") return total;
+  const qty = Number(values?.[`line-${line.index}-quantity`] ?? line.quantity);
+  const cost = Number(values?.[`line-${line.index}-unitCostClp`] ?? line.unitCostClp);
+  return total + (Number.isFinite(qty * cost) ? Math.round(qty * cost) : 0);
+}, 0);
+const totals = [
+  ["Neto", extraction.totals.netClp],
+  ["Exento", extraction.totals.exemptClp],
+  ["IVA", extraction.totals.vatClp],
+  ["Total", extraction.totals.totalClp],
+] as const;
+---
+
+<TallerLayout title={`Revisar factura — ${PLATFORM.name}`} description="Revisión de la factura del proveedor." path="/taller/compras" user={user}>
+  <div class="stack">
+    {view.status === "descartada" ? <>
+      <PageHeader title="Lectura descartada"><a slot="actions" class="btn ghost" href="/taller/compras">Volver a compras</a></PageHeader>
+      <p role="status">Esta lectura fue descartada y se conserva como referencia.</p>
+      {view.documentUrl && <a class="btn ghost" href={view.documentUrl} target="_blank" rel="noopener">Ver documento</a>}
+    </> : <>
+      <PageHeader title="Revisar factura" subtitle={[extraction.supplier.name, extraction.document.number].filter(Boolean).join(" · ")}>
+        {view.documentUrl && <a slot="actions" class="btn ghost" href={view.documentUrl} target="_blank" rel="noopener">Ver documento</a>}
+      </PageHeader>
+      {view.warnings.length > 0 && <ul role="status">{view.warnings.map(warning => <li>{warning}</li>)}</ul>}
+      <p>Confianza: <span class={`status status--${extraction.confidence}`}>{extraction.confidence === "alta" ? "Alta" : extraction.confidence === "media" ? "Media" : "Baja"}</span></p>
+      {error && <p role="alert">{error}</p>}
+      <form method="post" class="stack" novalidate>
+        <fieldset class="stack">
+          <legend>Proveedor</legend>
+          <div class="options">
+            {[["existing", "Elegir proveedor existente"], ["create", "Crear proveedor nuevo"]].map(([mode, label]) => <label for={"supplier-" + mode}>
+              <input id={"supplier-" + mode} name="supplier-mode" type="radio" value={mode} checked={value("supplier-mode") === mode} aria-invalid={Boolean(fields["supplier-mode"])} aria-describedby={errorId("supplier-mode")} /> {label}
+            </label>)}
+          </div>
+          {fields["supplier-mode"] && <p id={errorId("supplier-mode")}>{fields["supplier-mode"]}</p>}
+          <div class="field">
+            <label for="supplier-supplierId">Proveedor existente</label>
+            <select id="supplier-supplierId" name="supplier-supplierId" aria-invalid={Boolean(fields["supplier-supplierId"])} aria-describedby={errorId("supplier-supplierId")}>
+              <option value="">Selecciona un proveedor</option>
+              {suppliers.map(supplier => <option value={supplier.id} selected={value("supplier-supplierId") === supplier.id}>{supplier.name}</option>)}
+            </select>
+            {fields["supplier-supplierId"] && <p id={errorId("supplier-supplierId")}>{fields["supplier-supplierId"]}</p>}
+          </div>
+          <div class="fields">
+            {[["supplier-name", "Razón social del proveedor nuevo"], ["supplier-rut", "RUT del proveedor nuevo (opcional)"]].map(([key, label]) => <div class="field">
+              <label for={key}>{label}</label>
+              <input id={key} name={key} value={value(key!)} aria-invalid={Boolean(fields[key!])} aria-describedby={errorId(key!)} />
+              {fields[key!] && <p id={errorId(key!)}>{fields[key!]}</p>}
+            </div>)}
+          </div>
+        </fieldset>
+        <fieldset class="stack">
+          <legend>Documento</legend>
+          {extraction.document.date && <p>Fecha leída: {extraction.document.date}</p>}
+          <div class="field">
+            <label for="docType">Tipo de documento</label>
+            <select id="docType" name="docType" aria-invalid={Boolean(fields.docType)} aria-describedby={errorId("docType")}>
+              <option value="">Sin documento</option>
+              {PURCHASE_DOC_TYPES.map(type => <option value={type} selected={value("docType") === type}>{PURCHASE_DOC_TYPE_LABELS[type]}</option>)}
+            </select>
+            {fields.docType && <p id={errorId("docType")}>{fields.docType}</p>}
+          </div>
+          <div class="field">
+            <label for="docNumber">Folio</label>
+            <input id="docNumber" name="docNumber" maxlength="80" value={value("docNumber")} aria-invalid={Boolean(fields.docNumber)} aria-describedby={errorId("docNumber")} />
+            {fields.docNumber && <p id={errorId("docNumber")}>{fields.docNumber}</p>}
+          </div>
+          <div class="field">
+            <label for="notes">Notas</label>
+            <textarea id="notes" name="notes" maxlength="500" aria-invalid={Boolean(fields.notes)} aria-describedby={errorId("notes")}>{value("notes")}</textarea>
+            {fields.notes && <p id={errorId("notes")}>{fields.notes}</p>}
+          </div>
+        </fieldset>
+        {view.lines.map(line => <ImportLineRow index={line.index} line={line} cost={formatClp(line.unitCostClp)} match={line.match} suggestions={line.suggestions} options={productOptions} categories={categories} values={values} errors={fields} />)}
+        <dl class="data">
+          {totals.map(([label, total]) => <><dt>{label} leído</dt><dd class="mono">{total === null ? "Sin información" : formatClp(total)}</dd></>)}
+          <dt>Suma de líneas no omitidas</dt><dd class="mono">{formatClp(sum)}</dd>
+        </dl>
+        <label for="receiveNow"><input id="receiveNow" type="checkbox" name="receiveNow" checked={value("receiveNow") === "on"} /> Recibir ahora (actualiza stock y costo promedio)</label>
+        <div class="options">
+          <button class="btn" name="action" value="confirm">Confirmar compra</button>
+          <button class="btn ghost" name="action" value="discard" formnovalidate>Descartar</button>
+        </div>
+      </form>
+    </>}
+  </div>
+</TallerLayout>

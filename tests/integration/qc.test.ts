@@ -75,7 +75,7 @@ async function createOrder() {
       customerId: customer.id,
       bikeId: bike.id,
       requestedService: "Revisión general",
-      status: "control_calidad",
+      status: "en_progreso",
       assignedMechanicId: mechanic.id,
       createdBy: owner.id,
     })
@@ -136,7 +136,7 @@ it("1: aprueba siete puntos, guarda autor y fecha, y pasa a lista para retirar",
     {
       branchId: owner.branchId,
       workOrderId: orderId,
-      fromStatus: "control_calidad",
+      fromStatus: "en_progreso",
       toStatus: "lista_para_retirar",
       actorUserId: owner.id,
       note: null,
@@ -195,10 +195,10 @@ it.each(["mechanic", "admin", "reception"] as const)(
 it("4: guarda fallas, vuelve a reparación y audita solo sus claves", async () => {
   expect(await submitQc(test.db, owner, orderId, input(["frenos", "limpieza"]), NOW)).toEqual({
     ok: true,
-    status: "en_reparacion",
+    status: "en_progreso",
   });
   expect(await savedOrder()).toMatchObject({
-    status: "en_reparacion",
+    status: "en_progreso",
     qcApprovedAt: null,
     qcApprovedBy: null,
     qcSelfChecked: false,
@@ -211,13 +211,7 @@ it("4: guarda fallas, vuelve a reparación y audita solo sus claves", async () =
       .map((row) => row.itemKey)
       .sort(),
   ).toEqual(["frenos", "limpieza"]);
-  expect(await test.db.select().from(workOrderStatusHistory)).toMatchObject([
-    {
-      fromStatus: "control_calidad",
-      toStatus: "en_reparacion",
-      note: "Control rechazado",
-    },
-  ]);
+  expect(await test.db.select().from(workOrderStatusHistory)).toEqual([]);
   const audit = await test.db.select().from(auditLog);
   expect(audit).toHaveLength(1);
   expect(audit[0]).toMatchObject({
@@ -229,7 +223,7 @@ it("4: guarda fallas, vuelve a reparación y audita solo sus claves", async () =
   expect(JSON.stringify(audit)).not.toContain("Ajuste revisado");
 });
 
-it.each(["reservada", "en_reparacion"])("5: rechaza el estado %s sin cambios", async (status) => {
+it.each(["creado", "en_pausa"])("5: rechaza el estado %s sin cambios", async (status) => {
   await test.db.update(workOrders).set({ status }).where(eq(workOrders.id, orderId));
   const original = await savedOrder();
   expect(await submitQc(test.db, owner, orderId, input(), NOW)).toEqual({
@@ -246,15 +240,12 @@ it("la base rechaza lista para retirar sin aprobación con 23514", async () => {
       orderId,
     ]),
   ).rejects.toMatchObject({ code: "23514" });
-  expect(await savedOrder()).toMatchObject({ status: "control_calidad", qcApprovedAt: null });
+  expect(await savedOrder()).toMatchObject({ status: "en_progreso", qcApprovedAt: null });
 });
 
 it("conserva las rondas rechazadas al aprobar un nuevo control", async () => {
   await submitQc(test.db, owner, orderId, input(["frenos"]), NOW);
-  await test.db
-    .update(workOrders)
-    .set({ status: "control_calidad" })
-    .where(eq(workOrders.id, orderId));
+  await test.db.update(workOrders).set({ status: "en_progreso" }).where(eq(workOrders.id, orderId));
   const later = new Date("2026-10-08T16:00:00.000Z");
   await submitQc(test.db, owner, orderId, input(), later);
   const rows = await listQcChecks(test.db, owner, orderId);
@@ -325,7 +316,7 @@ it("revierte controles y cambio de estado si falla la auditoría", async () => {
     `alter table audit_log add constraint test_reject_qc check (action <> 'qc.approved')`,
   );
   await expect(submitQc(test.db, owner, orderId, input(), NOW)).rejects.toThrow();
-  expect(await savedOrder()).toMatchObject({ status: "control_calidad", qcApprovedAt: null });
+  expect(await savedOrder()).toMatchObject({ status: "en_progreso", qcApprovedAt: null });
   await expectNoChanges();
 });
 

@@ -76,7 +76,8 @@ export async function continueReception(
   if (!can(actor.role, "reception.perform")) return { ok: false, code: "forbidden" };
   const header = await getOrderHeader(db, actor, orderId);
   if (!header || header.order.voidedAt) return { ok: false, code: "not_found" };
-  if (header.order.status !== "reservada") return { ok: false, code: "invalid_status" };
+  if (header.order.status !== "creado" || header.order.receivedAt !== null)
+    return { ok: false, code: "invalid_status" };
   const steps: Array<() => Promise<StepResult>> = [
     () => saveChecklist(db, actor, orderId, input.checklist, now),
     ...(input.description
@@ -109,7 +110,7 @@ export function receptionErrorMessage(code: string): string {
     case "invalid_status":
       return "La orden ya está cerrada.";
     case "invalid_state":
-      return "El checklist solo se puede guardar en una orden reservada o recibida.";
+      return "El checklist solo se puede guardar en una orden en estado Creado.";
     case "not_found":
       return "No se encontró la orden o el accesorio.";
     case "no_price":

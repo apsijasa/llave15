@@ -182,15 +182,12 @@ it("deshabilitado no consulta la base", async () => {
   expect(sender).not.toHaveBeenCalled();
 });
 
-it.each(["en_reparacion", "control_calidad", "entregada"])(
-  "omite orden en estado %s",
-  async (status) => {
-    await test.db.update(workOrders).set({ status }).where(eq(workOrders.id, orderId));
-    expect(await notify()).toMatchObject({ status: "skipped" });
-    expect(await test.db.select().from(orderWhatsappNotices)).toEqual([]);
-    expect(sender).not.toHaveBeenCalled();
-  },
-);
+it.each(["en_progreso", "entregada"])("omite orden en estado %s", async (status) => {
+  await test.db.update(workOrders).set({ status }).where(eq(workOrders.id, orderId));
+  expect(await notify()).toMatchObject({ status: "skipped" });
+  expect(await test.db.select().from(orderWhatsappNotices)).toEqual([]);
+  expect(sender).not.toHaveBeenCalled();
+});
 
 it("omite otra sucursal, orden inexistente o anulada", async () => {
   expect(await notify({ ...actor, branchId: randomUUID() })).toMatchObject({ status: "skipped" });

@@ -98,8 +98,7 @@ export async function saveChecklist(
   return db.transaction(async (tx) => {
     const access = await lockOrder(tx, actor, orderId);
     if (!access.ok) return access;
-    if (!["reservada", "recibida"].includes(access.order.status))
-      return { ok: false, code: "invalid_state" } as const;
+    if (access.order.status !== "creado") return { ok: false, code: "invalid_state" } as const;
     for (const itemKey of INTAKE_CHECK_KEYS) {
       const check = parsed.data.checks[itemKey];
       if (check) await upsertCheck(tx, actor, orderId, itemKey, check, now);

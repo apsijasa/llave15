@@ -71,7 +71,7 @@ async function seedOverdueOrder(branchId: string, ownerId: string, number: numbe
     number,
     customerId: customer.id,
     bikeId: bike.id,
-    status: "en_reparacion",
+    status: "en_progreso",
     requestedService: "Mantención",
     estimatedDeliveryDate: "2026-09-10",
     createdBy: ownerId,

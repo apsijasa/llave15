@@ -30,8 +30,7 @@ import {
   reportFormSchema,
 } from "../../../../server/taller/reports.ts";
 import { orderDetail } from "../../../../server/taller/status.ts";
-import { STATUS_LABELS } from "../../../../server/taller/rules.ts";
-import type { OrderStatus } from "../../../../server/taller/rules.ts";
+import { statusLabel } from "../../../../server/taller/rules.ts";
 
 export const prerender = false;
 const headers = { "cache-control": "no-store", "referrer-policy": "same-origin" };
@@ -127,7 +126,7 @@ if (Astro.request.method === "POST") {
     Astro.response.status = result.code === "validation_error" ? 422 : 409;
     error =
       result.code !== "validation_error"
-        ? "El informe se genera cuando la orden está Lista para retirar o Entregada."
+        ? "El informe se genera cuando la orden está Lista para retirar, Pagado o Retirada."
         : !parsed.success
           ? "Recomendaciones y próximas revisiones admiten hasta 2000 caracteres."
           : "La fecha de la próxima mantención no puede ser anterior a hoy y la nota admite hasta 300 caracteres.";
@@ -148,7 +147,7 @@ const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 
 <TallerLayout title={`${number} · Informe — ${PLATFORM.name}`} description="Informe final del servicio de la bicicleta." path="/taller/ordenes" user={user}>
   <div class="stack">
-    <PageHeader title={`${number} · Informe`} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={`${number} · Informe`} status={{ status: order.status, label: statusLabel(order.status) }} />
     <OrderTabs orderId={order.id} active="informe" tabs={tabs} />
     {error && <p id="form-error" role="alert">{error}</p>}
     {link && <Card id="share-title" title="Enlace para el cliente">

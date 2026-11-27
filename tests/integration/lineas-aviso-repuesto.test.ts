@@ -133,8 +133,8 @@ it("redirige con avisado y muestra la confirmación del correo al agregar texto 
   expect(html).toContain("Repuesto agregado. Le avisamos al cliente por correo.");
 });
 
-it("en reservada agrega sin avisado ni correo", async () => {
-  await test.db.update(workOrders).set({ status: "reservada" }).where(eq(workOrders.id, orderId));
+it("en Creado sin recepción agrega sin avisado ni correo", async () => {
+  await test.db.update(workOrders).set({ status: "creado" }).where(eq(workOrders.id, orderId));
   const response = await render(part);
   expect(response.status).toBe(303);
   expect(response.headers.get("location")).toBe(`/taller/ordenes/${orderId}/lineas?hecho=part`);

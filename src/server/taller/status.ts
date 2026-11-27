@@ -11,6 +11,8 @@ import type { AuditAction } from "./audit.ts";
 import { getOrderHeader, recordStatusChange } from "./orders.ts";
 import {
   isManualTransition,
+  normalizeOrderStatus,
+  withLegacyStatuses,
   MECHANIC_UNASSIGNED_ACCESS_STATUSES,
   ORDER_STATUSES,
   TERMINAL_STATUSES,
@@ -39,7 +41,9 @@ export function canAccessOrder(user: SessionUser, order: OrderAccess): boolean {
     user.role !== "mechanic" ||
     order.assignedMechanicId === user.id ||
     (order.assignedMechanicId === null &&
-      (MECHANIC_UNASSIGNED_ACCESS_STATUSES as readonly string[]).includes(order.status))
+      (MECHANIC_UNASSIGNED_ACCESS_STATUSES as readonly string[]).includes(
+        normalizeOrderStatus(order.status),
+      ))
   );
 }
 
@@ -55,7 +59,7 @@ async function lockOrder(db: AppDb, actor: SessionUser, id: string) {
   const [order] = await db.select().from(workOrders).where(orderFilter(actor, id)).for("update");
   if (!order) return { ok: false, code: "not_found" } as const;
   if (!canAccessOrder(actor, order)) return { ok: false, code: "forbidden" } as const;
-  return { ok: true, order } as const;
+  return { ok: true, order: { ...order, status: normalizeOrderStatus(order.status) } } as const;
 }
 
 async function auditOrder(
@@ -144,10 +148,10 @@ export async function listOrders(
     eq(workOrders.assignedMechanicId, actor.id),
     and(
       isNull(workOrders.assignedMechanicId),
-      inArray(workOrders.status, [...MECHANIC_UNASSIGNED_ACCESS_STATUSES]),
+      inArray(workOrders.status, withLegacyStatuses(MECHANIC_UNASSIGNED_ACCESS_STATUSES)),
     ),
   );
-  return db
+  const rows = await db
     .select({
       order: workOrders,
       customerName: customers.name,
@@ -165,13 +169,17 @@ export async function listOrders(
         eq(workOrders.branchId, actor.branchId),
         isNull(workOrders.voidedAt),
         parsed.data.scope === "open"
-          ? notInArray(workOrders.status, [...TERMINAL_STATUSES])
+          ? notInArray(workOrders.status, withLegacyStatuses(TERMINAL_STATUSES))
           : undefined,
         parsed.data.scope === "mine" ? eq(workOrders.assignedMechanicId, actor.id) : undefined,
         actor.role === "mechanic" ? mechanicAccess : undefined,
       ),
     )
     .orderBy(desc(workOrders.number));
+  return rows.map((row) => ({
+    ...row,
+    order: { ...row.order, status: normalizeOrderStatus(row.order.status) },
+  }));
 }
 
 export async function changeOrderStatus(
@@ -182,17 +190,20 @@ export async function changeOrderStatus(
   note: string | null,
   now: Date,
 ) {
-  const permission =
-    to === "cancelada" || to === "trabajo_rechazado" ? "orders.cancel" : "orders.edit";
+  const permission = to === "cancelada" ? "orders.cancel" : "orders.edit";
   if (!can(actor.role, permission)) return { ok: false, code: "forbidden" } as const;
   const parsed = statusChangeSchema.safeParse({ to, note });
   if (!parsed.success) return { ok: false, code: "validation_error" } as const;
   return db.transaction(async (tx) => {
     const access = await lockOrder(tx, actor, id);
     if (!access.ok) return access;
-    const from = access.order.status as OrderStatus;
+    const from = normalizeOrderStatus(access.order.status);
     if (!isManualTransition(from, parsed.data.to))
       return { ok: false, code: "invalid_transition" } as const;
+    if (from === "creado" && parsed.data.to !== "cancelada" && access.order.receivedAt === null)
+      return { ok: false, code: "reception_pending" } as const;
+    if (parsed.data.to === "pagado" && access.order.paidClp !== access.order.totalClp)
+      return { ok: false, code: "balance_pending" } as const;
     const recorded = await recordStatusChange(
       tx,
       {
@@ -288,7 +299,7 @@ export async function takeOrder(db: AppDb, actor: SessionUser, id: string, now: 
     if (!access.ok) return access;
     if (
       access.order.assignedMechanicId !== null ||
-      access.order.status === "reservada" ||
+      (access.order.status === "creado" && access.order.receivedAt === null) ||
       !(MECHANIC_UNASSIGNED_ACCESS_STATUSES as readonly string[]).includes(access.order.status)
     )
       return { ok: false, code: "invalid_status" } as const;

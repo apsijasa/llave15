@@ -1,3 +1,4 @@
+import { withLegacyStatuses } from "./rules.ts";
 import { TIMEZONE, localToday } from "../../lib/time.ts";
 import { and, asc, count, desc, eq, gte, isNull, lt, notInArray, sql } from "drizzle-orm";
 import { DateTime } from "luxon";
@@ -19,7 +20,8 @@ import {
   FORM_PAYMENT_METHOD_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
-  STATUS_LABELS,
+  normalizeOrderStatus,
+  statusLabel,
   TERMINAL_STATUSES,
 } from "./rules.ts";
 import type { OrderStatus, RecordablePaymentMethod } from "./rules.ts";
@@ -185,8 +187,10 @@ async function delivered(db: AppDb, actor: SessionUser, bounds: Bounds) {
 
 function statusCounts(rows: { status: string; count: number }[]): StatusCount[] {
   return ORDER_STATUSES.flatMap((status) => {
-    const amount = rows.find((row) => row.status === status)?.count ?? 0;
-    return amount > 0 ? [{ status, label: STATUS_LABELS[status], count: amount }] : [];
+    const amount = rows
+      .filter((row) => normalizeOrderStatus(row.status) === status)
+      .reduce((total, row) => total + row.count, 0);
+    return amount > 0 ? [{ status, label: statusLabel(status), count: amount }] : [];
   });
 }
 
@@ -209,7 +213,9 @@ async function openNow(db: AppDb, actor: SessionUser) {
   const rows = await db
     .select({ status: workOrders.status, count: count() })
     .from(workOrders)
-    .where(and(orderScope(actor), notInArray(workOrders.status, [...TERMINAL_STATUSES])))
+    .where(
+      and(orderScope(actor), notInArray(workOrders.status, withLegacyStatuses(TERMINAL_STATUSES))),
+    )
     .groupBy(workOrders.status);
   return statusCounts(rows);
 }

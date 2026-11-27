@@ -140,7 +140,7 @@ beforeEach(async () => {
   };
 });
 
-it.each(["diagnostico", "en_reparacion"])(
+it.each(["diagnostico", "en_progreso"])(
   "confirma la fecha en %s con los siete puntos marcados",
   async (status) => {
     await test.db.update(workOrders).set({ status }).where(eq(workOrders.id, orderId));
@@ -179,7 +179,7 @@ it("guardar explícitamente el checklist en diagnóstico conserva el 409 y su me
   const response = await render(form({ accion: "checklist" }));
   expect(response.status).toBe(409);
   expect(await response.text()).toContain(
-    "El checklist solo se puede guardar en una orden reservada o recibida.",
+    "El checklist solo se puede guardar en una orden en estado Creado.",
   );
 });
 

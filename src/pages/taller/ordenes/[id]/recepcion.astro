@@ -46,10 +46,10 @@ import {
   INTAKE_CHECK_LABELS,
   INTAKE_RESULTS,
   INTAKE_RESULT_LABELS,
-  STATUS_LABELS,
+  statusLabel,
   VAT_RATE_PERCENT,
 } from "../../../../server/taller/rules.ts";
-import type { BikeType, OrderStatus } from "../../../../server/taller/rules.ts";
+import type { BikeType } from "../../../../server/taller/rules.ts";
 
 export const prerender = false;
 const db = getDb();
@@ -74,12 +74,11 @@ if (!header)
     headers: { "cache-control": "no-store" },
   });
 const { order, customer, bike } = header;
-const checklistOpen = ["reservada", "recibida"].includes(order.status);
+const checklistOpen = order.status === "creado";
 if (
   user.role === "mechanic" &&
   order.assignedMechanicId !== user.id &&
-  (order.assignedMechanicId !== null ||
-    !["reservada", "recibida", "diagnostico"].includes(order.status))
+  (order.assignedMechanicId !== null || !["creado", "diagnostico"].includes(order.status))
 )
   return forbiddenResponse();
 const number = formatOrderNumber(order.number);
@@ -221,7 +220,7 @@ const values: Record<string, string> = {
   ),
   ...submitted,
 };
-const reserved = order.status === "reservada";
+const reserved = order.status === "creado" && order.receivedAt === null;
 const tabs = ORDER_TABS.filter((tab) => can(user.role, tab.permission));
 const receptionFinished = Astro.url.searchParams.get("hecho") === "recibida";
 const [signature, nextReception] = receptionFinished
@@ -234,7 +233,7 @@ const [signature, nextReception] = receptionFinished
 
 <TallerLayout title={`${number} · Recepción — ${PLATFORM.name}`} description="Recepción de la bicicleta y datos de la orden." path="/taller/recepcion/nueva" user={user}>
   <div class="stack">
-    <PageHeader title={number} status={{ status: order.status, label: STATUS_LABELS[order.status as OrderStatus] }} />
+    <PageHeader title={number} status={{ status: order.status, label: statusLabel(order.status) }} />
     {receptionFinished && (
       <Card>
         <section id="recepcion-lista" role="status" class="stack" aria-labelledby="recepcion-lista-title">
@@ -364,7 +363,7 @@ const [signature, nextReception] = receptionFinished
     </form>
     <section id="reception-sections" aria-label="Recepción" class="card stack">
       <h2>Recepción</h2>
-      {order.status === "recibida" ? <p role="status">Recepción finalizada</p> : <p class="muted">Orden creada. La recepción está pendiente.</p>}
+      {order.status === "creado" && order.receivedAt !== null ? <p role="status">Recepción finalizada</p> : <p class="muted">Orden creada. La recepción está pendiente.</p>}
       <p>Checklist: {missing === 0 ? "Completo" : `${INTAKE_CHECK_KEYS.length - missing} de ${INTAKE_CHECK_KEYS.length}`}</p>
       <p>Fecha de entrega: {order.deliveryDateConfirmedAt ? "Confirmada" : "Sin confirmar"}</p>
       <p>Servicios: {items.length} {items.length === 1 ? "agregado" : "agregados"}</p>
