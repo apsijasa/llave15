@@ -1,0 +1,28 @@
+---
+export interface Props {
+  label: string;
+  rows: { term: string; value: string }[];
+  table: { caption: string; rows: { margin: string; net: string; gross: string }[] };
+  note?: string;
+}
+const { label, rows, table, note } = Astro.props;
+---
+<div class="costing-result stack">
+  <dl class="data" aria-label={label}>
+    {rows.map((row) => <><dt>{row.term}</dt><dd>{row.value}</dd></>)}
+  </dl>
+  <div class="costing-table">
+    <table class="dense">
+      <caption>{table.caption}</caption>
+      <thead><tr><th scope="col">Margen</th><th scope="col">Neto</th><th scope="col">Con IVA</th></tr></thead>
+      <tbody>{table.rows.map((row) => <tr><th scope="row">{row.margin}</th><td>{row.net}</td><td>{row.gross}</td></tr>)}</tbody>
+    </table>
+  </div>
+  {note && <p class="muted">{note}</p>}
+</div>
+<style is:global>
+  .taller .costing-result { font-variant-numeric: tabular-nums; }
+  .taller .costing-table { overflow-x: auto; }
+  .taller .costing-table table { width: 100%; }
+  .taller .costing-table caption { text-align: left; color: var(--steel); }
+</style>

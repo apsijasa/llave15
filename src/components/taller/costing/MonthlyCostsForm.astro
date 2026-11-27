@@ -1,0 +1,52 @@
+---
+interface Props {
+  action: string;
+  values: Record<string, string>;
+  errors: Record<string, string>;
+  hints: Record<string, string>;
+  summary: { monthly: string; hourly: string | null };
+}
+const { action, values, errors, hints, summary } = Astro.props;
+const fields = [
+  ["rentClp", "Arriendo", ""],
+  ["utilitiesClp", "Servicios básicos", ""],
+  ["wagesClp", "Sueldos", "Incluye lo que quieres pagarte."],
+  ["taxesClp", "Impuestos y patentes", ""],
+  ["suppliesClp", "Insumos del taller", "Trapos, aseo y lo que se usa en todo el taller."],
+  ["otherClp", "Otros gastos", ""],
+  [
+    "billableHoursMonth",
+    "Horas facturables al mes",
+    "Horas que realmente cobras, sumando a todos los mecánicos.",
+  ],
+  ["targetMarginPct", "Margen objetivo (%)", "La ganancia se mide sobre el precio de venta."],
+] as const;
+const describedBy = (key: string, help: string) =>
+  [errors[key] ? `month-${key}-error` : "", help || hints[key] ? `month-${key}-help` : ""]
+    .filter(Boolean)
+    .join(" ") || undefined;
+---
+<form method="post" action={action} class="stack costing-month">
+  <div class="fields">
+    {fields.map(([key, label, help]) => (
+      <div class="field">
+        <label for={`month-${key}`}>{label}</label>
+        <input id={`month-${key}`} name={key} inputmode="numeric" value={values[key] ?? ""} aria-invalid={Boolean(errors[key])} aria-describedby={describedBy(key, help)} />
+        {(help || hints[key]) && <p class="muted" id={`month-${key}-help`}>{help}{help && hints[key] ? " " : ""}{hints[key]}</p>}
+        {errors[key] && <p id={`month-${key}-error`}>{errors[key]}</p>}
+      </div>
+    ))}
+  </div>
+  <dl class="data" aria-label="Resumen del mes">
+    <dt>Gasto mensual</dt><dd>{summary.monthly}</dd>
+    <dt>Costo por hora</dt><dd>{summary.hourly ?? "—"}</dd>
+  </dl>
+  {!summary.hourly && <p class="muted">Escribe las horas facturables para calcularlo.</p>}
+  <div class="costing-month-actions">
+    <button type="submit" class="btn" name="action" value="save">Guardar gastos</button>
+    <button type="submit" class="btn ghost" name="action" value="suggest">Usar gastos del mes anterior</button>
+  </div>
+</form>
+<style is:global>
+  .taller .costing-month-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+</style>

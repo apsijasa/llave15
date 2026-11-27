@@ -3,6 +3,7 @@ import { getTableColumns, getTableName } from "drizzle-orm";
 import postgres from "postgres";
 import { getDbEnv } from "../src/lib/env.ts";
 import { cashTables } from "../src/server/db/schema-cash.ts";
+import { costingTables } from "../src/server/db/schema-costing.ts";
 import { inventoryTables } from "../src/server/db/schema-inventory.ts";
 import { libraryCatalogTables } from "../src/server/db/schema-library-catalog.ts";
 import { libraryKnowledgeTables } from "../src/server/db/schema-library-knowledge.ts";
@@ -84,6 +85,7 @@ try {
     ...libraryPrivateTables,
     ...platformTables,
     ...purchaseImportTables,
+    ...costingTables,
   ]
     .flatMap((table) =>
       Object.values(getTableColumns(table)).map(

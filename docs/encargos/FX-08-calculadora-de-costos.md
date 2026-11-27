@@ -11,9 +11,9 @@ Decisiones del dueño (26-11-2026):
 - La ganancia se mide **sobre el precio de venta** ("de cada $100 que cobras, $30 quedan"), no como recargo sobre el costo.
 - Andrés autoriza por escrito (26-11-2026, esta decisión) **un solo cambio en una prueba existente**: en `tests/integration/llave15-layouts.test.ts`, agregar `["/taller/calculadora", "Calculadora"]` justo después de `["/taller/indicadores", "Indicadores"]` en `expectedLinks.owner` y `expectedLinks.admin`. Ningún otro valor esperado de ninguna otra prueba cambia.
 
-Regístralo como **decisión BG-D55** en `blueprints/bike-garage/blueprint.md` §20.3 (nueva fila después de `BG-D54`), con este texto en las columnas de la tabla (`# | Decisión | Alternativa rechazada | Por qué | Se revierte si`):
+Regístralo como **decisión BG-D57** en `blueprints/bike-garage/blueprint.md` §20.3 (nueva fila después de `BG-D56`), con este texto en las columnas de la tabla (`# | Decisión | Alternativa rechazada | Por qué | Se revierte si`):
 
-> **BG-D55** | Calculadora de costos (decisión del dueño, 2026-11-26, rama `feat/calculadora-costos`, encargo `docs/encargos/FX-05-calculadora-de-costos.md`): `/taller/calculadora` con `costs.view` calcula el gasto fijo del mes, el costo por hora (gasto ÷ horas facturables), el costo de un servicio (minutos × costo hora + insumos) y el precio neto y con IVA para un margen sobre el precio de venta (`ceil(costo × 100 / (100 − margen))`). El perfil de gastos se guarda por sucursal en `cost_profiles` (`schema-costing.ts`, archivo quince de la cadena); los gastos se sugieren desde `expenses` del mes anterior (repuestos fuera, son costo variable). Nunca escribe precios. Sin isla: tres formularios que se recalculan en el servidor | Isla Preact con cálculo en vivo; recargo sobre el costo; calculadora sin guardar | Regla "ninguna isla nueva en /taller"; el margen sobre el precio es el que usan los indicadores y la referencia del dueño; guardar evita reescribir los gastos cada vez | El dueño pide fijar precios desde la calculadora o un costo por hora por mecánico
+> **BG-D57** | Calculadora de costos (decisión del dueño, 2026-11-26, rama `feat/calculadora-costos`, encargo `docs/encargos/FX-08-calculadora-de-costos.md`): `/taller/calculadora` con `costs.view` calcula el gasto fijo del mes, el costo por hora (gasto ÷ horas facturables), el costo de un servicio (minutos × costo hora + insumos) y el precio neto y con IVA para un margen sobre el precio de venta (`ceil(costo × 100 / (100 − margen))`). El perfil de gastos se guarda por sucursal en `cost_profiles` (`schema-costing.ts`, archivo quince de la cadena); los gastos se sugieren desde `expenses` del mes anterior (repuestos fuera, son costo variable). Nunca escribe precios. Sin isla: tres formularios que se recalculan en el servidor | Isla Preact con cálculo en vivo; recargo sobre el costo; calculadora sin guardar | Regla "ninguna isla nueva en /taller"; el margen sobre el precio es el que usan los indicadores y la referencia del dueño; guardar evita reescribir los gastos cada vez | El dueño pide fijar precios desde la calculadora o un costo por hora por mecánico
 
 ## Lee antes
 
@@ -62,7 +62,7 @@ Ejemplos: `now = 2026-11-14T15:00:00Z` → del 2026-10-01 al 2026-10-31. `now = 
 Archivo nuevo `src/server/db/schema-costing.ts`, al final de la cadena (importa solo `schema.ts`: `branches`, `users`, `createdAt`, `updatedAt`):
 
 ```ts
-/** Perfil de costos mensuales del taller (FX-05, BG-D55): una fila por sucursal. */
+/** Perfil de costos mensuales del taller (FX-08, BG-D57): una fila por sucursal. */
 export const costProfiles = pgTable("cost_profiles", {
   id: uuid("id").primaryKey().defaultRandom(),
   branchId: uuid("branch_id").notNull().references(() => branches.id, { onDelete: "restrict" }),
@@ -145,11 +145,11 @@ Agrega `costingTables` a `scripts/db-check.ts` (import y `...costingTables` desp
 
 ## Documentación
 
-- Decisión BG-D55 en `blueprints/bike-garage/blueprint.md` §20.3.
+- Decisión BG-D57 en `blueprints/bike-garage/blueprint.md` §20.3.
 - `README.md`: sección `### Calculadora de costos` después de `### Indicadores`: quién la usa, la fórmula en tres líneas (gasto del mes ÷ horas = costo por hora; minutos × costo hora + insumos = costo del servicio; precio = costo ÷ (1 − margen)), que la ganancia es sobre el precio de venta y que nunca cambia precios.
-- `CLAUDE.md` (fila "Esquema" y fila nueva "Reglas de costeo | `src/server/taller/costing-rules.ts`" en "Dónde vive cada cosa"), `AGENTS.md` (línea 73) y `.claude/rules/database.md` (línea 11 y la lista de arreglos): "catorce" → "quince" archivos, `← schema-costing.ts (cost_profiles, perfil de costos por sucursal, BG-D55)` al final de la cadena y `costingTables` en la lista.
+- `CLAUDE.md` (fila "Esquema" y fila nueva "Reglas de costeo | `src/server/taller/costing-rules.ts`" en "Dónde vive cada cosa"), `AGENTS.md` (línea 73) y `.claude/rules/database.md` (línea 11 y la lista de arreglos): "catorce" → "quince" archivos, `← schema-costing.ts (cost_profiles, perfil de costos por sucursal, BG-D57)` al final de la cadena y `costingTables` en la lista.
 - `.claude/rules/taller-ui.md` línea 11: agregar "calculadora de costos" a las pantallas de escritorio.
-- `docs/ventanas/fx-05-calculadora.md` (nuevo): publicar en Replit propaga la tabla `cost_profiles` vacía; no hay datos que migrar ni script que correr; cada taller guarda su perfil desde la página.
+- `docs/ventanas/fx-08-calculadora.md` (nuevo): publicar en Replit propaga la tabla `cost_profiles` vacía; no hay datos que migrar ni script que correr; cada taller guarda su perfil desde la página.
 
 ## Verificación
 

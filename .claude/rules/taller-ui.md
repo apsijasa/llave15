@@ -8,7 +8,7 @@ paths:
 
 # Interfaz del taller
 
-- Tablet primero: recepción, checklist, fotos, firma, orden de trabajo, control de calidad, venta de mostrador, caja y ajuste de stock se diseñan para 820×1180 en vertical y con las manos sucias; el escritorio viene después. Catálogo, usuarios, informes, compras, carga por factura, proveedores, gastos, indicadores, "Mi taller" y `/plataforma` son de escritorio.
+- Tablet primero: recepción, checklist, fotos, firma, orden de trabajo, control de calidad, venta de mostrador, caja y ajuste de stock se diseñan para 820×1180 en vertical y con las manos sucias; el escritorio viene después. Catálogo, usuarios, informes, compras, carga por factura, proveedores, gastos, indicadores, calculadora de costos, "Mi taller" y `/plataforma` son de escritorio.
 - **Diseño por paso (BG-D32 … BG-D40):** hasta BG-46, el monocromo aprobado; la identidad Llave 15 entra solo en su paso: tokens e Inter en BG-47, botones, foco, radios y colores de estado en BG-48, menú en grafito con la firma en BG-49. Detalle y valores en `.claude/rules/ui-design.md`.
 - La recepción la hace cualquier rol, también el mecánico (FASE1 decisión 5): sus pantallas no se esconden al mecánico.
 - Objetivos táctiles ≥ 48px de alto y de ancho en las pantallas de taller (botones, opciones del checklist, selects, enlaces de acción), separados al menos 8px; también desde BG-47 (más estricto que los 44px del manual de marca, BG-D35). Única excepción: el menú lateral con mouse (`pointer: fine`, ≥ 1024px) usa opciones de 34px; con el dedo, 48px.

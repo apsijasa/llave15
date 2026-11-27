@@ -1,0 +1,56 @@
+---
+import CostResult from "./CostResult.astro";
+import type { Props as ResultProps } from "./CostResult.astro";
+interface Props {
+  action: string;
+  services: { id: string; name: string }[];
+  bikeTypes: { value: string; label: string }[];
+  values: Record<string, string>;
+  errors: Record<string, string>;
+  result?: ResultProps;
+}
+const { action, services, bikeTypes, values, errors, result } = Astro.props;
+const fields = [
+  ["minutes", "Minutos", false],
+  ["suppliesClp", "Insumos del servicio", false],
+  ["packCostClp", "Costo del envase", true],
+  ["packJobs", "Trabajos que alcanza", true],
+  ["marginPct", "Margen del servicio (%)", false],
+] as const;
+const groups = [
+  { pack: false, legend: "Duración e insumos" },
+  { pack: true, legend: "Prorratear un envase (opcional)" },
+];
+---
+<form method="post" action={action} class="stack costing-service">
+  <div class="fields">
+    <div class="field">
+      <label for="service-serviceId">Servicio del catálogo</label>
+      <select id="service-serviceId" name="serviceId" aria-invalid={Boolean(errors.serviceId)} aria-describedby={errors.serviceId ? "service-serviceId-error" : undefined}>
+        <option value="">Otro servicio</option>
+        {services.map((service) => <option value={service.id} selected={values.serviceId === service.id}>{service.name}</option>)}
+      </select>
+      {errors.serviceId && <p id="service-serviceId-error">{errors.serviceId}</p>}
+    </div>
+    <div class="field">
+      <label for="service-bikeType">Tipo de bici</label>
+      <select id="service-bikeType" name="bikeType" aria-invalid={Boolean(errors.bikeType)} aria-describedby={errors.bikeType ? "service-bikeType-error" : undefined}>
+        <option value="">Elige el tipo de bici</option>
+        {bikeTypes.map((type) => <option value={type.value} selected={values.bikeType === type.value}>{type.label}</option>)}
+      </select>
+      {errors.bikeType && <p id="service-bikeType-error">{errors.bikeType}</p>}
+    </div>
+  </div>
+  {groups.map((group) => <fieldset>
+    <legend>{group.legend}</legend>
+    <div class="fields">
+      {fields.filter(([, , pack]) => pack === group.pack).map(([key, label]) => <div class="field">
+        <label for={`service-${key}`}>{label}</label>
+        <input id={`service-${key}`} name={key} inputmode="numeric" value={values[key] ?? ""} aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `service-${key}-error` : undefined} />
+        {errors[key] && <p id={`service-${key}-error`}>{errors[key]}</p>}
+      </div>)}
+    </div>
+  </fieldset>)}
+  <p><button type="submit" class="btn" name="action" value="service">Calcular servicio</button></p>
+  {result && <CostResult {...result} />}
+</form>

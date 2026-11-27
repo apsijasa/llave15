@@ -109,7 +109,8 @@ async function posByProvider(db: AppDb, actor: SessionUser, bounds: Bounds) {
   }));
 }
 
-async function expenseTotals(db: AppDb, actor: SessionUser, range: Range) {
+/** Sin chequeo de permiso: lo hace quien llama. */
+export async function expenseTotals(db: AppDb, actor: SessionUser, range: Range) {
   const rows = await db
     .select({
       category: expenses.category,

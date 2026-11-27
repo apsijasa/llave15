@@ -68,7 +68,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 
 | Tema | Única fuente de verdad |
 |---|---|
-| Esquema | quince archivos que importan en un solo sentido: `src/server/db/schema-shops.ts` (talleres; desde BG-03) ← `schema.ts` (reservas, sucursal, usuarios) ← `schema-taller.ts` ← `schema-inventory.ts` ← `schema-orders.ts` ← `schema-reports.ts` ← `schema-cash.ts` ← `schema-sales.ts` ← `schema-payments.ts` ← `schema-library-catalog.ts` ← `schema-library-knowledge.ts` ← `schema-library-procedures.ts` ← `schema-library-private.ts` (biblioteca; tablas globales sin `branch_id`, BT-D1) ← `schema-platform.ts` (`demo_requests`, sin `branch_id`, BG-D51) ← `schema-purchase-imports.ts` (`purchase_imports`, `branch_id` NOT NULL; F2-D34) → `pnpm db:generate` → `pnpm db:migrate` |
+| Esquema | dieciséis archivos que importan en un solo sentido: `src/server/db/schema-shops.ts` (talleres; desde BG-03) ← `schema.ts` (reservas, sucursal, usuarios) ← `schema-taller.ts` ← `schema-inventory.ts` ← `schema-orders.ts` ← `schema-reports.ts` ← `schema-cash.ts` ← `schema-sales.ts` ← `schema-payments.ts` ← `schema-library-catalog.ts` ← `schema-library-knowledge.ts` ← `schema-library-procedures.ts` ← `schema-library-private.ts` (biblioteca; tablas globales sin `branch_id`, BT-D1) ← `schema-platform.ts` (`demo_requests`, sin `branch_id`, BG-D51) ← `schema-purchase-imports.ts` (`purchase_imports`, `branch_id` NOT NULL; F2-D34) ← `schema-costing.ts` (`cost_profiles`, perfil de costos por sucursal, BG-D57) → `pnpm db:generate` → `pnpm db:migrate` |
 | Conexión | `src/server/db/client.ts` (`getDb()`, tipo `AppDb`); los módulos reciben `db` como argumento |
 | Entorno | `src/lib/env.ts` (accesores por funcionalidad, `getAppEnv`, `getTrackingEnv`); nunca `process.env` en otro lado |
 | Perfil y configuración del taller | la fila de `shops`; `src/server/shops/profile.ts` (`ShopProfile`), `src/server/booking/config.ts` (`BookingConfig`), alcance en `src/server/shops/scope.ts` |
@@ -76,6 +76,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 | Tiempo y zona | `src/lib/time.ts` (`TIMEZONE`, `localToday`, `addDays`, `localToInstant`) |
 | Reglas genéricas de reserva | `src/server/booking/rules.ts` (`blocksFor`, `MAX_BIKES_PER_BOOKING`); los valores del taller, en `shops` |
 | Reglas del taller (estados, transiciones, checklists, capacidad, etiqueta, categorías, medios de pago, IVA) | `src/server/taller/rules.ts` (`VAT_RATE_PERCENT`, `vatOfNet`, `netOfGross`) |
+| Reglas de costeo | `src/server/taller/costing-rules.ts` |
 | Totales de la orden (régimen `final`/`neto`) | `src/server/taller/order-totals.ts` (`recomputeOrderTotals`, reexportado por `items.ts`) |
 | Stock · Caja | `src/server/taller/stock.ts` (`applyStockMovement`, el único que cambia `products.stock_qty`) · `src/server/taller/cash.ts` (`requireOpenCashSession`, `recordCashMovement`) |
 | Permisos · Sesión | `src/server/auth/permissions.ts` (`can(role, action)`; costos solo con `costs.view`; `shop.manage` solo dueño) · `src/server/auth/admin-auth.ts` (`requireAdmin`, `loginRedirect`) |
