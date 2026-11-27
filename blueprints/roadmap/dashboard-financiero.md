@@ -53,7 +53,7 @@ Que el dueño tenga, en una sola pantalla de `/taller`, la lectura completa del 
 
 - [x] **Etapa A, indicadores con datos de la fase 1: hecha.** Pantalla `/taller/indicadores` para dueño y administración (permiso `dashboard.finance`), decisión 54. Consultas sobre datos de la fase 1 con rango de fechas, sin cambios de esquema.
 - **Etapa B, junto con la fase 2.** Al construir caja, inventario y registro de gastos, se agregan balance, mix de ingresos, inventario y el reporte de ingresos y egresos. El diseño de la fase 2 debe guardar desde el primer día lo que estos indicadores necesitan: costo de cada repuesto, categoría de cada gasto y origen de cada venta.
-- **Etapa C, cierre del panel: parcial.** Comparativas contra el período anterior y gráficos hechos (`feat/panel-indicadores`, BG-D55); metas y reportes descargables pendientes. Las "cotizaciones" se resuelven con los adicionales por orden, sin entidad independiente.
+- **Etapa C, cierre del panel: parcial.** Comparativas contra el período anterior y gráficos hechos (`feat/panel-indicadores`, BG-D55); reportes descargables en CSV hechos (`feat/reportes-indicadores`, BG-D56); metas pendientes; PDF fuera de alcance. Las "cotizaciones" se resuelven con los adicionales por orden, sin entidad independiente.
 
 ## Decisión registrada
 
@@ -70,4 +70,4 @@ La especificación original deja fuera de la primera etapa las "comparativas fin
 1. ¿Se registran gastos generales del taller (arriendo, sueldos, servicios) o solo costos de repuestos e insumos?
 2. ¿Hacen falta cotizaciones sin orden de trabajo (un cliente que pregunta y no reserva), o basta con los adicionales de cada orden?
 3. ¿Cómo se define la meta del período: un monto fijo mensual o una proyección?
-4. ¿Formato de los reportes descargables: PDF, Excel o ambos?
+4. Formato de los reportes descargables: **CSV para Excel (27-11-2026)**.

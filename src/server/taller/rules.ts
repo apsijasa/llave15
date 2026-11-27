@@ -336,6 +336,12 @@ export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
 };
 export const EXPENSE_METHODS = ["efectivo", "transferencia", "tarjeta", "otro"] as const;
 export type ExpenseMethod = (typeof EXPENSE_METHODS)[number];
+export const EXPENSE_METHOD_LABELS: Record<ExpenseMethod, string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  tarjeta: "Tarjeta",
+  otro: "Otro",
+};
 
 export const INVOICE_IMPORTS_PER_BRANCH_PER_DAY = 50;
 export const INVOICE_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
