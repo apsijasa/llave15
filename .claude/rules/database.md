@@ -27,6 +27,6 @@ paths:
 - Solo constructor de consultas de Drizzle o `sql\`\`` parametrizado; nunca `db.query.*` relacional (PGlite y postgres-js comparten solo esa API).
 - PGlite es de una conexión: las pruebas de concurrencia no usan `FOR UPDATE` concurrente; la garantía se prueba en secuencia contra el CHECK o el índice único. `createTestDb()` siembra el taller Vector Bikes; `createBookingTestDb()` además su sucursal; `seedTwoShops()` agrega el Taller Demo.
 - `pnpm db:migrate` solo contra la base del workspace; nunca `drizzle-kit push`; la app nunca migra al arrancar.
-- Cambios destructivos: expand → migrar datos → contract en publicaciones separadas (Replit propaga el esquema de dev a producción al publicar, sin datos y sin correr `drizzle/`). Ventanas en `docs/ventanas/` (fase 2: V1–V3; Llave 15: V-BG1–V-BG3). Antes de V-BG3, `pnpm bg:backfill --dry-run` debe imprimir `"pending":0` en la base que se va a contraer.
+- Cambios destructivos: expand → migrar datos → contract en publicaciones separadas (Replit propaga el esquema de dev a producción al publicar, sin datos y sin correr `drizzle/`; **no** reemplaza un CHECK que conserva su nombre: toda migración que cambie un CHECK existente lleva en su ventana la comparación de su definición en producción después de publicar, según `docs/BITACORA.md` §2). Ventanas en `docs/ventanas/` (fase 2: V1–V3; Llave 15: V-BG1–V-BG3). Antes de V-BG3, `pnpm bg:backfill --dry-run` debe imprimir `"pending":0` en la base que se va a contraer.
 
 - `purchase_imports` guarda la lectura sin datos del comprador.
