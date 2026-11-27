@@ -39,7 +39,8 @@ const productFields = z.object({
   category: z.enum(PRODUCT_CATEGORIES),
   unit: z.string().trim().min(1).max(20).default("unidad"),
   costClp: integer(0, 10_000_000).default(0),
-  priceClp: integer(0, 10_000_000),
+  priceClp: integer(0, 10_000_000).default(0),
+  forSale: z.boolean().default(true),
   stockQty: integer(0, 100_000).default(0),
   minStock: integer(0, 100_000).default(0),
   barcode: optionalText(64),
@@ -50,10 +51,26 @@ const productFields = z.object({
   ),
   isActive: z.boolean().default(true),
 });
-export const productFormSchema = productFields.refine(
-  (input) => input.category !== "bicicleta_usada" || input.serialNumber !== null,
-  { path: ["serialNumber"], message: "Escribe el número de serie de la bicicleta." },
-);
+export const productFormSchema = productFields
+  .extend({
+    priceClp: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      integer(0, 10_000_000).optional(),
+    ),
+  })
+  .refine((input) => !input.forSale || input.priceClp !== undefined, {
+    path: ["priceClp"],
+    message: "Ingresa el precio de venta neto.",
+  })
+  .refine((input) => input.category !== "bicicleta_usada" || input.serialNumber !== null, {
+    path: ["serialNumber"],
+    message: "Escribe el número de serie de la bicicleta.",
+  })
+  .overwrite((input) => ({ ...input, priceClp: input.forSale ? input.priceClp : 0 }));
+export const internalUseSchema = z.object({
+  quantity: integer(1, 100_000),
+  note: optionalText(200),
+});
 const adjustmentSchema = z.object({
   quantity: integer(-100_000, 100_000).refine((value) => value !== 0),
   reason: z.string().trim().min(3).max(200),
@@ -62,6 +79,7 @@ const filtersSchema = z.object({
   q: z.string().trim().optional(),
   category: z.enum(PRODUCT_CATEGORIES).optional(),
   lowOnly: z.boolean().optional(),
+  forSale: z.boolean().optional(),
 });
 export type ProductInput = z.infer<typeof productFormSchema>;
 type ProductResult =
@@ -126,6 +144,7 @@ export async function insertProduct(tx: AppDb, actor: SessionUser, input: Produc
     .insert(products)
     .values({
       ...fields,
+      priceClp: fields.priceClp ?? 0,
       branchId: actor.branchId,
       createdBy: actor.id,
       createdAt: now,
@@ -194,7 +213,7 @@ export async function updateProduct(
       const { stockQty: _stockQty, ...fields } = parsed.data;
       await tx
         .update(products)
-        .set({ ...fields, updatedAt: now })
+        .set({ ...fields, priceClp: fields.priceClp ?? 0, updatedAt: now })
         .where(productScope(actor, id));
       await auditProduct(
         tx,
@@ -202,8 +221,8 @@ export async function updateProduct(
         id,
         "product.updated",
         {
-          before: { priceClp: before.priceClp, costClp: before.costClp },
-          after: { priceClp: fields.priceClp, costClp: fields.costClp },
+          before: { priceClp: before.priceClp, costClp: before.costClp, forSale: before.forSale },
+          after: { priceClp: fields.priceClp, costClp: fields.costClp, forSale: fields.forSale },
         },
         now,
       );
@@ -249,6 +268,49 @@ export async function adjustStock(
   }
 }
 
+export async function recordInternalUse(
+  db: AppDb,
+  actor: SessionUser,
+  id: string,
+  input: unknown,
+  now: Date,
+) {
+  if (!can(actor.role, "inventory.adjust")) return { ok: false, code: "forbidden" } as const;
+  const parsed = internalUseSchema.safeParse(input);
+  if (!parsed.success || !z.uuid().safeParse(id).success)
+    return { ok: false, code: "validation_error" } as const;
+  try {
+    return await db.transaction(async (tx) => {
+      const [product] = await tx
+        .select()
+        .from(products)
+        .where(productScope(actor, id))
+        .for("update");
+      if (!product) return { ok: false, code: "not_found" } as const;
+      if (product.forSale) return { ok: false, code: "not_internal" } as const;
+      const { quantity, note } = parsed.data;
+      const movement = await applyStockMovement(
+        tx,
+        actor,
+        {
+          productId: id,
+          kind: "ajuste",
+          quantity: -quantity,
+          unitCostClp: product.costClp,
+          note: note ? `Uso en taller: ${note}` : "Uso en taller",
+        },
+        now,
+      );
+      if (!movement.ok) throw new StockFailure(movement.code);
+      await auditProduct(tx, actor, id, "stock.internal_use", { productId: id, quantity }, now);
+      return { ok: true, productId: id, stockQty: movement.stockQty } as const;
+    });
+  } catch (error) {
+    if (error instanceof StockFailure) return { ok: false, code: error.code } as const;
+    throw error;
+  }
+}
+
 function visibleProduct(actor: SessionUser, product: typeof products.$inferSelect) {
   if (can(actor.role, "costs.view")) return product;
   const { costClp: _costClp, ...visible } = product;
@@ -263,7 +325,7 @@ export async function listProducts(
   if (!can(actor.role, "inventory.view")) return [];
   const parsed = filtersSchema.safeParse(filters);
   if (!parsed.success) return [];
-  const { q, category, lowOnly } = parsed.data;
+  const { q, category, lowOnly, forSale } = parsed.data;
   const rows = await db
     .select()
     .from(products)
@@ -278,6 +340,7 @@ export async function listProducts(
             )
           : undefined,
         category ? eq(products.category, category) : undefined,
+        forSale === undefined ? undefined : eq(products.forSale, forSale),
         lowOnly
           ? and(
               eq(products.isActive, true),

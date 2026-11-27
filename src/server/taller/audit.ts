@@ -46,6 +46,7 @@ export type AuditAction =
   | "product.created"
   | "product.updated"
   | "stock.adjusted"
+  | "stock.internal_use"
   | "inventory.imported"
   | "supplier.created"
   | "supplier.updated"

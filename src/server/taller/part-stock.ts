@@ -143,6 +143,7 @@ export async function addProductPartItem(
             eq(products.branchId, actor.branchId),
             eq(products.id, parsed.data.productId),
             eq(products.isActive, true),
+            eq(products.forSale, true),
           ),
         )
         .for("update");

@@ -209,7 +209,9 @@ const catalog = can(user.role, "items.add_catalog")
   ? (await listCatalog(db, user)).filter((service) => service.isActive)
   : [];
 const products = can(user.role, "items.add_part")
-  ? (await listProducts(db, user)).filter((product) => product.isActive && product.stockQty > 0)
+  ? (await listProducts(db, user, { forSale: true })).filter(
+      (product) => product.isActive && product.forSale && product.stockQty > 0,
+    )
   : [];
 const number = formatOrderNumber(order.number);
 const editable = !(TERMINAL_STATUSES as readonly string[]).includes(order.status);

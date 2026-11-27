@@ -133,8 +133,8 @@ if (Astro.request.method === "POST") {
     }
   }
 }
-const products = (await listProducts(db, user)).filter(
-  (product) => product.isActive && product.stockQty > 0,
+const products = (await listProducts(db, user, { forSale: true })).filter(
+  (product) => product.isActive && product.forSale && product.stockQty > 0,
 );
 const textFields = [
   {

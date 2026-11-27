@@ -87,9 +87,9 @@ const showCosts = can(user.role, "costs.view");
                 <td><a href={`${PATH}/${product.id}`}>{product.name}</a></td>
                 <td>{PRODUCT_CATEGORY_LABELS[product.category]}</td>
                 <td>{product.stockQty}</td><td>{product.minStock}</td>
-                <td>{formatClp(product.priceClp)}</td>
+                <td>{product.forSale ? formatClp(product.priceClp) : "Uso interno"}</td>
                 {showCosts && <td>{"costClp" in product && typeof product.costClp === "number" ? formatClp(product.costClp) : "Sin información"}</td>}
-                <td>{product.minStock > 0 && product.stockQty <= product.minStock
+                <td>{!product.forSale && <><span class="status">Uso interno</span>{" "}</>}{product.minStock > 0 && product.stockQty <= product.minStock
                   ? <span class="status status--bajo">Bajo mínimo</span>
                   : product.stockQty === 0
                     ? <span class="status status--sin-stock">Sin stock</span>

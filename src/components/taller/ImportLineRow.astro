@@ -43,7 +43,7 @@ const fields: Field[] = [
   { key: "unit", label: "Unidad del producto nuevo", type: "text" },
   {
     key: "priceClp",
-    label: "Precio de venta neto (obligatorio para crear)",
+    label: "Precio de venta neto (solo si es para la venta)",
     type: "number",
     min: 0,
     max: 10000000,
@@ -51,7 +51,7 @@ const fields: Field[] = [
 ];
 ---
 
-<fieldset class="stack">
+<fieldset class="stack" id={"line-" + index}>
   <legend>Línea {index + 1} · {line.description}</legend>
   {line.code && <code>{line.code}</code>}
   <p>Costo leído: {cost}</p>
@@ -62,7 +62,7 @@ const fields: Field[] = [
       </label>
     ))}
   </div>
-  {errors[prefix + "mode"] && <p id={errorId("mode")}>{errors[prefix + "mode"]}</p>}
+  {errors[prefix + "mode"] && <p class="field-error" id={errorId("mode")}>{errors[prefix + "mode"]}</p>}
   <div class="field">
     <label for={prefix + "productId"}>Producto existente</label>
     <select id={prefix + "productId"} name={prefix + "productId"} aria-invalid={invalid("productId")} aria-describedby={errorId("productId")}>
@@ -71,20 +71,24 @@ const fields: Field[] = [
       {suggestions.length > 0 && <optgroup label="Sugerencias">{suggestions.map(p => <option value={p.productId} selected={value("productId") === p.productId}>{p.sku} · {p.name}</option>)}</optgroup>}
       <optgroup label="Todos">{options.filter(p => p.value !== match?.productId && !suggestions.some(s => s.productId === p.value)).map(p => <option value={p.value} selected={value("productId") === p.value}>{p.label}</option>)}</optgroup>
     </select>
-    {errors[prefix + "productId"] && <p id={errorId("productId")}>{errors[prefix + "productId"]}</p>}
+    {errors[prefix + "productId"] && <p class="field-error" id={errorId("productId")}>{errors[prefix + "productId"]}</p>}
+  </div>
+  <input type="hidden" name={prefix + "forSalePresent"} value="1" />
+  <div class="options">
+    <label for={prefix + "forSale"}><input type="checkbox" id={prefix + "forSale"} name={prefix + "forSale"} checked={values ? values[prefix + "forSale"] === "on" : true} /> Para la venta</label>
   </div>
   <div class="fields">
     {fields.map(field => <div class="field">
       <label for={prefix + field.key}>{field.label}</label>
-      <input id={prefix + field.key} name={prefix + field.key} type={field.type} min={field.min} max={field.max} step={field.type === "number" ? "1" : undefined} value={value(field.key)} required={field.key === "priceClp" && value("mode") === "create"} aria-invalid={invalid(field.key)} aria-describedby={errorId(field.key)} />
-      {errors[prefix + field.key] && <p id={errorId(field.key)}>{errors[prefix + field.key]}</p>}
+      <input id={prefix + field.key} name={prefix + field.key} type={field.type} min={field.min} max={field.max} step={field.type === "number" ? "1" : undefined} value={value(field.key)} aria-invalid={invalid(field.key)} aria-describedby={errorId(field.key)} />
+      {errors[prefix + field.key] && <p class="field-error" id={errorId(field.key)}>{errors[prefix + field.key]}</p>}
     </div>)}
     <div class="field">
       <label for={prefix + "category"}>Categoría del producto nuevo</label>
       <select id={prefix + "category"} name={prefix + "category"} aria-invalid={invalid("category")} aria-describedby={errorId("category")}>
         {categories.map(category => <option value={category.value} selected={value("category") === category.value}>{category.label}</option>)}
       </select>
-      {errors[prefix + "category"] && <p id={errorId("category")}>{errors[prefix + "category"]}</p>}
+      {errors[prefix + "category"] && <p class="field-error" id={errorId("category")}>{errors[prefix + "category"]}</p>}
     </div>
   </div>
 </fieldset>

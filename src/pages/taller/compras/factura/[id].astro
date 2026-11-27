@@ -100,6 +100,18 @@ if (Astro.request.method === "POST") {
           : "Ya existe un producto con este SKU.";
   }
 }
+const errorSections: { href: string; label: string }[] = [];
+const fieldNames = Object.keys(fields);
+if (fieldNames.some((key) => key.startsWith("supplier-")))
+  errorSections.push({ href: "#supplier", label: "Proveedor" });
+if (fieldNames.some((key) => ["docType", "docNumber", "notes"].includes(key)))
+  errorSections.push({ href: "#document", label: "Documento" });
+for (const line of view.lines)
+  if (fieldNames.some((key) => key.startsWith(`line-${line.index}-`)))
+    errorSections.push({
+      href: `#line-${line.index}`,
+      label: `Línea ${line.index + 1} · ${line.description.slice(0, 40)}`,
+    });
 const suppliers = await listSuppliers(db, user);
 const products = await listProducts(db, user);
 const extraction = view.extraction;
@@ -148,33 +160,36 @@ const totals = [
       </PageHeader>
       {view.warnings.length > 0 && <ul role="status">{view.warnings.map(warning => <li>{warning}</li>)}</ul>}
       <p>Confianza: <span class={`status status--${extraction.confidence}`}>{extraction.confidence === "alta" ? "Alta" : extraction.confidence === "media" ? "Media" : "Baja"}</span></p>
-      {error && <p role="alert">{error}</p>}
+      {error && <div role="alert">{errorSections.length > 0 ? <>
+        <p>Faltan datos o hay datos por corregir en:</p>
+        <ul>{errorSections.map(section => <li><a href={section.href}>{section.label}</a></li>)}</ul>
+      </> : <p>{error}</p>}</div>}
       <form method="post" class="stack" novalidate>
-        <fieldset class="stack">
+        <fieldset class="stack" id="supplier">
           <legend>Proveedor</legend>
           <div class="options">
             {[["existing", "Elegir proveedor existente"], ["create", "Crear proveedor nuevo"]].map(([mode, label]) => <label for={"supplier-" + mode}>
               <input id={"supplier-" + mode} name="supplier-mode" type="radio" value={mode} checked={value("supplier-mode") === mode} aria-invalid={Boolean(fields["supplier-mode"])} aria-describedby={errorId("supplier-mode")} /> {label}
             </label>)}
           </div>
-          {fields["supplier-mode"] && <p id={errorId("supplier-mode")}>{fields["supplier-mode"]}</p>}
+          {fields["supplier-mode"] && <p class="field-error" id={errorId("supplier-mode")}>{fields["supplier-mode"]}</p>}
           <div class="field">
             <label for="supplier-supplierId">Proveedor existente</label>
             <select id="supplier-supplierId" name="supplier-supplierId" aria-invalid={Boolean(fields["supplier-supplierId"])} aria-describedby={errorId("supplier-supplierId")}>
               <option value="">Selecciona un proveedor</option>
               {suppliers.map(supplier => <option value={supplier.id} selected={value("supplier-supplierId") === supplier.id}>{supplier.name}</option>)}
             </select>
-            {fields["supplier-supplierId"] && <p id={errorId("supplier-supplierId")}>{fields["supplier-supplierId"]}</p>}
+            {fields["supplier-supplierId"] && <p class="field-error" id={errorId("supplier-supplierId")}>{fields["supplier-supplierId"]}</p>}
           </div>
           <div class="fields">
             {[["supplier-name", "Razón social del proveedor nuevo"], ["supplier-rut", "RUT del proveedor nuevo (opcional)"]].map(([key, label]) => <div class="field">
               <label for={key}>{label}</label>
               <input id={key} name={key} value={value(key!)} aria-invalid={Boolean(fields[key!])} aria-describedby={errorId(key!)} />
-              {fields[key!] && <p id={errorId(key!)}>{fields[key!]}</p>}
+              {fields[key!] && <p class="field-error" id={errorId(key!)}>{fields[key!]}</p>}
             </div>)}
           </div>
         </fieldset>
-        <fieldset class="stack">
+        <fieldset class="stack" id="document">
           <legend>Documento</legend>
           {extraction.document.date && <p>Fecha leída: {extraction.document.date}</p>}
           <div class="field">
@@ -183,17 +198,17 @@ const totals = [
               <option value="">Sin documento</option>
               {PURCHASE_DOC_TYPES.map(type => <option value={type} selected={value("docType") === type}>{PURCHASE_DOC_TYPE_LABELS[type]}</option>)}
             </select>
-            {fields.docType && <p id={errorId("docType")}>{fields.docType}</p>}
+            {fields.docType && <p class="field-error" id={errorId("docType")}>{fields.docType}</p>}
           </div>
           <div class="field">
             <label for="docNumber">Folio</label>
             <input id="docNumber" name="docNumber" maxlength="80" value={value("docNumber")} aria-invalid={Boolean(fields.docNumber)} aria-describedby={errorId("docNumber")} />
-            {fields.docNumber && <p id={errorId("docNumber")}>{fields.docNumber}</p>}
+            {fields.docNumber && <p class="field-error" id={errorId("docNumber")}>{fields.docNumber}</p>}
           </div>
           <div class="field">
             <label for="notes">Notas</label>
             <textarea id="notes" name="notes" maxlength="500" aria-invalid={Boolean(fields.notes)} aria-describedby={errorId("notes")}>{value("notes")}</textarea>
-            {fields.notes && <p id={errorId("notes")}>{fields.notes}</p>}
+            {fields.notes && <p class="field-error" id={errorId("notes")}>{fields.notes}</p>}
           </div>
         </fieldset>
         {view.lines.map(line => <ImportLineRow index={line.index} line={line} cost={formatClp(line.unitCostClp)} match={line.match} suggestions={line.suggestions} options={productOptions} categories={categories} values={values} errors={fields} />)}

@@ -12,6 +12,8 @@ import { formatClp } from "../../../server/email/templates.ts";
 import {
   adjustStock,
   getProduct,
+  internalUseSchema,
+  recordInternalUse,
   productFormSchema,
   updateProduct,
 } from "../../../server/taller/products.ts";
@@ -53,6 +55,7 @@ const canEdit = can(user.role, "inventory.adjust");
 const showCosts = can(user.role, "costs.view");
 const formSchema = z.discriminatedUnion("action", [
   productFormSchema.safeExtend({ action: z.literal("update") }),
+  internalUseSchema.extend({ action: z.literal("use") }),
   z.object({
     action: z.literal("adjust"),
     quantity: z
@@ -78,7 +81,7 @@ const fields: { key: string; label: string; max?: number; limit?: number; requir
   ...(showCosts
     ? [{ key: "costClp", label: "Costo neto", limit: 10_000_000, required: true }]
     : []),
-  { key: "priceClp", label: "Precio neto", limit: 10_000_000, required: true },
+  { key: "priceClp", label: "Precio neto", limit: 10_000_000, required: false },
   { key: "minStock", label: "Stock mínimo", limit: 100_000, required: true },
   { key: "barcode", label: "Código de barras", max: 64, required: false },
   { key: "serialNumber", label: "Número de serie", max: 80, required: false },
@@ -87,7 +90,11 @@ const fields: { key: string; label: string; max?: number; limit?: number; requir
 let values: Record<string, string> = Object.fromEntries(
   Object.entries(product).map(([key, value]) => [key, String(value ?? "")]),
 );
+if (!product.forSale) values = { ...values, priceClp: "" };
 let isActive = product.isActive;
+let forSale = product.forSale;
+let usage: Record<string, string> = {};
+let useAction = false;
 let adjustment: Record<string, string> = {};
 const fieldErrors: Record<string, string> = {};
 let error = "";
@@ -97,27 +104,37 @@ if (Astro.request.method === "POST") {
   if (raw.action === "update") {
     values = raw;
     isActive = raw.isActive === "1";
+    forSale = raw.forSale === "1";
+  } else if (raw.action === "use") {
+    usage = raw;
+    useAction = true;
   } else adjustment = raw;
-  const parsed = formSchema.safeParse({ ...raw, isActive, stockQty: product.stockQty });
+  const parsed = formSchema.safeParse({ ...raw, isActive, forSale, stockQty: product.stockQty });
   if (!parsed.success) {
     Astro.response.status = 422;
     error = "Revisa los datos del formulario.";
     for (const issue of parsed.error.issues) {
       const key = String(issue.path[0]);
       fieldErrors[key] =
-        key === "quantity"
-          ? "Ingresa una cantidad entera distinta de cero, entre -100000 y 100000."
-          : key === "reason"
-            ? "Escribe un motivo de 3 a 200 caracteres."
-            : "Revisa este dato.";
+        issue.code === "custom"
+          ? issue.message
+          : key === "quantity"
+            ? useAction
+              ? "Ingresa una cantidad entera entre 1 y 100000."
+              : "Ingresa una cantidad entera distinta de cero, entre -100000 y 100000."
+            : key === "reason"
+              ? "Escribe un motivo de 3 a 200 caracteres."
+              : "Revisa este dato.";
     }
     if (values.category === "bicicleta_usada" && !values.serialNumber?.trim())
       fieldErrors.serialNumber = "Escribe el número de serie de la bicicleta.";
   } else {
     const result =
-      parsed.data.action === "adjust"
-        ? await adjustStock(db, user, id.data, parsed.data, now)
-        : await updateProduct(db, user, id.data, parsed.data, now);
+      parsed.data.action === "use"
+        ? await recordInternalUse(db, user, id.data, parsed.data, now)
+        : parsed.data.action === "adjust"
+          ? await adjustStock(db, user, id.data, parsed.data, now)
+          : await updateProduct(db, user, id.data, parsed.data, now);
     if (result.ok)
       return new Response(null, {
         status: 303,
@@ -128,12 +145,16 @@ if (Astro.request.method === "POST") {
       result.code === "not_found" ? 404 : result.code === "validation_error" ? 422 : 409;
     error =
       result.code === "out_of_stock"
-        ? "El ajuste dejaría el stock negativo. Revisa la cantidad."
-        : result.code === "sku_exists"
-          ? "Ya existe un producto con ese SKU o código de barras."
-          : result.code === "not_found"
-            ? "Producto o proveedor no encontrado en tu sucursal."
-            : "Revisa los datos del formulario.";
+        ? useAction
+          ? "No hay stock suficiente para registrar ese uso."
+          : "El ajuste dejaría el stock negativo. Revisa la cantidad."
+        : result.code === "not_internal"
+          ? "Este producto es para la venta; usa Ajustar stock."
+          : result.code === "sku_exists"
+            ? "Ya existe un producto con ese SKU o código de barras."
+            : result.code === "not_found"
+              ? "Producto o proveedor no encontrado en tu sucursal."
+              : "Revisa los datos del formulario.";
     if (result.code === "out_of_stock") fieldErrors.quantity = error;
     if (result.code === "sku_exists") fieldErrors.sku = fieldErrors.barcode = error;
     if (result.code === "not_found" && parsed.data.action === "update")
@@ -143,6 +164,7 @@ if (Astro.request.method === "POST") {
 const notices: Record<string, string> = {
   create: "Producto creado.",
   adjust: "Stock ajustado.",
+  use: "Uso registrado.",
   update: "Producto actualizado.",
 };
 const notice = notices[Astro.url.searchParams.get("hecho") ?? ""];
@@ -155,9 +177,10 @@ const notice = notices[Astro.url.searchParams.get("hecho") ?? ""];
     {error && <p role="alert">{error}</p>}
     <Card>
       <dl class="data">
+        <dt>Uso</dt><dd>{product.forSale ? "Para la venta" : "Uso interno"}</dd>
         <dt>Stock</dt><dd>{product.stockQty}</dd>
         <dt>Mínimo</dt><dd>{product.minStock}</dd>
-        <dt>Precio neto</dt><dd>{formatClp(product.priceClp)}</dd>
+        {product.forSale && <><dt>Precio neto</dt><dd>{formatClp(product.priceClp)}</dd></>}
         {showCosts && "costClp" in product && typeof product.costClp === "number" && <><dt>Costo neto</dt><dd>{formatClp(product.costClp)}</dd></>}
         <dt>Categoría</dt><dd>{PRODUCT_CATEGORY_LABELS[product.category]}</dd>
         <dt>Unidad</dt><dd>{product.unit}</dd>
@@ -165,15 +188,33 @@ const notice = notices[Astro.url.searchParams.get("hecho") ?? ""];
       </dl>
     </Card>
     {canEdit && <>
+      {!product.forSale && <Card title="Registrar uso en taller">
+        <form method="post" action={PATH}>
+          <input type="hidden" name="action" value="use" />
+          <div class="fields">
+            <div class="field">
+              <label for="use-quantity">Cantidad usada</label>
+              <input id="use-quantity" name="quantity" type="number" min="1" max="100000" step="1" required value={usage.quantity ?? ""} aria-invalid={useAction && Boolean(fieldErrors.quantity)} aria-describedby={useAction && fieldErrors.quantity ? "use-quantity-error" : undefined} />
+              {useAction && fieldErrors.quantity && <p class="field-error" id="use-quantity-error">{fieldErrors.quantity}</p>}
+            </div>
+            <div class="field">
+              <label for="use-note">Nota (opcional)</label>
+              <input id="use-note" name="note" maxlength="200" value={usage.note ?? ""} aria-invalid={useAction && Boolean(fieldErrors.note)} aria-describedby={useAction && fieldErrors.note ? "use-note-error" : undefined} />
+              {useAction && fieldErrors.note && <p class="field-error" id="use-note-error">{fieldErrors.note}</p>}
+            </div>
+          </div>
+          <button type="submit" class="btn">Registrar uso</button>
+        </form>
+      </Card>}
       <Card title="Ajustar stock">
         <form method="post" action={PATH}>
           <input type="hidden" name="action" value="adjust" />
           <div class="fields">
             <div class="field">
               <label for="quantity">Cantidad</label>
-              <input id="quantity" name="quantity" type="number" min="-100000" max="100000" step="1" required value={adjustment.quantity ?? ""} aria-invalid={Boolean(fieldErrors.quantity)} aria-describedby={`quantity-help${fieldErrors.quantity ? " quantity-error" : ""}`} />
+              <input id="quantity" name="quantity" type="number" min="-100000" max="100000" step="1" required value={adjustment.quantity ?? ""} aria-invalid={!useAction && Boolean(fieldErrors.quantity)} aria-describedby={`quantity-help${!useAction && fieldErrors.quantity ? " quantity-error" : ""}`} />
               <p id="quantity-help" class="muted">Cantidad negativa para descontar.</p>
-              {fieldErrors.quantity && <p id="quantity-error">{fieldErrors.quantity}</p>}
+              {!useAction && fieldErrors.quantity && <p class="field-error" id="quantity-error">{fieldErrors.quantity}</p>}
             </div>
             <div class="field">
               <label for="reason">Motivo</label>
@@ -181,7 +222,7 @@ const notice = notices[Astro.url.searchParams.get("hecho") ?? ""];
               {fieldErrors.reason && <p id="reason-error">{fieldErrors.reason}</p>}
             </div>
           </div>
-          <button type="submit" class="btn">Registrar ajuste</button>
+          <button type="submit" class={product.forSale ? "btn" : "btn ghost"}>Registrar ajuste</button>
         </form>
       </Card>
       <Card title="Editar producto">
@@ -195,13 +236,15 @@ const notice = notices[Astro.url.searchParams.get("hecho") ?? ""];
               </select>
               {fieldErrors.category && <p id="category-error">{fieldErrors.category}</p>}
             </div>
+            <fieldset><legend>Uso del producto</legend><div class="options"><label for="forSale"><input id="forSale" name="forSale" type="checkbox" value="1" checked={forSale} /> Para la venta</label></div></fieldset>
             {fields.map((field) => (
               <div class="field">
                 <label for={field.key}>{field.label}</label>
-                <input id={field.key} name={field.key} type={field.limit === undefined ? "text" : "number"} required={field.required} maxlength={field.max} min={field.limit === undefined ? undefined : 0} max={field.limit} step={field.limit === undefined ? undefined : 1} value={values[field.key] ?? ""} aria-invalid={Boolean(fieldErrors[field.key])} aria-describedby={[fieldErrors[field.key] ? `${field.key}-error` : "", field.key === "supplierId" ? "supplier-help" : "", field.key === "serialNumber" ? "serial-help" : ""].filter(Boolean).join(" ") || undefined} />
+                <input id={field.key} name={field.key} type={field.limit === undefined ? "text" : "number"} required={field.required} maxlength={field.max} min={field.limit === undefined ? undefined : 0} max={field.limit} step={field.limit === undefined ? undefined : 1} value={values[field.key] ?? ""} aria-invalid={Boolean(fieldErrors[field.key])} aria-describedby={[fieldErrors[field.key] ? `${field.key}-error` : "", field.key === "supplierId" ? "supplier-help" : "", field.key === "serialNumber" ? "serial-help" : "", field.key === "priceClp" ? "price-help" : ""].filter(Boolean).join(" ") || undefined} />
                 {field.key === "supplierId" && <p id="supplier-help" class="muted">Identificador del proveedor, si corresponde.</p>}
                 {field.key === "serialNumber" && <p id="serial-help" class="muted">Obligatorio para una bicicleta usada.</p>}
-                {fieldErrors[field.key] && <p id={`${field.key}-error`}>{fieldErrors[field.key]}</p>}
+                {field.key === "priceClp" && <p id="price-help" class="muted">Obligatorio si es para la venta.</p>}
+                {fieldErrors[field.key] && <p class="field-error" id={`${field.key}-error`}>{fieldErrors[field.key]}</p>}
               </div>
             ))}
             <fieldset><legend>Estado del producto</legend><div class="options"><label for="isActive"><input id="isActive" name="isActive" type="checkbox" value="1" checked={isActive} />Producto activo</label></div></fieldset>

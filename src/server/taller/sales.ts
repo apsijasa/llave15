@@ -93,6 +93,7 @@ async function calculateSale(db: AppDb, actor: SessionUser, input: SaleInput, lo
           eq(products.branchId, actor.branchId),
           eq(products.id, item.productId),
           eq(products.isActive, true),
+          eq(products.forSale, true),
         ),
       );
     const [product] = await (lock ? query.for("update") : query);

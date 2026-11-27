@@ -87,6 +87,16 @@
   align-items: start;
   gap: 16px;
 }
+/* Campo con error: gana a la regla de controles de llave15.css (.l15 .taller input…). */
+.l15 .taller [aria-invalid="true"]:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]) {
+  border-color: var(--status-blocking-ink);
+  border-width: 2px;
+}
+.taller .field-error {
+  color: var(--status-blocking-ink);
+  font-weight: 600;
+  margin: 0;
+}
 .taller .field {
   align-content: start;
   gap: 8px;

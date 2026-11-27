@@ -50,6 +50,8 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 
 - **Compra por factura (F2-D34).** `/taller/compras/factura` (POST multipart) → `startPurchaseImport` (archivo → almacenamiento → Anthropic fuera de transacción → `purchase_imports`) → `/taller/compras/factura/<id>` (revisión) → `confirmPurchaseImport` (una transacción: proveedor y productos nuevos, `OC`, líneas y, con Recibir ahora, `receiveItems`) → `/taller/compras/<id>`.
 
+- **Uso interno (F2-D35).** `products.for_sale = false`: sin precio de venta, fuera de la venta de mostrador y de los repuestos de la orden; el consumo se registra con `recordInternalUse` (`products.ts`) como `ajuste` negativo `Uso en taller`.
+
 **Fronteras.**
 
 | Capa | Puede importar | Nunca |

@@ -168,6 +168,7 @@ async function writeProduct(
       .insert(products)
       .values({
         ...fields,
+        priceClp: fields.priceClp ?? 0,
         branchId: actor.branchId,
         createdBy: actor.id,
         createdAt: now,

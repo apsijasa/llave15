@@ -15,7 +15,10 @@ import {
   INVOICE_IMPORT_MAX_LINES,
   PURCHASE_DOC_TYPES,
 } from "./rules.ts";
+import { importFieldErrors } from "./purchase-import-messages.ts";
 import { insertSupplierRow, isRutConflict, supplierFormSchema } from "./suppliers.ts";
+
+export { importFieldErrors };
 
 const optionalText = (max: number) =>
   z
@@ -42,7 +45,11 @@ const lineSchema = z.discriminatedUnion("mode", [
     name: z.string().trim().min(2).max(120),
     category: z.enum(IMPORT_PRODUCT_CATEGORIES),
     unit: z.string().trim().min(1).max(20).default("unidad"),
-    priceClp: integer(0, 10000000),
+    forSale: z.boolean().default(true),
+    priceClp: z.preprocess(
+      (value) => (value === "" || value === undefined ? null : value),
+      integer(0, 10000000).nullable(),
+    ),
     ...amounts,
   }),
 ]);
@@ -88,6 +95,13 @@ export const confirmImportSchema = z
     const skus = new Set<string>();
     value.lines.forEach((line, index) => {
       if (line.mode !== "create") return;
+      if (line.forSale && line.priceClp === null)
+        ctx.addIssue({
+          code: "custom",
+          path: ["lines", index, "priceClp"],
+          message:
+            "Ingresa el precio de venta para crear este producto, o desmarca «Para la venta».",
+        });
       const sku = line.sku.toLowerCase();
       if (skus.has(sku))
         ctx.addIssue({
@@ -134,6 +148,7 @@ export function confirmFormToInput(form: FormData, lineCount: number): unknown {
           category: field("category"),
           unit: field("unit"),
           priceClp: field("priceClp"),
+          forSale: field("forSalePresent") === "1" ? field("forSale") === "on" : true,
         };
   });
   return {
@@ -144,21 +159,6 @@ export function confirmFormToInput(form: FormData, lineCount: number): unknown {
     receiveNow: get("receiveNow") === "on",
     lines,
   };
-}
-function fieldsOf(error: z.ZodError): Record<string, string> {
-  return Object.fromEntries(
-    error.issues.map((issue) => {
-      const path = issue.path;
-      const name =
-        path[0] === "lines"
-          ? `line-${String(path[1] ?? 0)}-${String(path[2] ?? "mode")}`
-          : path.map(String).join("-");
-      return [
-        name,
-        issue.code === "custom" ? issue.message : "Revisa este campo e ingresa un valor válido.",
-      ];
-    }),
-  );
 }
 const scope = (actor: SessionUser, id: string) =>
   and(eq(purchaseImports.branchId, actor.branchId), eq(purchaseImports.id, id));
@@ -219,7 +219,8 @@ async function productFor(
         name: line.name,
         category: line.category,
         unit: line.unit,
-        priceClp: line.priceClp,
+        forSale: line.forSale,
+        priceClp: line.forSale ? (line.priceClp ?? 0) : 0,
         stockQty: 0,
         costClp: line.unitCostClp,
         supplierId,
@@ -354,7 +355,7 @@ export async function confirmPurchaseImport(
     return { ok: false, code: "forbidden" };
   const parsed = confirmImportSchema.safeParse(input);
   if (!parsed.success)
-    return { ok: false, code: "validation_error", fields: fieldsOf(parsed.error) };
+    return { ok: false, code: "validation_error", fields: importFieldErrors(parsed.error) };
   if (!z.uuid().safeParse(id).success) return { ok: false, code: "not_found" };
   try {
     return await db.transaction((tx) => confirmTransaction(tx, actor, id, parsed.data, now));
