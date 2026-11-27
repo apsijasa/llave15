@@ -46,27 +46,21 @@ it("todo salto manual pertenece a las transiciones permitidas", () => {
       expect(rules.isAllowedTransition(from, to)).toBe(true);
   }
 });
-it.each([
-  ["reservada", "creado"],
-  ["recibida", "creado"],
-  ["en_reparacion", "en_progreso"],
-  ["control_calidad", "en_progreso"],
-  ["trabajo_rechazado", "cancelada"],
-])("normaliza %s a %s", (raw, target) => {
-  expect(rules.normalizeOrderStatus(raw)).toBe(target);
+it.each(rules.LEGACY_ORDER_STATUSES)("rechaza el estado heredado %s", (raw) => {
+  expect(() => rules.normalizeOrderStatus(raw)).toThrow("Estado de orden desconocido.");
 });
 it("preserva estados actuales y rechaza desconocidos", () => {
   for (const status of statuses) expect(rules.normalizeOrderStatus(status)).toBe(status);
-  expect(() => rules.normalizeOrderStatus("desconocido")).toThrow();
+  expect(() => rules.normalizeOrderStatus("desconocido")).toThrow("Estado de orden desconocido.");
 });
-it("conserva etiquetas históricas y amplía filtros sin duplicados", () => {
+it("conserva etiquetas históricas", () => {
+  for (const status of rules.LEGACY_ORDER_STATUSES)
+    expect(rules.statusLabel(status)).toBe(rules.LEGACY_STATUS_LABELS[status]);
   expect(rules.statusLabel("en_reparacion")).toBe("En reparación");
   expect(rules.statusLabel("entregada")).toBe("Retirada");
   expect(rules.statusLabel("desconocido")).toBe("desconocido");
-  expect(rules.withLegacyStatuses(["creado"])).toEqual(["creado", "reservada", "recibida"]);
-  expect(rules.withLegacyStatuses(["creado", "creado"])).toEqual([
-    "creado",
-    "reservada",
-    "recibida",
-  ]);
+});
+it("no exporta el mapa ni el expansor de estados heredados", () => {
+  expect(["LEGACY", "STATUS", "MAP"].join("_") in rules).toBe(false);
+  expect(["with", "Legacy", "Statuses"].join("") in rules).toBe(false);
 });

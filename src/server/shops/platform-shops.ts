@@ -1,4 +1,3 @@
-import { withLegacyStatuses } from "../taller/rules.ts";
 import { and, asc, eq, gte, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import type { SessionUser } from "../auth/admin-auth.ts";
 import type { AppDb } from "../db/client.ts";
@@ -47,7 +46,7 @@ export async function usageCounts(db: AppDb, shopId: string, now: Date) {
         and(
           eq(branches.shopId, shopId),
           isNull(workOrders.voidedAt),
-          notInArray(workOrders.status, withLegacyStatuses(TERMINAL_STATUSES)),
+          notInArray(workOrders.status, [...TERMINAL_STATUSES]),
         ),
       ),
   );

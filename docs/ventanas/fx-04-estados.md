@@ -39,3 +39,5 @@ La base admite los diez estados nuevos y los cinco alias heredados. El código e
    ```
 
 7. Solo con cero pendientes en producción, pedir el encargo de contract que retirará los alias del CHECK y del código.
+
+Hecho el 27-11-2026 (`"pending":0`). Contract: `docs/ventanas/fx-06-contract-estados.md`.

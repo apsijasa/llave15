@@ -330,6 +330,13 @@
       "when": 1795732431013,
       "tag": "0046_silent_black_crow",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795795942433,
+      "tag": "0047_aspiring_sugar_man",
+      "breakpoints": true
     }
   ]
 }

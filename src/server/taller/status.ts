@@ -12,7 +12,6 @@ import { getOrderHeader, recordStatusChange } from "./orders.ts";
 import {
   isManualTransition,
   normalizeOrderStatus,
-  withLegacyStatuses,
   MECHANIC_UNASSIGNED_ACCESS_STATUSES,
   ORDER_STATUSES,
   TERMINAL_STATUSES,
@@ -148,7 +147,7 @@ export async function listOrders(
     eq(workOrders.assignedMechanicId, actor.id),
     and(
       isNull(workOrders.assignedMechanicId),
-      inArray(workOrders.status, withLegacyStatuses(MECHANIC_UNASSIGNED_ACCESS_STATUSES)),
+      inArray(workOrders.status, [...MECHANIC_UNASSIGNED_ACCESS_STATUSES]),
     ),
   );
   const rows = await db
@@ -169,7 +168,7 @@ export async function listOrders(
         eq(workOrders.branchId, actor.branchId),
         isNull(workOrders.voidedAt),
         parsed.data.scope === "open"
-          ? notInArray(workOrders.status, withLegacyStatuses(TERMINAL_STATUSES))
+          ? notInArray(workOrders.status, [...TERMINAL_STATUSES])
           : undefined,
         parsed.data.scope === "mine" ? eq(workOrders.assignedMechanicId, actor.id) : undefined,
         actor.role === "mechanic" ? mechanicAccess : undefined,
