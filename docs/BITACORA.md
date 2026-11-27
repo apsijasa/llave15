@@ -76,6 +76,16 @@ rm -rf node_modules
 
 - Replit propaga el esquema a producción al publicar. La app nunca migra al arrancar.
 - Si quitar un índice aparece como cambio "destructivo", se acepta solo si el encargo lo anticipó.
+- **Replit no reemplaza un CHECK que conserva su nombre** (visto el 27-11-2026 al publicar FX-04). La publicación llevó a producción la tabla `purchase_imports` y el nuevo valor por defecto de `work_orders.status`, pero dejó con su definición antigua `work_orders_status_check`, `work_orders_delivered_paid_check` y `work_orders_qc_check`, que la migración `0045` borra y vuelve a crear con el mismo nombre. El código publicado escribía estados que la base de producción rechazaba. Por eso, después de publicar una migración que cambia un CHECK existente, hay que comparar su definición en producción con la del workspace, en modo de solo lectura:
+
+  ```bash
+  read -r -s -p "Conexión de producción: " PRODUCTION_DATABASE_URL
+  psql "$PRODUCTION_DATABASE_URL" -c "select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = '<tabla>'::regclass and contype = 'c' order by conname;"
+  psql "$DATABASE_URL" -c "select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = '<tabla>'::regclass and contype = 'c' order by conname;"
+  unset PRODUCTION_DATABASE_URL
+  ```
+
+  Si difieren, el dueño decide si aplica en producción, en una sola transacción (`psql -v ON_ERROR_STOP=1 --single-transaction`) y con un respaldo del día, exactamente los `DROP CONSTRAINT` y `ADD CONSTRAINT` de la migración. Es la única excepción a no tocar el esquema de producción a mano, y solo se hace si los CHECK nuevos aceptan todas las filas existentes. Así se resolvió FX-04 el 27-11-2026. Los scripts de traspaso, como `orders:remap-status`, fallan con `remap_failed` mientras producción conserve el CHECK antiguo.
 
 ### Reglas que se mantuvieron en todos los encargos
 - Ninguna prueba existente se modifica sin autorización expresa del dueño. Si una falla, la implementación se detiene y reporta.
