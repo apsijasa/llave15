@@ -1,0 +1,2 @@
+ALTER TABLE "work_orders" DROP CONSTRAINT "work_orders_status_check";--> statement-breakpoint
+ALTER TABLE "work_orders" ADD CONSTRAINT "work_orders_status_check" CHECK (status in ('creado', 'diagnostico', 'esperando_aprobacion', 'en_progreso', 'esperando_repuesto', 'en_pausa', 'lista_para_retirar', 'pagado', 'entregada', 'cancelada'));

@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, expect, it } from "vitest";
-import { remapBranchStatuses } from "../../scripts/orders-remap-status.ts";
 import { mechanicDashboard } from "../../src/server/taller/dashboard.ts";
 import type { AppDb } from "../../src/server/db/client.ts";
 import { workOrderApprovals, workOrderItems } from "../../src/server/db/schema-orders.ts";
@@ -20,8 +19,8 @@ import { recordPayment, voidPayment } from "../../src/server/taller/payments.ts"
 import { submitQc } from "../../src/server/taller/qc.ts";
 import { finalizeReception } from "../../src/server/taller/reception.ts";
 import { ensureTrackingLink, viewTrackingByToken } from "../../src/server/taller/tracking.ts";
-import { INTAKE_CHECK_KEYS, QC_CHECK_KEYS, statusLabel } from "../../src/server/taller/rules.ts";
-import { changeOrderStatus, listOrders, orderDetail } from "../../src/server/taller/status.ts";
+import { INTAKE_CHECK_KEYS, QC_CHECK_KEYS } from "../../src/server/taller/rules.ts";
+import { changeOrderStatus } from "../../src/server/taller/status.ts";
 import { createTestDb, type TestDb } from "../helpers/pglite.ts";
 import { seedTwoShops } from "../helpers/two-shops.ts";
 
@@ -29,7 +28,6 @@ const NOW = new Date("2026-11-26T15:00:00Z");
 const SIGNATURE = "data:image/png;base64,iVBORw0KGgo=";
 let test: TestDb;
 let owner: SessionUser;
-let other: SessionUser;
 let orderId: string;
 const storage: ObjectStorage = {
   put: async () => {},
@@ -95,7 +93,6 @@ beforeEach(async () => {
   test = await createTestDb();
   const shops = await seedTwoShops(test.db);
   owner = shops.vector.owner;
-  other = shops.demo.owner;
   orderId = await seed(owner);
   return () => test.close();
 });
@@ -251,26 +248,6 @@ it("la base protege saldo en Pagado y QC en los tres estados finales", async () 
     test.client.query("update work_orders set status = 'pagado' where id = $1", [orderId]),
   ).rejects.toMatchObject({ code: "23514" });
 });
-it("incluye un legado en abiertas, normaliza la ficha y permite En pausa", async () => {
-  await update({ status: "en_reparacion" });
-  expect(
-    (await listOrders(test.db, owner, { scope: "open" })).map((row) => row.order.id),
-  ).toContain(orderId);
-  const detail = await orderDetail(test.db, owner, orderId);
-  expect(detail.ok && statusLabel(detail.order.status)).toBe("En progreso");
-  expect(await changeOrderStatus(test.db, owner, orderId, "en_pausa", null, NOW)).toEqual({
-    ok: true,
-  });
-});
-it("el traspaso de un taller no toca las órdenes del otro", async () => {
-  await update({ status: "en_reparacion" });
-  const foreign = await seed(other, "recibida");
-  await remapBranchStatuses(test.db, owner.branchId, false, NOW);
-  expect(await saved()).toMatchObject({ status: "en_progreso" });
-  const [row] = await test.db.select().from(workOrders).where(eq(workOrders.id, foreign));
-  expect(row?.status).toBe("recibida");
-});
-
 it("las dos transiciones de entrega tienen un orden temporal inequívoco", async () => {
   await ready(1000, 1000);
   await deliver();
@@ -281,7 +258,7 @@ it("las dos transiciones de entrega tienen un orden temporal inequívoco", async
 });
 
 it("seguimiento usa etiquetas actuales y conserva las heredadas de la línea de tiempo", async () => {
-  await update({ status: "en_reparacion" });
+  await update({ status: "en_progreso" });
   await test.db.insert(workOrderStatusHistory).values({
     branchId: owner.branchId,
     workOrderId: orderId,
