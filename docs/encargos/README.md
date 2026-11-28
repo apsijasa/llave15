@@ -40,7 +40,7 @@ Reparto (`docs/BITACORA.md` §2): Claude escribe el encargo y revisa lo que vuel
 - [ ] Tokens solo como hash; páginas públicas con `no-store`, `noindex`, `no-referrer`, rate limit y solo primer nombre.
 - [ ] Decisión NN registrada en §20.3 con el texto acordado; README actualizado; `.env.example` sin cambios salvo variable autorizada.
 - [ ] Capturas 820×1180 y 1280×800, claro y oscuro, de cada pantalla tocada (las toma Claude con el build local).
-- [ ] Reporte con los pasos exactos de Replit si hubo esquema.
+- [ ] Reporte con los pasos exactos de Replit si hubo esquema: en el Shell, `install` → `db:migrate` → `db:check` → `rm -rf node_modules`, y después Republish (`docs/BITACORA.md`, "Publicar con cambios de esquema"). Va también en la ventana.
 
 ## Etapa A (noviembre 2026)
 

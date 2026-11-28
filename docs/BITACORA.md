@@ -65,7 +65,7 @@ Después, **Deployments → Republish**.
 - Después de cambiar un secreto de la publicación hay que hacer Republish; no hace falta `git`.
 
 ### Publicar con cambios de esquema
-Hay que hacerlo con el taller cerrado y con un respaldo de la base del día. Antes de Republish:
+Los pasos del Shell van en toda publicación que traiga una migración, también en las que solo agregan columnas o tablas. El 28-11-2026, FX-07 y FX-08 se publicaron sin `db:migrate` y `/taller/inventario` respondió 500, porque a producción le faltaba `products.for_sale`. El taller cerrado y el respaldo del día se exigen solo para los cambios destructivos. Antes de Republish:
 
 ```bash
 corepack pnpm@12.4.2 install --frozen-lockfile
