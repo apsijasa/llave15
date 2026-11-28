@@ -102,14 +102,83 @@ if (Astro.request.method === "POST") {
       <a slot="actions" class="btn ghost" href="/taller/compras">Volver a compras</a>
     </PageHeader>
     {unavailable && <p role="alert">La lectura de facturas no está disponible: falta configurar el proveedor de IA.</p>}
-    <form method="post" enctype="multipart/form-data" class="stack">
+    <form method="post" enctype="multipart/form-data" class="stack" data-reading-form>
       <div class="field">
         <label for="documento">Factura del proveedor</label>
         <input id="documento" name="documento" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required aria-invalid={Boolean(error)} aria-describedby={error ? "documento-help documento-error" : "documento-help"} />
         <p id="documento-help">PDF de hasta 10 MB y 5 páginas, o una foto nítida. Los costos se guardan netos; los precios de venta no cambian.</p>
         {error && <p id="documento-error" role="alert">{error}</p>}
       </div>
-      <button class="btn" disabled={unavailable}>Leer factura</button>
+      <button class="btn" disabled={unavailable} data-reading-button>Leer factura</button>
+      <div class="reading-progress" data-reading-progress hidden>
+        <div class="reading-progress__track" role="progressbar" aria-label="Leyendo la factura"><span></span></div>
+      </div>
+      <p class="reading-progress__text" role="status" data-reading-status></p>
     </form>
   </div>
 </TallerLayout>
+
+<script>
+  /** Mientras el servidor lee la factura (10–60 s), la página muestra que el envío está en curso. */
+  const READING_LABEL = "Leyendo factura…";
+  const READING_STATUS = "Leyendo la factura. Puede tardar hasta un minuto; no cierres esta página.";
+
+  for (const form of document.querySelectorAll<HTMLFormElement>("form[data-reading-form]")) {
+    const button = form.querySelector<HTMLButtonElement>("[data-reading-button]");
+    const progress = form.querySelector<HTMLElement>("[data-reading-progress]");
+    const status = form.querySelector<HTMLElement>("[data-reading-status]");
+    if (!button || !progress || !status || button.disabled) continue;
+    const idleLabel = button.textContent ?? "";
+    const setReading = (reading: boolean) => {
+      button.disabled = reading;
+      button.textContent = reading ? READING_LABEL : idleLabel;
+      form.setAttribute("aria-busy", String(reading));
+      progress.hidden = !reading;
+      status.textContent = reading ? READING_STATUS : "";
+    };
+    form.addEventListener("submit", () => setReading(true));
+    // Al volver atrás desde la revisión, el navegador puede restaurar la página tal como quedó.
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) setReading(false);
+    });
+  }
+</script>
+
+<style is:global>
+  .taller .reading-progress__track {
+    position: relative;
+    height: 8px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-control);
+    background: var(--surface);
+  }
+  .taller .reading-progress__track span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 40%;
+    background: var(--accent);
+    animation: reading-progress 1.4s linear infinite;
+  }
+  /* Vacío, el aviso sigue en el árbol accesible (para anunciarse al llenarse) pero no ocupa lugar. */
+  .taller .reading-progress__text:empty {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  @keyframes reading-progress {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(250%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .taller .reading-progress__track span {
+      width: 100%;
+      animation: none;
+      background: repeating-linear-gradient(135deg, var(--hatch) 0 6px, var(--surface) 6px 12px);
+    }
+  }
+</style>
