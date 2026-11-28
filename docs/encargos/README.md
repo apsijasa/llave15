@@ -64,3 +64,4 @@ Reparto (`docs/BITACORA.md` §2): Claude escribe el encargo y revisa lo que vuel
 |---|---|---|---|---|
 | C-01 | [Panel: consultas del servidor](C-01-panel-servidor.md) | BG-D55 | — | `c-01` |
 | C-02 | [Panel: pantalla y gráficos SVG](C-02-panel-pantalla.md) | BG-D55 | — | `c-02` |
+| C-03 | [Panel: reportes descargables](C-03-reportes-descargables.md) | BG-D56 | — | `c-03` |

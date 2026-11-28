@@ -10,6 +10,7 @@ import BarChart from "../../components/taller/indicators/BarChart.astro";
 import Donut from "../../components/taller/indicators/Donut.astro";
 import Funnel from "../../components/taller/indicators/Funnel.astro";
 import DetailTables from "../../components/taller/indicators/DetailTables.astro";
+import ReportDownloads from "../../components/taller/indicators/ReportDownloads.astro";
 import PageHeader from "../../components/taller/PageHeader.astro";
 import TallerLayout from "../../layouts/TallerLayout.astro";
 import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
@@ -66,6 +67,14 @@ if (!indicators || !finance || !dashboard) return forbiddenResponse();
 const view = dashboardView(indicators, finance, dashboard);
 const subtitle = profile ? `${profile.name} · ${view.rangeLabel}` : view.rangeLabel;
 
+const reportLinks = [
+  { report: "ingresos-egresos", label: "Ingresos y egresos (CSV)" },
+  { report: "resumen", label: "Resumen del período (CSV)" },
+  { report: "mecanicos", label: "Por mecánico (CSV)" },
+].map(({ report, label }) => ({
+  label,
+  href: `/taller/indicadores/${report}.csv?desde=${encodeURIComponent(range.from)}&hasta=${encodeURIComponent(range.to)}`,
+}));
 const today = DateTime.fromJSDate(now, { zone: TIMEZONE });
 const previousMonth = today.minus({ months: 1 });
 const shortcuts = [
@@ -223,6 +232,7 @@ function financeSections(data: FinanceIndicators) {
         {shortcuts.map((shortcut) => <a href={shortcut.href} aria-current={shortcut.active ? "page" : undefined}>{shortcut.label}</a>)}
       </nav>
     </Card>
+    <ReportDownloads links={reportLinks} />
     <section aria-labelledby="overview-title">
       <SectionHeader id="overview-title" eyebrow="Visión general" title="El taller en una mirada" subtitle="Las cuatro señales principales para entender el período." />
       <div class="panel-kpis">{view.overview.primary.map((tile) => <KpiTile {...tile} />)}</div>

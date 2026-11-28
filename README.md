@@ -153,6 +153,8 @@ Dueño y administrador ven en **Indicadores** los ingresos por medio de pago, la
 
 Desde la Etapa C la pantalla es un panel: cuatro señales comparadas con el período anterior (ingresos, ticket promedio, trabajos abiertos y balance neto), evolución diaria de ingresos y gastos, mix de ingresos, servicios y estados que concentran la carga, antigüedad de los trabajos abiertos, embudos de adicionales y de agenda, recurrencia de clientes, cobertura de checklist, inventario y calidad del registro de pagos. Las tablas de siempre quedan al pie como detalle.
 
+La tarjeta **Descargar reportes** entrega tres CSV para Excel: **Ingresos y egresos**, **Resumen del período** y **Por mecánico**, con el rango vigente del panel. Se descargan desde `GET /taller/indicadores/<reporte>.csv?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` (`ingresos-egresos`, `resumen`, `mecanicos`). No incluyen datos personales de clientes ni texto libre; comisión y neto de cada pago solo salen con `costs.view`.
+
 ### Tareas diarias y respaldos
 
 El escenario de **Make.com** se configura para las **10:00**, zona **America/Santiago**, y encadena cuatro llamadas POST: `/api/tareas/recordatorios`, `/api/tareas/alertas`, `/api/tareas/retencion` y `/api/tareas/mantenciones`, con `Authorization: Bearer <TASKS_SECRET>`. El secreto va en Make.com y en los secretos de la publicación. Configura un aviso al dueño ante respuestas fallidas; los detalles están en **Recordatorios por correo (cron externo)**.

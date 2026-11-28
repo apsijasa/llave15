@@ -1,0 +1,17 @@
+---
+import Card from "../Card.astro";
+interface Props {
+  links: { label: string; href: string }[];
+}
+const { links } = Astro.props;
+---
+<Card title="Descargar reportes" id="downloads-title">
+  <div class="report-downloads">
+    {links.map(({ label, href }) => <a class="btn ghost" href={href} download>{label}</a>)}
+  </div>
+  <p class="muted">Archivos CSV para Excel, sin datos personales de clientes.</p>
+</Card>
+<style>
+  .report-downloads { display: flex; flex-wrap: wrap; gap: 8px; }
+  .report-downloads a { min-height: 48px; min-width: 48px; }
+</style>
