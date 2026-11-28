@@ -282,9 +282,13 @@ export async function customerTimeline(
   customerId: string,
 ): Promise<TimelineEvent[]> {
   if (!can(actor.role, "customers.manage") || !z.uuid().safeParse(customerId).success) return [];
-  if (!(await getCustomer(db, actor, customerId))) return [];
-  const orders = await customerOrders(db, actor, customerId);
-  const sales = await listCustomerSales(db, actor, customerId);
+  // Lecturas independientes: van en paralelo para no sumar un viaje a la base por cada una.
+  const [customer, orders, sales] = await Promise.all([
+    getCustomer(db, actor, customerId),
+    customerOrders(db, actor, customerId),
+    listCustomerSales(db, actor, customerId),
+  ]);
+  if (!customer) return [];
   const saleEvents: TimelineEvent[] = sales.map((sale) => ({
     at: sale.createdAt.toISOString(),
     kind: "sale",
