@@ -26,10 +26,12 @@ if (!can(user.role, "orders.edit")) return forbiddenResponse();
 Astro.response.headers.set("cache-control", "no-store");
 const { name, role } = user;
 // Lecturas independientes: van en paralelo para no sumar un viaje a la base por cada una.
-const [lowStock, admin, mechanic] = await Promise.all([
+const [lowStock, admin, mechanic, profile] = await Promise.all([
   branchLowStock(db, user),
   can(role, "dashboard.admin") ? adminDashboard(db, user, now) : null,
   can(role, "dashboard.mechanic") ? mechanicDashboard(db, user, now) : null,
+  // El enlace de reservas es informativo: si el perfil falla, la portada se muestra sin él.
+  profileForBranch(db, user.branchId).catch(() => null),
 ]);
 type AdminDashboard = NonNullable<Awaited<ReturnType<typeof adminDashboard>>>;
 type OrderCard = DashboardOrder & { balance?: number };
@@ -97,7 +99,6 @@ const actions = ACTIONS.filter((entry) => can(role, entry.action));
 /** El enlace público es informativo: si falta `PUBLIC_SITE_URL`, la tarjeta se muestra sin él. */
 let bookingUrl: string | null = null;
 try {
-  const profile = await profileForBranch(db, user.branchId);
   if (profile) bookingUrl = new URL(`/${profile.slug}/reservar`, getAppEnv().APP_URL).toString();
 } catch {
   bookingUrl = null;

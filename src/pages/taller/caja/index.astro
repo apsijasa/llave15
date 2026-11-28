@@ -140,13 +140,15 @@ if (Astro.request.method === "POST") {
 }
 
 const cash = await db.transaction((tx) => requireOpenCashSession(tx, user.branchId));
-const current = cash.mode === "open" ? await currentCashSession(db, user) : null;
+const [current, sessions] = await Promise.all([
+  cash.mode === "open" ? currentCashSession(db, user) : null,
+  listCashSessions(db, user),
+]);
 const session = current && !("ok" in current) ? current : null;
 const summary = session ? await dayPaymentsSummary(db, user, now) : [];
 const otherMethods = Array.isArray(summary)
   ? summary.filter((row) => row.method !== "efectivo")
   : [];
-const sessions = await listCashSessions(db, user);
 const previous = Array.isArray(sessions) ? sessions.filter((row) => row.closedAt) : [];
 let openedBy = "";
 if (session) {
