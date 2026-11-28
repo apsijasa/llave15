@@ -42,6 +42,7 @@ const expectedLinks: Record<Role, string[][]> = {
   owner: [
     ...staffLinks,
     ["/taller/indicadores", "Indicadores"],
+    ["/taller/calculadora", "Calculadora"],
     ["/taller/usuarios", "Usuarios"],
     // BG-44: "Mi taller" con shop.manage, solo el dueño.
     ["/taller/mi-taller", "Mi taller"],
@@ -53,6 +54,7 @@ const expectedLinks: Record<Role, string[][]> = {
   admin: [
     ...staffLinks,
     ["/taller/indicadores", "Indicadores"],
+    ["/taller/calculadora", "Calculadora"],
     ["/admin/bloqueos", "Bloqueos"],
     ...knowledgeLinks,
     ...stockLinks,

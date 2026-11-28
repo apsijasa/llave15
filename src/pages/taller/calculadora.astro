@@ -1,0 +1,202 @@
+---
+import { z } from "zod";
+import Card from "../../components/taller/Card.astro";
+import PageHeader from "../../components/taller/PageHeader.astro";
+import MonthlyCostsForm from "../../components/taller/costing/MonthlyCostsForm.astro";
+import ServiceCostForm from "../../components/taller/costing/ServiceCostForm.astro";
+import ProductPriceForm from "../../components/taller/costing/ProductPriceForm.astro";
+import type { Props as ResultProps } from "../../components/taller/costing/CostResult.astro";
+import TallerLayout from "../../layouts/TallerLayout.astro";
+import { PLATFORM } from "../../lib/platform.ts";
+import { isAllowedOrigin } from "../../server/api/handlers.ts";
+import { loginRedirect, requireAdmin, SESSION_COOKIE } from "../../server/auth/admin-auth.ts";
+import { can, forbiddenResponse } from "../../server/auth/permissions.ts";
+import { getDb } from "../../server/db/client.ts";
+import { formatClp } from "../../server/email/templates.ts";
+import { listCatalog } from "../../server/taller/catalog.ts";
+import {
+  costProfileSchema,
+  getCostProfile,
+  saveCostProfile,
+  suggestedMonthlyCosts,
+  serviceQuote,
+  productQuote,
+} from "../../server/taller/costing.ts";
+import type { ServiceQuote, ProductQuote } from "../../server/taller/costing.ts";
+import { monthlyTotal, hourlyCost } from "../../server/taller/costing-rules.ts";
+import type { PriceRow } from "../../server/taller/costing-rules.ts";
+import { listProducts } from "../../server/taller/products.ts";
+import { BIKE_TYPES, BIKE_TYPE_LABELS } from "../../server/taller/rules.ts";
+
+export const prerender = false;
+const db = getDb();
+const now = new Date();
+const user = await requireAdmin(db, Astro.cookies.get(SESSION_COOKIE)?.value, now);
+if (!user)
+  return new Response(null, {
+    status: 303,
+    headers: { location: loginRedirect(Astro.url.pathname), "cache-control": "no-store" },
+  });
+if (!can(user.role, "costs.view")) return forbiddenResponse();
+Astro.response.headers.set("cache-control", "no-store");
+if (!["GET", "POST"].includes(Astro.request.method))
+  return new Response(null, {
+    status: 405,
+    headers: { allow: "GET, POST", "cache-control": "no-store" },
+  });
+const PATH = "/taller/calculadora";
+const [profile, suggested, catalog, inventory] = await Promise.all([
+  getCostProfile(db, user),
+  suggestedMonthlyCosts(db, user, now),
+  listCatalog(db, user),
+  listProducts(db, user),
+]);
+if (!profile || !suggested) return forbiddenResponse();
+const strings = (values: object): Record<string, string> =>
+  Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value)]));
+let monthlyValues = strings(costProfileSchema.parse(profile));
+let serviceValues: Record<string, string> = {};
+let productValues: Record<string, string> = {};
+const monthlyErrors: Record<string, string> = {};
+const serviceErrors: Record<string, string> = {};
+const productErrors: Record<string, string> = {};
+let error: string | null = null;
+let serviceResult: ServiceQuote | undefined;
+let productResult: ProductQuote | undefined;
+function fieldMessage(field: string) {
+  if (field === "billableHoursMonth") return "Escribe horas enteras de 0 a 744.";
+  if (field === "targetMarginPct" || field === "marginPct")
+    return "Escribe un margen entero de 0 a 90.";
+  if (field === "minutes") return "Escribe minutos enteros de 1 a 1440.";
+  if (field === "packJobs") return "Escribe una cantidad entera de 1 a 10.000.";
+  if (field === "serviceId") return "Elige un servicio o escribe los minutos.";
+  if (field === "productId") return "Elige un producto o escribe el costo.";
+  if (field === "bikeType") return "Elige un tipo de bici válido.";
+  return "Escribe un número entero en pesos.";
+}
+if (Astro.request.method === "POST") {
+  if (!isAllowedOrigin(Astro.request)) return forbiddenResponse();
+  const form = await Astro.request.formData();
+  const values = Object.fromEntries(
+    [...form.entries()].map(([key, value]) => [key, String(value)]),
+  );
+  const action = z.enum(["save", "suggest", "service", "product"]).safeParse(values.action);
+  if (!action.success) {
+    Astro.response.status = 422;
+    error = "Elige una acción válida.";
+  } else if (action.data === "suggest") {
+    monthlyValues = { ...monthlyValues, ...values, ...strings(suggested.values) };
+  } else {
+    const kind = action.data;
+    if (kind === "save") monthlyValues = values;
+    if (kind === "service") serviceValues = values;
+    if (kind === "product") productValues = values;
+    const result =
+      kind === "save"
+        ? await saveCostProfile(db, user, values, now)
+        : kind === "service"
+          ? await serviceQuote(db, user, values)
+          : await productQuote(db, user, values);
+    if (result.ok) {
+      if (kind === "save")
+        return new Response(null, {
+          status: 303,
+          headers: { location: `${PATH}?hecho=gastos`, "cache-control": "no-store" },
+        });
+      if ("quote" in result) {
+        if ("serviceName" in result.quote) {
+          serviceResult = result.quote;
+          serviceValues = result.values;
+        } else {
+          productResult = result.quote;
+          productValues = result.values;
+        }
+      }
+    } else {
+      if (result.code === "forbidden") return forbiddenResponse();
+      Astro.response.status = result.code === "not_found" ? 404 : 422;
+      error =
+        result.code === "hours_missing"
+          ? "Guarda primero las horas facturables del mes."
+          : result.code === "not_found"
+            ? `No se encontró ese ${kind === "service" ? "servicio" : "producto"} en tu taller.`
+            : "Revisa los campos marcados.";
+      const errors =
+        kind === "save" ? monthlyErrors : kind === "service" ? serviceErrors : productErrors;
+      for (const field of result.fields ?? []) errors[field] = fieldMessage(field);
+    }
+  }
+}
+const parsedMonthly = costProfileSchema.safeParse(monthlyValues);
+const summaryValues = parsedMonthly.success ? parsedMonthly.data : profile;
+const monthlyClp = monthlyTotal(summaryValues);
+const hourlyClp = hourlyCost(monthlyClp, summaryValues.billableHoursMonth);
+const month = new Intl.DateTimeFormat("es-CL", { month: "long", timeZone: "UTC" }).format(
+  new Date(`${suggested.range.from}T12:00:00Z`),
+);
+const monthLabel = month.charAt(0).toUpperCase() + month.slice(1);
+const hints = Object.fromEntries(
+  Object.entries(suggested.values).map(([key, value]) => [
+    key,
+    `${monthLabel}: ${formatClp(value)}`,
+  ]),
+);
+const money = (value: number | null) => (value === null ? "—" : formatClp(value));
+const percent = (value: number | null) => (value === null ? "—" : `${value}%`);
+const table = (rows: PriceRow[]): ResultProps["table"] => ({
+  caption: "Precios sugeridos según margen sobre el precio de venta",
+  rows: rows.map((row) => ({
+    margin: percent(row.marginPct),
+    net: money(row.netClp),
+    gross: money(row.grossClp),
+  })),
+});
+function serviceDisplay(quote: ServiceQuote): ResultProps {
+  return {
+    label: "Resultado del servicio",
+    rows: [
+      { term: "Costo por hora", value: money(quote.hourlyCostClp) },
+      { term: "Mano de obra", value: money(quote.laborClp) },
+      { term: "Insumos", value: money(quote.suppliesClp) },
+      { term: "Costo del servicio", value: money(quote.costClp) },
+      { term: "Precio neto sugerido", value: money(quote.priceNetClp) },
+      { term: "Precio con IVA", value: money(quote.priceGrossClp) },
+      { term: "Precio de catálogo", value: money(quote.catalogPriceClp) },
+      { term: "Margen actual", value: percent(quote.catalogMarginPct) },
+    ],
+    table: table(quote.table),
+    note: quote.serviceName ?? "Servicio con minutos escritos a mano.",
+  };
+}
+function productDisplay(quote: ProductQuote): ResultProps {
+  return {
+    label: "Resultado del producto",
+    rows: [
+      { term: "Costo", value: money(quote.costClp) },
+      { term: "Precio neto sugerido", value: money(quote.priceNetClp) },
+      { term: "Precio con IVA", value: money(quote.priceGrossClp) },
+      { term: "Precio actual", value: money(quote.currentPriceClp) },
+      { term: "Margen actual", value: percent(quote.currentMarginPct) },
+    ],
+    table: table(quote.table),
+    note: quote.productLabel ?? "Producto con costo escrito a mano.",
+  };
+}
+---
+<TallerLayout title={`Calculadora de costos — ${PLATFORM.name}`} description="Gastos del mes, costo por hora y precio con margen." path={PATH} user={user}>
+  <div class="stack costing-page">
+    <PageHeader title="Calculadora de costos" subtitle="Gastos del mes, costo por hora y precio con margen." />
+    {Astro.url.searchParams.get("hecho") === "gastos" && <p role="status">Gastos mensuales guardados.</p>}
+    {error && <p role="alert">{error}</p>}
+    <Card title="Gastos del mes" id="monthly-costs">
+      <MonthlyCostsForm action={PATH} values={monthlyValues} errors={monthlyErrors} hints={hints} summary={{ monthly: money(monthlyClp), hourly: hourlyClp === null ? null : money(hourlyClp) }} />
+    </Card>
+    <Card title="Costo de un servicio" id="service-cost">
+      <ServiceCostForm action={PATH} services={catalog.filter((service) => service.isActive).map(({ id, name }) => ({ id, name }))} bikeTypes={BIKE_TYPES.map((value) => ({ value, label: BIKE_TYPE_LABELS[value] }))} values={serviceValues} errors={serviceErrors} result={serviceResult ? serviceDisplay(serviceResult) : undefined} />
+    </Card>
+    <Card title="Precio de un producto" id="product-price">
+      <ProductPriceForm action={PATH} products={inventory.filter((product) => product.isActive).map((product) => ({ id: product.id, label: `${product.sku} · ${product.name}` }))} values={productValues} errors={productErrors} result={productResult ? productDisplay(productResult) : undefined} />
+    </Card>
+    <p class="muted">Cifras aproximadas: no incluyen comisiones de cobro, descuentos ni gastos que no escribiste. Los repuestos se cobran aparte en cada orden. Precio sugerido; redondéalo al fijar el precio de lista.</p>
+  </div>
+</TallerLayout>

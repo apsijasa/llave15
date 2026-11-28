@@ -63,6 +63,7 @@ export type AuditAction =
   | "cash.opened"
   | "cash.closed"
   | "cash.refund"
+  | "costing.profile_saved"
   | "expense.recorded"
   | "expense.voided"
   | "proposal.created"

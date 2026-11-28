@@ -1,0 +1,35 @@
+---
+import CostResult from "./CostResult.astro";
+import type { Props as ResultProps } from "./CostResult.astro";
+interface Props {
+  action: string;
+  products: { id: string; label: string }[];
+  values: Record<string, string>;
+  errors: Record<string, string>;
+  result?: ResultProps;
+}
+const { action, products, values, errors, result } = Astro.props;
+const fields = [
+  ["costClp", "Costo neto"],
+  ["marginPct", "Margen del producto (%)"],
+] as const;
+---
+<form method="post" action={action} class="stack costing-product">
+  <div class="field">
+    <label for="product-productId">Producto del inventario</label>
+    <select id="product-productId" name="productId" aria-invalid={Boolean(errors.productId)} aria-describedby={errors.productId ? "product-productId-error" : undefined}>
+      <option value="">Escribir el costo a mano</option>
+      {products.map((product) => <option value={product.id} selected={values.productId === product.id}>{product.label}</option>)}
+    </select>
+    {errors.productId && <p id="product-productId-error">{errors.productId}</p>}
+  </div>
+  <div class="fields">
+    {fields.map(([key, label]) => <div class="field">
+      <label for={`product-${key}`}>{label}</label>
+      <input id={`product-${key}`} name={key} inputmode="numeric" value={values[key] ?? ""} aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `product-${key}-error` : undefined} />
+      {errors[key] && <p id={`product-${key}-error`}>{errors[key]}</p>}
+    </div>)}
+  </div>
+  <p><button type="submit" class="btn" name="action" value="product">Calcular producto</button></p>
+  {result && <CostResult {...result} />}
+</form>

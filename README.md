@@ -155,6 +155,16 @@ Desde la Etapa C la pantalla es un panel: cuatro señales comparadas con el per�
 
 La tarjeta **Descargar reportes** entrega tres CSV para Excel: **Ingresos y egresos**, **Resumen del período** y **Por mecánico**, con el rango vigente del panel. Se descargan desde `GET /taller/indicadores/<reporte>.csv?desde=AAAA-MM-DD&hasta=AAAA-MM-DD` (`ingresos-egresos`, `resumen`, `mecanicos`). No incluyen datos personales de clientes ni texto libre; comisión y neto de cada pago solo salen con `costs.view`.
 
+### Calculadora de costos
+
+Dueño y administración usan `/taller/calculadora` con `costs.view`. Guarda los gastos mensuales y las horas facturables por sucursal; sugiere gastos desde el mes calendario anterior, sin repuestos, y permite elegir servicios del catálogo o productos del inventario.
+
+- Gasto del mes ÷ horas facturables = costo por hora.
+- Minutos × costo por hora ÷ 60 + insumos = costo del servicio.
+- Precio neto = costo ÷ (1 − margen).
+
+La ganancia se mide sobre el precio de venta; el precio sugerido se redondea hacia arriba al peso y también se muestra con IVA. La calculadora nunca cambia precios guardados.
+
 ### Tareas diarias y respaldos
 
 El escenario de **Make.com** se configura para las **10:00**, zona **America/Santiago**, y encadena cuatro llamadas POST: `/api/tareas/recordatorios`, `/api/tareas/alertas`, `/api/tareas/retencion` y `/api/tareas/mantenciones`, con `Authorization: Bearer <TASKS_SECRET>`. El secreto va en Make.com y en los secretos de la publicación. Configura un aviso al dueño ante respuestas fallidas; los detalles están en **Recordatorios por correo (cron externo)**.
