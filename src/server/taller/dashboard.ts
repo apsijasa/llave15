@@ -180,14 +180,19 @@ async function incomeToday(db: AppDb, actor: SessionUser, today: string) {
   return Number(row?.amount ?? 0);
 }
 
-async function mechanicLoad(db: AppDb, actor: SessionUser, orders: OrderRow[]) {
-  const mechanics = await db
+function activeMechanics(db: AppDb, actor: SessionUser) {
+  return db
     .select({ mechanicId: users.id, name: users.name })
     .from(users)
     .where(
       and(eq(users.branchId, actor.branchId), eq(users.role, "mechanic"), eq(users.isActive, true)),
     )
     .orderBy(asc(users.name), asc(users.id));
+}
+
+type Mechanic = Awaited<ReturnType<typeof activeMechanics>>[number];
+
+function mechanicLoad(mechanics: Mechanic[], orders: OrderRow[]) {
   const loads = new Map<string, { openOrders: number; minutes: number }>();
   for (const order of orders) {
     if (!order.assignedMechanicId || !hasLoad(order)) continue;
@@ -213,10 +218,11 @@ export async function adminDashboard(db: AppDb, actor: SessionUser, now: Date) {
   if (!can(actor.role, "dashboard.admin")) return null;
   const today = localToday(now);
   const finance = can(actor.role, "dashboard.finance");
-  const [orders, bookingsToday, incomeTodayClp] = await Promise.all([
+  const [orders, bookingsToday, incomeTodayClp, mechanics] = await Promise.all([
     dashboardOrders(db, actor),
     activeBookings(db, actor.branchId, today, today),
     finance ? incomeToday(db, actor, today) : null,
+    activeMechanics(db, actor),
   ]);
   const workshopStatuses: readonly string[] = ORDER_STATUSES.slice(
     ORDER_STATUSES.indexOf("creado"),
@@ -243,7 +249,7 @@ export async function adminDashboard(db: AppDb, actor: SessionUser, now: Date) {
       .map(orderItem),
     overdue: orders.filter((order) => isOverdue(order, today)).map(orderItem),
     upcomingDeliveries: orders.filter((order) => isDueSoon(order, today)).map(orderItem),
-    loadByMechanic: await mechanicLoad(db, actor, orders),
+    loadByMechanic: mechanicLoad(mechanics, orders),
     pendingPayments: finance ? pendingPayments(orders) : null,
   };
 }

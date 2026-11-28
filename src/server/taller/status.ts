@@ -106,20 +106,27 @@ export async function orderDetail(db: AppDb, actor: SessionUser, id: string) {
   if (!header || header.order.voidedAt) return { ok: false, code: "not_found" } as const;
   if (!canAccessOrder(actor, header.order)) return { ok: false, code: "forbidden" } as const;
   const { customer, order, bike } = header;
-  const [warranty] = order.warrantyOfOrderId
-    ? await db
-        .select({ number: workOrders.number })
-        .from(workOrders)
-        .where(
-          and(eq(workOrders.branchId, actor.branchId), eq(workOrders.id, order.warrantyOfOrderId)),
-        )
-    : [];
-  const [mechanic] = order.assignedMechanicId
-    ? await db
-        .select({ name: users.name })
-        .from(users)
-        .where(and(eq(users.branchId, actor.branchId), eq(users.id, order.assignedMechanicId)))
-    : [];
+  // Lecturas independientes: van en paralelo para no sumar un viaje a la base por cada una.
+  const [[warranty], [mechanic], history] = await Promise.all([
+    order.warrantyOfOrderId
+      ? db
+          .select({ number: workOrders.number })
+          .from(workOrders)
+          .where(
+            and(
+              eq(workOrders.branchId, actor.branchId),
+              eq(workOrders.id, order.warrantyOfOrderId),
+            ),
+          )
+      : [],
+    order.assignedMechanicId
+      ? db
+          .select({ name: users.name })
+          .from(users)
+          .where(and(eq(users.branchId, actor.branchId), eq(users.id, order.assignedMechanicId)))
+      : [],
+    orderHistory(db, actor, id),
+  ]);
   return {
     ok: true,
     order,
@@ -131,7 +138,7 @@ export async function orderDetail(db: AppDb, actor: SessionUser, id: string) {
         ? { phoneE164: customer.phoneE164, email: customer.email, rut: customer.rut }
         : {}),
     },
-    history: await orderHistory(db, actor, id),
+    history,
     warrantyOfNumber: warranty?.number ?? null,
     mechanicName: mechanic?.name ?? null,
   } as const;

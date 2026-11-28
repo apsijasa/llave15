@@ -64,6 +64,8 @@ export default defineConfig({
       STORAGE_LOCAL_DIR: E2E_STORAGE_DIR,
       TASKS_SECRET: E2E_TASKS_SECRET,
       WHATSAPP_ENABLED: "false",
+      // El `.env` local puede traer `anthropic`: las pruebas nunca llaman a la red.
+      AI_PROVIDER: "none",
     },
   },
 });
