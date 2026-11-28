@@ -131,7 +131,7 @@ Astro 7 (output server, @astrojs/node standalone) · TypeScript 6 · Preact (isl
 - **Forma:** reglas de 1px y sin sombras siempre; radio 2px hasta BG-47; desde BG-48, 8px controles y 12px tarjetas, espaciado múltiplo de 4px.
 - **Botón primario:** hasta BG-47, `--ink` + `--on-ink` con **hover que invierte** (fondo `--surface`, texto y borde `--ink`); desde BG-48, `--accent` + `--on-ink`, hover `--accent-hover`, una acción primaria por zona y las demás `.btn.ghost`. Foco: hasta BG-47 2px `--ink` a 3px; desde BG-48 2px `--focus` a 2px, blanco sobre grafito. Nav: `.nav a:not(.btn)`.
 - **Formularios:** etiqueta arriba; `.fields{align-items:start}`, `.field{align-content:start}`.
-- **Movimiento:** `--dur-fast` 140ms, `--dur` 160ms, máx. 250ms, `--ease: cubic-bezier(.2,.7,.2,1)`; `prefers-reduced-motion` → 0ms.
+- **Movimiento:** `--dur-fast` 140ms, `--dur` 160ms, máx. 250ms, `--ease: cubic-bezier(.2,.7,.2,1)`; `prefers-reduced-motion` → 0ms. Única excepción: la barra en bucle mientras se lee una factura (`/taller/compras/factura`), que se detiene con `prefers-reduced-motion`.
 - **Layout:** `.wrap` máx. 1180px; objetivos táctiles ≥ 44px. `AppLayout` (raíz del sistema) ← `TallerLayout` (personal) y `PublicLayout` (cliente: manda el nombre o logo del taller; pie `Gestionado con Llave 15`, desde BG-49 `<Taller> · Gestionado con Llave 15`). Desde BG-49 el menú del personal va en grafito con la firma invertida (`alt="Llave 15"`).
 - **Área `/taller`:** mismos tokens; hex solo en `tokens.css` (hasta BG-46, ningún hex nuevo); objetivos ≥ 48px; estados con forma + texto (desde BG-48, además el color de su grupo); tablas densas con `tabular-nums`; órdenes `neto` con `OrderAmounts.astro`; ninguna isla nueva. Detalle en `.claude/rules/taller-ui.md`.
 

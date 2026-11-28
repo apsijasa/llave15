@@ -178,6 +178,15 @@ it("muestra carga con accept/capture y none la deshabilita", async () => {
   expect(disabled).toContain("La lectura de facturas no está disponible");
   expect(disabled).toMatch(/<button[^>]*disabled/);
 });
+it("trae la barra de lectura oculta y el aviso vacío para el envío", async () => {
+  const html = await (await render()).text();
+  expect(html).toContain("data-reading-form");
+  expect(html).toMatch(
+    /<div class="reading-progress"[^>]*hidden[^>]*>\s*<div class="reading-progress__track" role="progressbar" aria-label="Leyendo la factura">/,
+  );
+  expect(html).toMatch(/<p class="reading-progress__text" role="status"[^>]*><\/p>/);
+  expect(html).not.toContain("aria-busy");
+});
 it("rechaza POST sin origin y valida el archivo con aria-invalid", async () => {
   expect((await render(undefined, upload(), token, "")).status).toBe(403);
   const response = await render(undefined, new FormData());
